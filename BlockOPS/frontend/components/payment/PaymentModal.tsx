@@ -7,8 +7,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Wallet, CheckCircle2, XCircle, ExternalLink, AlertTriangle } from "lucide-react"
 import { useAuth } from "@/lib/auth"
-import { useWallets } from "@privy-io/react-auth"
-import { ethers } from "ethers"
+import { sendDeploy, casperDeployUrl, fetchCsprBalance } from "@/lib/wallet"
+import { CHAIN_CONFIGS, DEFAULT_CHAIN_ID } from "@/lib/chains"
 import { toast } from "@/components/ui/use-toast"
 import { PaymentAgreementModal } from "./PaymentAgreementModal"
 
@@ -17,13 +17,16 @@ interface PaymentModalProps {
   onOpenChange: (open: boolean) => void
   toolName: string
   toolDisplayName: string
-  price: string // e.g., "0.25"
+  price: string
   agentId?: string
   onPaymentSuccess?: (paymentHash: string, executionToken: string) => void
   onPaymentError?: (error: string) => void
 }
 
-type PaymentStatus = "idle" | "checking-balance" | "approving" | "waiting-approval" | "paying" | "verifying" | "success" | "error"
+type PaymentStatus = "idle" | "checking-balance" | "paying" | "verifying" | "success" | "error"
+
+const CEP18_CONTRACT_HASH = process.env.NEXT_PUBLIC_CEP18_CONTRACT_HASH || ""
+const PAYMENT_RECIPIENT = process.env.NEXT_PUBLIC_PAYMENT_RECIPIENT_PUBLIC_KEY || ""
 
 export function PaymentModal({
   open,
@@ -35,37 +38,17 @@ export function PaymentModal({
   onPaymentSuccess,
   onPaymentError,
 }: PaymentModalProps) {
-  const { user, authenticated } = useAuth()
-  const { wallets } = useWallets()
-  
+  const { user, authenticated, publicKey, isWalletLogin } = useAuth() as any
+  const signerPublicKey = publicKey ?? user?.publicKey ?? null
+
   const [status, setStatus] = useState<PaymentStatus>("idle")
   const [error, setError] = useState<string>("")
-  const [usdcBalance, setUsdcBalance] = useState<string>("")
+  const [csprBalance, setCsprBalance] = useState<string>("")
   const [txHash, setTxHash] = useState<string>("")
   const [executionToken, setExecutionToken] = useState<string>("")
   const [hasAgreedToTerms, setHasAgreedToTerms] = useState<boolean>(false)
   const [showAgreementModal, setShowAgreementModal] = useState(false)
 
-  // Arbitrum Sepolia configuration
-  const ARBITRUM_SEPOLIA_CHAIN_ID = 421614
-  const ARBITRUM_SEPOLIA_RPC = process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc"
-  const USDC_ADDRESS = process.env.NEXT_PUBLIC_USDC_ADDRESS || "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
-  const PAYMENT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_PAYMENT_CONTRACT_ADDRESS
-
-  // USDC ABI (minimal - just what we need)
-  const USDC_ABI = [
-    "function balanceOf(address owner) view returns (uint256)",
-    "function approve(address spender, uint256 amount) returns (bool)",
-    "function allowance(address owner, address spender) view returns (uint256)",
-    "function decimals() view returns (uint8)",
-  ]
-
-  // Payment Contract ABI (minimal)
-  const PAYMENT_ABI = [
-    "function createPayment(address token, uint256 amount, string agentId, string toolName) payable returns (bytes32)",
-  ]
-
-  // Check if user has agreed to terms
   useEffect(() => {
     if (open && authenticated && user) {
       checkPaymentAgreement()
@@ -74,57 +57,38 @@ export function PaymentModal({
 
   const checkPaymentAgreement = async () => {
     if (!user?.id) return
-
     try {
       const response = await fetch(`/api/payments/agreement?userId=${user.id}&version=v1.0`)
       const data = await response.json()
-      setHasAgreedToTerms(data.hasAgreed || false)
-    } catch (error) {
-      console.error("Error checking payment agreement:", error)
+      setHasAgreedToTerms(Boolean(data?.hasAgreed))
+    } catch (err) {
+      console.error("Error checking payment agreement:", err)
     }
   }
 
-  // Check USDC balance when modal opens
   useEffect(() => {
-    if (open && wallets.length > 0) {
-      checkUSDCBalance()
+    if (open && signerPublicKey) {
+      checkBalance()
     }
-  }, [open, wallets])
+  }, [open, signerPublicKey])
 
-  const checkUSDCBalance = async () => {
-    if (wallets.length === 0) return
-
+  const checkBalance = async () => {
+    if (!signerPublicKey) return
     setStatus("checking-balance")
     try {
-      const wallet = wallets[0]
-      const ethereumProvider = await wallet.getEthereumProvider()
-      const provider = new ethers.BrowserProvider(ethereumProvider)
-      const signer = await provider.getSigner()
-      const address = await signer.getAddress()
-
-      const usdcContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, provider)
-      const balance = await usdcContract.balanceOf(address)
-      const decimals = await usdcContract.decimals()
-      
-      const formattedBalance = ethers.formatUnits(balance, decimals)
-      setUsdcBalance(formattedBalance)
+      const bal = await fetchCsprBalance(signerPublicKey)
+      setCsprBalance(bal ?? "0")
       setStatus("idle")
-    } catch (error) {
-      console.error("Error checking USDC balance:", error)
-      setError("Failed to check USDC balance")
+    } catch (err) {
+      console.error("Error checking CSPR balance:", err)
+      setError("Failed to check CSPR balance")
       setStatus("error")
     }
   }
 
   const handlePayment = async () => {
-    if (!wallets.length) {
-      setError("Please connect your wallet first")
-      setStatus("error")
-      return
-    }
-
-    if (!PAYMENT_CONTRACT_ADDRESS) {
-      setError("Payment contract not configured")
+    if (!signerPublicKey) {
+      setError("Please connect your Casper wallet via CSPR.click first")
       setStatus("error")
       return
     }
@@ -135,112 +99,94 @@ export function PaymentModal({
       return
     }
 
+    setStatus("paying")
+    setError("")
+
     try {
-      const wallet = wallets[0]
-      const ethereumProvider = await wallet.getEthereumProvider()
-      const provider = new ethers.BrowserProvider(ethereumProvider)
-      const signer = await provider.getSigner()
-      const address = await signer.getAddress()
-
-      // Check network
-      const network = await provider.getNetwork()
-      if (Number(network.chainId) !== ARBITRUM_SEPOLIA_CHAIN_ID) {
-        setError(`Please switch to Arbitrum Sepolia network (Chain ID: ${ARBITRUM_SEPOLIA_CHAIN_ID})`)
-        setStatus("error")
-        return
+      const priceNum = Number(price)
+      if (!Number.isFinite(priceNum) || priceNum <= 0) {
+        throw new Error(`Invalid price: ${price}`)
       }
 
-      // Parse amount
-      const usdcContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, provider)
-      const decimals = await usdcContract.decimals()
-      const amount = ethers.parseUnits(price, decimals)
+      const amountMotes = BigInt(Math.round(priceNum * 1_000_000_000)).toString()
 
-      // Check balance
-      const balance = await usdcContract.balanceOf(address)
-      if (balance < amount) {
-        setError(`Insufficient USDC balance. You have ${ethers.formatUnits(balance, decimals)} USDC but need ${price} USDC`)
-        setStatus("error")
-        return
+      const deployJson: any = {
+        contractHash: CEP18_CONTRACT_HASH.startsWith("hash-")
+          ? CEP18_CONTRACT_HASH
+          : CEP18_CONTRACT_HASH
+            ? `hash-${CEP18_CONTRACT_HASH}`
+            : "",
+        entryPoint: "transfer",
+        args: {
+          recipient: PAYMENT_RECIPIENT,
+          amount: amountMotes,
+        },
+        signingPublicKey: signerPublicKey,
+        chainName: CHAIN_CONFIGS[DEFAULT_CHAIN_ID].chainName,
+        metadata: {
+          toolName,
+          toolDisplayName,
+          agentId: agentId || "",
+          priceCspr: price,
+          paidAt: new Date().toISOString(),
+        },
       }
 
-      // Step 1: Approve USDC spending
-      setStatus("approving")
-      setError("")
+      const sent = await sendDeploy(deployJson, signerPublicKey, true)
+      const deployHash =
+        (sent as any)?.deployHash ??
+        (sent as any)?.deploy_hash ??
+        (sent as any)?.hash ??
+        ""
 
-      const allowance = await usdcContract.allowance(address, PAYMENT_CONTRACT_ADDRESS)
-      
-      if (allowance < amount) {
-        const usdcWithSigner = usdcContract.connect(signer) as any
-        const approveTx = await usdcWithSigner.approve(PAYMENT_CONTRACT_ADDRESS, amount)
-        
-        setStatus("waiting-approval")
-        await approveTx.wait()
+      if (!deployHash) {
+        throw new Error("Wallet did not return a deploy hash")
       }
 
-      // Step 2: Create payment
-      setStatus("paying")
-      const paymentContract = new ethers.Contract(PAYMENT_CONTRACT_ADDRESS, PAYMENT_ABI, signer) as any
-      
-      const paymentTx = await paymentContract.createPayment(
-        USDC_ADDRESS,
-        amount,
-        agentId || "",
-        toolName
-      )
+      setTxHash(deployHash)
 
-      const receipt = await paymentTx.wait()
-      const paymentHash = receipt.hash
-
-      setTxHash(paymentHash)
-
-      // Step 3: Verify payment with backend
       setStatus("verifying")
-      
+
       const verifyResponse = await fetch("/api/payments/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          paymentHash,
+          paymentHash: deployHash,
           userId: user?.id,
           agentId: agentId || null,
           toolName,
+          amountCspr: price,
         }),
       })
 
       if (!verifyResponse.ok) {
-        const errorData = await verifyResponse.json()
-        throw new Error(errorData.error || "Payment verification failed")
+        const errData = await verifyResponse.json().catch(() => ({}))
+        throw new Error(errData?.error || errData?.message || "Payment verification failed")
       }
 
       const verifyData = await verifyResponse.json()
-      setExecutionToken(verifyData.executionToken)
+      setExecutionToken(verifyData.executionToken || verifyData.token || "")
       setStatus("success")
 
       toast({
         title: "Payment Successful!",
-        description: `Your payment of ${price} USDC has been confirmed.`,
+        description: `Paid ${price} CSPR for ${toolDisplayName}.`,
       })
 
-      // Call success callback
       if (onPaymentSuccess) {
-        onPaymentSuccess(paymentHash, verifyData.executionToken)
+        onPaymentSuccess(deployHash, verifyData.executionToken || verifyData.token || "")
       }
-
-    } catch (error: any) {
-      console.error("Payment error:", error)
-      setError(error.message || "Payment failed. Please try again.")
+    } catch (err: any) {
+      console.error("Payment error:", err)
+      setError(err?.message || "Payment failed. Please try again.")
       setStatus("error")
-      
-      if (onPaymentError) {
-        onPaymentError(error.message)
-      }
+      if (onPaymentError) onPaymentError(err?.message || "Payment failed")
     }
   }
 
   const handleClose = () => {
-    if (status !== "paying" && status !== "approving" && status !== "waiting-approval") {
+    if (status !== "paying" && status !== "verifying") {
       onOpenChange(false)
-      // Reset state after closing
       setTimeout(() => {
         setStatus("idle")
         setError("")
@@ -253,15 +199,11 @@ export function PaymentModal({
   const getStatusMessage = () => {
     switch (status) {
       case "checking-balance":
-        return "Checking your USDC balance..."
-      case "approving":
-        return "Please approve USDC spending in your wallet..."
-      case "waiting-approval":
-        return "Waiting for approval transaction..."
+        return "Checking your CSPR balance..."
       case "paying":
-        return "Processing payment..."
+        return "Confirm the CEP-18 transfer in CSPR.click..."
       case "verifying":
-        return "Verifying payment on-chain..."
+        return "Verifying payment deploy on-chain..."
       case "success":
         return "Payment successful!"
       case "error":
@@ -271,8 +213,12 @@ export function PaymentModal({
     }
   }
 
-  const isProcessing = ["checking-balance", "approving", "waiting-approval", "paying", "verifying"].includes(status)
-  const canPay = status === "idle" && wallets.length > 0 && hasAgreedToTerms && parseFloat(usdcBalance) >= parseFloat(price)
+  const isProcessing = ["checking-balance", "paying", "verifying"].includes(status)
+  const canPay =
+    status === "idle" &&
+    !!signerPublicKey &&
+    hasAgreedToTerms &&
+    parseFloat(csprBalance || "0") >= parseFloat(price)
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -285,48 +231,55 @@ export function PaymentModal({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Price Display */}
           <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
             <div>
               <p className="text-sm text-muted-foreground">Amount</p>
-              <p className="text-2xl font-bold">{price} USDC</p>
+              <p className="text-2xl font-bold">{price} CSPR</p>
             </div>
-            <Badge variant="secondary">Arbitrum Sepolia</Badge>
+            <Badge variant="secondary">
+              {CHAIN_CONFIGS[DEFAULT_CHAIN_ID].chainName}
+            </Badge>
           </div>
 
-          {/* Wallet Status */}
-          {wallets.length === 0 ? (
+          {!signerPublicKey ? (
             <Alert>
               <Wallet className="h-4 w-4" />
               <AlertDescription>
-                Please connect your wallet to continue
+                Connect a Casper wallet via CSPR.click to continue.
               </AlertDescription>
             </Alert>
           ) : (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Your Wallet</span>
-                <span className="font-mono">{wallets[0].address.slice(0, 6)}...{wallets[0].address.slice(-4)}</span>
+                <span className="font-mono">
+                  {signerPublicKey.slice(0, 6)}…{signerPublicKey.slice(-4)}
+                </span>
               </div>
-              {usdcBalance && (
+              {csprBalance && (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">USDC Balance</span>
-                  <span className={parseFloat(usdcBalance) >= parseFloat(price) ? "text-green-500" : "text-red-500"}>
-                    {parseFloat(usdcBalance).toFixed(2)} USDC
+                  <span className="text-muted-foreground">CSPR Balance</span>
+                  <span
+                    className={
+                      parseFloat(csprBalance) >= parseFloat(price)
+                        ? "text-green-500"
+                        : "text-red-500"
+                    }
+                  >
+                    {parseFloat(csprBalance).toFixed(2)} CSPR
                   </span>
                 </div>
               )}
             </div>
           )}
 
-          {/* Terms Acceptance */}
-          {!hasAgreedToTerms && wallets.length > 0 && (
+          {!hasAgreedToTerms && !!signerPublicKey && (
             <Alert variant="default">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 You must accept the payment terms before making a payment.{" "}
-                <Button 
-                  variant="link" 
+                <Button
+                  variant="link"
                   className="h-auto p-0 text-primary"
                   onClick={() => setShowAgreementModal(true)}
                 >
@@ -336,7 +289,6 @@ export function PaymentModal({
             </Alert>
           )}
 
-          {/* Status Messages */}
           {status !== "idle" && (
             <Alert variant={status === "success" ? "default" : status === "error" ? "destructive" : "default"}>
               {status === "success" && <CheckCircle2 className="h-4 w-4 text-green-500" />}
@@ -349,27 +301,25 @@ export function PaymentModal({
             </Alert>
           )}
 
-          {/* Transaction Link */}
           {txHash && (
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Transaction:</span>
+              <span className="text-muted-foreground">Deploy:</span>
               <a
-                href={`https://sepolia.arbiscan.io/tx/${txHash}`}
+                href={casperDeployUrl(txHash)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-primary hover:underline"
               >
-                {txHash.slice(0, 6)}...{txHash.slice(-4)}
+                {txHash.slice(0, 6)}…{txHash.slice(-4)}
                 <ExternalLink className="h-3 w-3" />
               </a>
             </div>
           )}
 
-          {/* Info */}
           <div className="text-xs text-muted-foreground space-y-1">
             <p>• Payment is held in escrow until service is delivered</p>
             <p>• Automatic refund if service fails</p>
-            <p>• Transaction will be on Arbitrum Sepolia testnet</p>
+            <p>• Transaction will be on Casper {CHAIN_CONFIGS[DEFAULT_CHAIN_ID].chainName}</p>
           </div>
         </div>
 
@@ -381,17 +331,10 @@ export function PaymentModal({
             </Button>
           ) : (
             <>
-              <Button
-                variant="outline"
-                onClick={handleClose}
-                disabled={isProcessing}
-              >
+              <Button variant="outline" onClick={handleClose} disabled={isProcessing}>
                 Cancel
               </Button>
-              <Button
-                onClick={handlePayment}
-                disabled={!canPay || isProcessing}
-              >
+              <Button onClick={handlePayment} disabled={!canPay || isProcessing}>
                 {isProcessing ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -400,7 +343,7 @@ export function PaymentModal({
                 ) : (
                   <>
                     <Wallet className="mr-2 h-4 w-4" />
-                    Pay {price} USDC
+                    Pay {price} CSPR
                   </>
                 )}
               </Button>
@@ -409,7 +352,6 @@ export function PaymentModal({
         </DialogFooter>
       </DialogContent>
 
-      {/* Payment Agreement Modal */}
       <PaymentAgreementModal
         open={showAgreementModal}
         onOpenChange={setShowAgreementModal}

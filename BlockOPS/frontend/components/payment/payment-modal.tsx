@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePrivy } from "@privy-io/react-auth";
-import { ethers } from "ethers";
 import {
   Dialog,
   DialogContent,
@@ -13,19 +11,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, XCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
+import { sendDeploy, casperDeployUrl } from "@/lib/wallet";
+import { CHAIN_CONFIGS, DEFAULT_CHAIN_ID } from "@/lib/chains";
 
-// Payment Escrow ABI (minimal - only what we need)
-const PAYMENT_ESCROW_ABI = [
-  "function createPayment(address token, uint256 amount, string memory paymentId) external payable returns (bytes32)",
-  "function verifyPayment(bytes32 paymentHash) external view returns (bool, address, address, uint256, string memory)",
-];
-
-// USDC ABI (minimal)
-const ERC20_ABI = [
-  "function approve(address spender, uint256 amount) external returns (bool)",
-  "function allowance(address owner, address spender) external view returns (uint256)",
-  "function balanceOf(address account) external view returns (uint256)",
-];
+const CEP18_CONTRACT_HASH = process.env.NEXT_PUBLIC_CEP18_CONTRACT_HASH || "";
+const PAYMENT_RECIPIENT = process.env.NEXT_PUBLIC_PAYMENT_RECIPIENT_PUBLIC_KEY || "";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -41,8 +32,6 @@ interface PaymentModalProps {
 type PaymentStep =
   | "idle"
   | "checking-balance"
-  | "approving"
-  | "waiting-approval"
   | "paying"
   | "waiting-payment"
   | "verifying"
@@ -59,143 +48,115 @@ export default function PaymentModal({
   description,
   agentId,
 }: PaymentModalProps) {
-  const { user, authenticated, login } = usePrivy();
+  const { user, authenticated } = useAuth();
+  const publicKey = user?.publicKey ?? null;
   const [step, setStep] = useState<PaymentStep>("idle");
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
-  const [hasAllowance, setHasAllowance] = useState(false);
   const [balance, setBalance] = useState<string>("0");
 
-  const contractAddress = process.env.NEXT_PUBLIC_PAYMENT_CONTRACT_ADDRESS!;
-  const usdcAddress = process.env.NEXT_PUBLIC_USDC_ADDRESS!;
-  const rpcUrl = process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL!;
-  const chainId = parseInt(process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_CHAIN_ID!);
-  const explorerUrl = "https://sepolia.arbiscan.io";
+  const explorerUrl = (h: string) => casperDeployUrl(h);
 
-  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
       setStep("idle");
       setError(null);
       setTxHash(null);
       setPaymentId(null);
-      setHasAllowance(false);
-      checkBalance();
+      if (publicKey) checkBalance();
     }
-  }, [isOpen]);
+  }, [isOpen, publicKey]);
 
   const checkBalance = async () => {
-    if (!authenticated || !user?.wallet?.address) return;
-
+    if (!publicKey) return;
     try {
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
-      const usdcContract = new ethers.Contract(usdcAddress, ERC20_ABI, provider);
-      const balance = await usdcContract.balanceOf(user.wallet.address);
-      const formatted = ethers.formatUnits(balance, 6); // USDC has 6 decimals
-      setBalance(formatted);
-
-      // Check allowance
-      const allowance = await usdcContract.allowance(
-        user.wallet.address,
-        contractAddress
+      const res = await fetch(
+        `${CHAIN_CONFIGS[DEFAULT_CHAIN_ID].csprCloudUrl.replace(/\/$/, "")}/accounts/${publicKey}/balance`,
       );
-      const priceInWei = ethers.parseUnits(price.toString(), 6);
-      setHasAllowance(allowance >= priceInWei);
+      if (!res.ok) return;
+      const data = await res.json();
+      const motes = Number(data?.balance ?? data?.data?.balance ?? 0);
+      setBalance((motes / 1_000_000_000).toFixed(4));
     } catch (err) {
       console.error("Error checking balance:", err);
     }
   };
 
   const handlePayment = async () => {
-    if (!authenticated || !user?.wallet?.address) {
-      login();
+    if (!authenticated || !publicKey) {
+      toast.error("Connect your Casper wallet via CSPR.click first");
       return;
     }
 
     try {
       setError(null);
 
-      // Check if user needs to switch network
-      const provider = new ethers.BrowserProvider(window.ethereum as any);
-      const network = await provider.getNetwork();
-
-      if (Number(network.chainId) !== chainId) {
-        try {
-          await window.ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: `0x${chainId.toString(16)}` }],
-          });
-        } catch (switchError: any) {
-          if (switchError.code === 4902) {
-            throw new Error(
-              "Please add Arbitrum Sepolia network to your wallet"
-            );
-          }
-          throw switchError;
-        }
-      }
-
-      const signer = await provider.getSigner();
-      const usdcContract = new ethers.Contract(usdcAddress, ERC20_ABI, signer);
-      const escrowContract = new ethers.Contract(
-        contractAddress,
-        PAYMENT_ESCROW_ABI,
-        signer
-      );
-
-      const priceInWei = ethers.parseUnits(price.toString(), 6);
-
-      // Generate unique payment ID
       const generatedPaymentId = `${toolName}-${Date.now()}-${Math.random()
         .toString(36)
         .substring(7)}`;
       setPaymentId(generatedPaymentId);
 
-      // Step 1: Approve USDC if needed
-      if (!hasAllowance) {
-        setStep("approving");
-        const approveTx = await usdcContract.approve(
-          contractAddress,
-          priceInWei
-        );
-        setStep("waiting-approval");
-        toast.info("Waiting for USDC approval...");
-        await approveTx.wait();
-        setHasAllowance(true);
-        toast.success("USDC approved!");
+      setStep("paying");
+
+      const priceNum = Number(price);
+      if (!Number.isFinite(priceNum) || priceNum <= 0) {
+        throw new Error(`Invalid price: ${price}`);
       }
 
-      // Step 2: Create payment
-      setStep("paying");
-      const paymentTx = await escrowContract.createPayment(
-        usdcAddress,
-        priceInWei,
-        generatedPaymentId
-      );
+      const amountMotes = BigInt(Math.round(priceNum * 1_000_000_000)).toString();
+
+      const deployJson: any = {
+        contractHash: CEP18_CONTRACT_HASH.startsWith("hash-")
+          ? CEP18_CONTRACT_HASH
+          : CEP18_CONTRACT_HASH
+            ? `hash-${CEP18_CONTRACT_HASH}`
+            : "",
+        entryPoint: "transfer",
+        args: {
+          recipient: PAYMENT_RECIPIENT,
+          amount: amountMotes,
+        },
+        signingPublicKey: publicKey,
+        chainName: CHAIN_CONFIGS[DEFAULT_CHAIN_ID].chainName,
+        metadata: {
+          toolName,
+          paymentId: generatedPaymentId,
+          agentId: agentId || "",
+        },
+      };
+
+      const sent = await sendDeploy(deployJson, publicKey, true);
+      const deployHash =
+        (sent as any)?.deployHash ??
+        (sent as any)?.deploy_hash ??
+        (sent as any)?.hash ??
+        "";
+
+      if (!deployHash) {
+        throw new Error("Wallet did not return a deploy hash");
+      }
 
       setStep("waiting-payment");
-      setTxHash(paymentTx.hash);
-      toast.info("Payment transaction sent...");
+      setTxHash(deployHash);
+      toast.info("Payment deploy sent to Casper...");
 
-      const receipt = await paymentTx.wait();
-
-      // Step 3: Verify payment and get execution token
       setStep("verifying");
       const response = await fetch("/api/payments/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          paymentHash: receipt.hash,
+          paymentHash: deployHash,
           userId: user.id,
           agentId,
           toolName,
+          amountCspr: price,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Payment verification failed");
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData?.error || errData?.message || "Payment verification failed");
       }
 
       const data = await response.json();
@@ -203,9 +164,8 @@ export default function PaymentModal({
       setStep("success");
       toast.success("Payment successful! 🎉");
 
-      // Wait a moment to show success state
       setTimeout(() => {
-        onSuccess(data.executionToken, data.paymentId);
+        onSuccess(data.executionToken || data.token || "", data.paymentId || generatedPaymentId);
         onClose();
       }, 1500);
     } catch (err: any) {
@@ -219,17 +179,13 @@ export default function PaymentModal({
   const getStepMessage = () => {
     switch (step) {
       case "checking-balance":
-        return "Checking your USDC balance...";
-      case "approving":
-        return "Please approve USDC spending in your wallet...";
-      case "waiting-approval":
-        return "Waiting for approval confirmation...";
+        return "Checking your CSPR balance...";
       case "paying":
-        return "Please confirm payment in your wallet...";
+        return "Confirm the CEP-18 transfer in CSPR.click...";
       case "waiting-payment":
-        return "Processing payment transaction...";
+        return "Waiting for the deploy to be processed on Casper...";
       case "verifying":
-        return "Verifying payment on blockchain...";
+        return "Verifying payment on-chain...";
       case "success":
         return "Payment successful! 🎉";
       case "error":
@@ -239,15 +195,7 @@ export default function PaymentModal({
     }
   };
 
-  const isProcessing = [
-    "checking-balance",
-    "approving",
-    "waiting-approval",
-    "paying",
-    "waiting-payment",
-    "verifying",
-  ].includes(step);
-
+  const isProcessing = ["checking-balance", "paying", "waiting-payment", "verifying"].includes(step);
   const isComplete = step === "success";
   const hasError = step === "error";
 
@@ -260,12 +208,11 @@ export default function PaymentModal({
             Payment Required
           </DialogTitle>
           <DialogDescription>
-            Secure payment with escrow protection
+            Secure payment with Casper on-chain escrow
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Tool Info */}
           <div className="rounded-lg border bg-slate-50 dark:bg-slate-900 p-4">
             <h3 className="font-semibold text-lg mb-1">{toolDisplayName}</h3>
             {description && (
@@ -274,19 +221,17 @@ export default function PaymentModal({
               </p>
             )}
             <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-bold">${price.toFixed(2)}</span>
-              <span className="text-muted-foreground">USDC</span>
+              <span className="text-3xl font-bold">{price.toFixed(2)}</span>
+              <span className="text-muted-foreground">CSPR</span>
             </div>
           </div>
 
-          {/* Balance Info */}
           {authenticated && (
             <div className="text-sm text-muted-foreground">
-              Your balance: {parseFloat(balance).toFixed(2)} USDC
+              Your balance: {parseFloat(balance).toFixed(2)} CSPR
             </div>
           )}
 
-          {/* Status Message */}
           {step !== "idle" && (
             <div
               className={`rounded-lg p-4 ${
@@ -306,20 +251,18 @@ export default function PaymentModal({
             </div>
           )}
 
-          {/* Transaction Hash */}
           {txHash && (
             <a
-              href={`${explorerUrl}/tx/${txHash}`}
+              href={explorerUrl(txHash)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
             >
-              View transaction on Arbiscan
+              View deploy on Casper Explorer
               <ExternalLink className="h-4 w-4" />
             </a>
           )}
 
-          {/* Escrow Protection Badge */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="text-xl">🛡️</span>
             <div>
@@ -327,13 +270,12 @@ export default function PaymentModal({
                 Escrow Protection
               </div>
               <div className="text-xs">
-                Funds held securely until service delivered
+                Funds held securely on Casper until service delivered
               </div>
             </div>
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex gap-3">
           <Button
             variant="outline"
@@ -356,7 +298,7 @@ export default function PaymentModal({
             ) : isComplete ? (
               "Complete!"
             ) : authenticated ? (
-              "Pay with Wallet"
+              "Pay with CSPR.click"
             ) : (
               "Connect Wallet"
             )}

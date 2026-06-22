@@ -1,0 +1,16 @@
+[[contracts]]
+fqn = "blockops_contracts::AgentFactory"
+
+[[contracts]]
+fqn = "blockops_contracts::Reputation"
+
+[[contracts]]
+fqn = "blockops_contracts::Escrow"
+
+[[contracts]]
+fqn = "blockops_contracts::Compliance"
+[[contracts]]
+fqn = "blockops_contracts::Cep18Token"
+
+[[contracts]]
+fqn = "blockops_contracts::Cep78Nft"

@@ -7,12 +7,16 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
     "postinstall": "echo 'Dependencies installed'"
   },
   "dependencies": {
-    "@csprclick/sdk": "^2.1.0",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.10.0",
+    "@make-software/csprclick-core-client": "^1.11.0",
+    "@make-software/csprclick-core-types": "^2.1.0",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.4",
     "@radix-ui/react-aspect-ratio": "^1.1.1",
@@ -43,6 +47,7 @@
     "@supabase/supabase-js": "^2.78.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@vercel/analytics": "^1.6.1",
+    "casper-js-sdk": "^5.0.12",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
@@ -77,9 +82,11 @@
     "@types/react-dom": "^18",
     "eslint": "^9.28.0",
     "eslint-config-next": "15.3.6",
+    "happy-dom": "^15.11.0",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.5"
   }
 }

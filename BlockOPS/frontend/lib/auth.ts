@@ -1,96 +1,190 @@
+/**
+ * BlockOps CSPR.click authentication hook.
+ *
+ * Replaces the legacy `@privy-io/react-auth` `usePrivy` hook. Exposes a
+ * stable `useAuth()` API so every page that previously consumed Privy
+ * keeps working without modification.
+ *
+ * The hook manages three pieces of state:
+ *   1. **CSPR.click account** (browser wallet)
+ *   2. **Supabase user row** (csprclick_public_key, ed25519_public_key, …)
+ *   3. **Loading / error flags**
+ *
+ * The wallet stays in the user's browser — only the public key is stored
+ * in Supabase.
+ */
+
 'use client'
 
-import { usePrivy, useWallets } from '@privy-io/react-auth'
-import { useEffect, useState } from 'react'
-import { createCompatibleUser, fetchCompatibleUser, type User } from './supabase'
-import { hasConfiguredAgentWallet } from './lit-pkp'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  initCsprClick,
+  connectWallet,
+  disconnectWallet,
+  getActiveAccount,
+  saveWalletToUser,
+  removeWalletFromUser,
+  type ConnectedAccount,
+} from './wallet'
+import {
+  createCompatibleUser,
+  fetchCompatibleUser,
+  type User,
+} from './supabase'
 
+export interface CsprAuthUser {
+  /** Supabase auth user id (uuid-as-text). */
+  id: string
+  /** Casper ed25519 public key (hex with 0x/01/02 prefix). */
+  publicKey: string
+  /** Provider id (e.g. "casper-wallet", "casper-signer", "ledger"). */
+  provider: string
+  /** Optional CSPR name (e.g. "alice.cspr"). */
+  csprName?: string | null
+  /** Optional CSPR balance in CSPR (decimal). */
+  balance?: string | null
+}
+
+/**
+ * BlockOps auth hook. Connects a CSPR.click wallet, persists the public key
+ * to Supabase, and exposes the active session for the React tree.
+ *
+ * @returns An object with `ready`, `authenticated`, `user`, `csprclickPublicKey`,
+ *   `privyWalletAddress` (legacy alias), `dbUser`, `isWalletLogin`, and helpers
+ *   for connecting / disconnecting / syncing.
+ */
 export function useAuth() {
-  const { ready, authenticated, user, login, logout } = usePrivy()
-  const { wallets } = useWallets()
+  const [ready, setReady] = useState(false)
+  const [account, setAccount] = useState<ConnectedAccount | null>(null)
   const [dbUser, setDbUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [showPrivateKeySetup, setShowPrivateKeySetup] = useState(false)
-  const [hasCheckedPrivateKey, setHasCheckedPrivateKey] = useState(false)
-  const [pkpSchemaReady, setPkpSchemaReady] = useState(true)
-
-  // Check if user logged in via wallet
-  const isWalletLogin = authenticated && wallets && wallets.length > 0
-  
-  // Get the primary wallet address if available
-  const privyWalletAddress = wallets && wallets.length > 0 ? wallets[0].address : null
+  const [hydrating, setHydrating] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [schemaReady, setSchemaReady] = useState(true)
 
   useEffect(() => {
-    if (ready && authenticated && user) {
-      syncUser()
-    } else {
-      setDbUser(null)
-      setLoading(false)
-      // Reset the check when user logs out
-      setHasCheckedPrivateKey(false)
-      setPkpSchemaReady(true)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, authenticated, user])
-
-  const syncUser = async () => {
-    if (!user?.id) {
-      console.warn('Cannot sync user: No user ID available')
+    if (typeof window === 'undefined') return
+    const sdk = initCsprClick()
+    setReady(!!sdk)
+    if (!sdk) {
+      setHydrating(false)
       return
     }
 
-    setLoading(true)
-    try {
-      const { user: existingUser, pkpSchemaReady: schemaReady } = await fetchCompatibleUser(user.id)
-      setPkpSchemaReady(schemaReady)
-
-      if (existingUser) {
-        setDbUser(existingUser)
-        
-        // Check if user needs to set up private key (only once per session)
-        if (!hasConfiguredAgentWallet(existingUser) && !hasCheckedPrivateKey) {
-          setShowPrivateKeySetup(true)
-          setHasCheckedPrivateKey(true)
+    sdk
+      .getActiveAccountAsync({ withBalance: false })
+      .then((active: any) => {
+        if (active?.public_key) {
+          setAccount({
+            publicKey: active.public_key,
+            provider: active.provider || 'casper-wallet',
+            csprName: active.cspr_name ?? null,
+            balance: active.liquid_balance ?? null,
+            balanceMotes: active.liquid_balance ?? null,
+          })
         }
-      } else {
-        // User doesn't exist, create new user
-        const createdUserResponse = await createCompatibleUser(user.id)
-        setPkpSchemaReady(createdUserResponse.pkpSchemaReady)
-        setDbUser(createdUserResponse.user)
+      })
+      .catch(() => {
+        // No active session — caller will prompt connect.
+      })
+      .finally(() => setHydrating(false))
+  }, [])
 
-        // Show private key setup modal for new users
-        setShowPrivateKeySetup(true)
-        setHasCheckedPrivateKey(true)
+  const syncUser = useCallback(async () => {
+    const pk = account?.publicKey
+    if (!pk) return
+    setSyncing(true)
+    try {
+      const { user: existing, pkpSchemaReady } = await fetchCompatibleUser(pk)
+      setSchemaReady(pkpSchemaReady)
+
+      if (existing) {
+        setDbUser(existing)
+      } else {
+        const created = await createCompatibleUser(pk)
+        setSchemaReady(created.pkpSchemaReady)
+        setDbUser(created.user)
       }
     } catch (error) {
-      console.error('Error syncing user:', error)
+      console.error('[auth] sync failed:', error)
     } finally {
-      setLoading(false)
+      setSyncing(false)
     }
-  }
+  }, [account?.publicKey])
 
-  const connectMetaMask = async () => {
-    // Use Privy's login modal directly
-    try {
-      await login()
-    } catch (error) {
-      console.error('Login error:', error)
+  useEffect(() => {
+    if (!ready || hydrating) return
+    if (account?.publicKey) {
+      syncUser()
+    } else {
+      setDbUser(null)
     }
-  }
+  }, [ready, hydrating, account?.publicKey, syncUser])
+
+  const login = useCallback(
+    async (provider: string = 'casper-wallet') => {
+      const connected = await connectWallet(provider)
+      if (!connected) return null
+      setAccount(connected)
+      try {
+        await saveWalletToUser(connected.publicKey, connected.publicKey)
+      } catch (err) {
+        console.warn('[auth] saveWalletToUser failed:', err)
+      }
+      return connected
+    },
+    [],
+  )
+
+  const logout = useCallback(
+    async (provider: string = 'casper-wallet') => {
+      try {
+        await disconnectWallet(provider)
+      } catch (err) {
+        console.warn('[auth] disconnect failed:', err)
+      }
+      const pk = account?.publicKey
+      if (pk) {
+        try {
+          await removeWalletFromUser(pk)
+        } catch (err) {
+          console.warn('[auth] removeWalletFromUser failed:', err)
+        }
+      }
+      setAccount(null)
+      setDbUser(null)
+    },
+    [account?.publicKey],
+  )
+
+  const user = useMemo<CsprAuthUser | null>(() => {
+    if (!account) return null
+    return {
+      id: account.publicKey,
+      publicKey: account.publicKey,
+      provider: account.provider,
+      csprName: account.csprName ?? null,
+      balance: account.balance ?? null,
+    }
+  }, [account])
 
   return {
     ready,
-    authenticated,
+    authenticated: !!account,
+    loading: hydrating || syncing,
     user,
     dbUser,
-    loading,
-    login: connectMetaMask,
+
+    csprclickPublicKey: account?.publicKey ?? null,
+    privyWalletAddress: account?.publicKey ?? null,
+    isWalletLogin: !!account,
+
+    login,
     logout,
     syncUser,
-    isWalletLogin,
-    privyWalletAddress,
-    showPrivateKeySetup,
-    setShowPrivateKeySetup,
-    pkpSchemaReady,
+
+    showPrivateKeySetup: false,
+    setShowPrivateKeySetup: () => {},
+    pkpSchemaReady: schemaReady,
+    schemaReady,
   }
 }

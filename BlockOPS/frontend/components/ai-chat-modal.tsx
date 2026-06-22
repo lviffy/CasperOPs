@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Send, Bot, User, CheckCircle } from "lucide-react"
-import { usePrivy } from "@privy-io/react-auth"
+import { useAuth } from "@/lib/auth"
 import {
   Dialog,
   DialogContent,
@@ -31,7 +31,7 @@ interface AIChatModalProps {
 }
 
 export function AIChatModal({ open, onOpenChange, onApplyWorkflow }: AIChatModalProps) {
-  const { user, authenticated } = usePrivy()
+  const { user, authenticated } = useAuth()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",

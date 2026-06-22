@@ -10,26 +10,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Loader2, Search, Wallet, AlertCircle, CheckCircle2, ExternalLink, Send, ArrowRight, ChevronDown, BookOpen, PenLine, MessageSquare } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
-import { ethers } from "ethers"
 import { useAuth } from "@/lib/auth"
-import { decryptStoredPrivateKey, hasStoredSigningKey } from "@/lib/lit-private-key"
-import { hasConfiguredAgentWallet, hasStoredPkpWallet, signTransactionWithPkp } from "@/lib/lit-pkp"
+import { signDeploy, sendDeploy, casperDeployUrl } from "@/lib/wallet"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import ReactMarkdown from "react-markdown"
-import { 
-  discoverContract, 
+import {
+  discoverContract,
   executeNaturalLanguageCommand,
-  askContractQuestion 
+  askContractQuestion,
 } from "@/lib/contract-backend"
-
-// Extend Window interface for ethereum
-declare global {
-  interface Window {
-    ethereum?: any
-  }
-}
+import { CHAIN_CONFIGS, DEFAULT_CHAIN_ID, explorerUrl } from "@/lib/chains"
 
 interface ContractFunction {
   index?: number
@@ -40,22 +32,23 @@ interface ContractFunction {
   inputs: Array<{
     name: string
     type: string
-    internalType?: string
   }>
   outputs: Array<{
     name: string
     type: string
-    internalType?: string
   }>
 }
 
 interface ContractInteractionProps {
-  onInteraction?: (address: string, functionName: string, params: any[]) => void
+  onInteraction?: (contractHash: string, entryPoint: string, params: any[]) => void
 }
 
+const CONTRACT_HASH_RE = /^(hash-[a-f0-9]{64}|[a-f0-9]{64})$/i
+
 export function ContractInteraction({ onInteraction }: ContractInteractionProps) {
-  const { dbUser, privyWalletAddress, isWalletLogin } = useAuth()
-  const [contractAddress, setContractAddress] = useState("")
+  const { user, dbUser, csprclickPublicKey, isWalletLogin } = useAuth()
+  const publicKey = csprclickPublicKey ?? user?.publicKey ?? null
+  const [contractHash, setContractHash] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [contractABI, setContractABI] = useState<any[] | null>(null)
   const [showManualABI, setShowManualABI] = useState(false)
@@ -67,8 +60,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
   const [functionParams, setFunctionParams] = useState<Record<string, string[]>>({})
   const [executingFunction, setExecutingFunction] = useState<string | null>(null)
   const [functionResults, setFunctionResults] = useState<Record<string, any>>({})
-  
-  // AI Chat states
+
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([])
   const [chatInput, setChatInput] = useState("")
   const [isChatLoading, setIsChatLoading] = useState(false)
@@ -82,23 +74,21 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
     }
   }, [chatMessages, isChatLoading])
 
-  const isValidAddress = (address: string) => {
-    // Normalize to lowercase first to avoid EIP-55 checksum rejections
-    return ethers.isAddress(address.toLowerCase())
-  }
+  const isValidContractHash = (value: string) => CONTRACT_HASH_RE.test(value.trim())
 
   const fetchContractABI = async () => {
-    if (!isValidAddress(contractAddress)) {
+    if (!isValidContractHash(contractHash)) {
       toast({
-        title: "Invalid Address",
-        description: "Please enter a valid contract address",
+        title: "Invalid Contract Hash",
+        description: "Expected a Casper contract hash (hash-<64 hex> or 64 hex chars).",
         variant: "destructive",
       })
       return
     }
 
-    // Normalize address to lowercase to avoid EIP-55 checksum issues throughout
-    const normalizedAddress = contractAddress.toLowerCase()
+    const normalized = contractHash.trim().toLowerCase().startsWith("hash-")
+      ? contractHash.trim().toLowerCase()
+      : `hash-${contractHash.trim().toLowerCase()}`
 
     setIsLoading(true)
     setShowManualABI(false)
@@ -107,15 +97,13 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
 
     let loaded = false
 
-    // 1) Try backend discovery first
     if (useBackendDiscovery) {
       try {
-        const response = await discoverContract(normalizedAddress)
-
+        const response = await discoverContract(normalized)
         if (response.success && response.data) {
           const { allFunctions, totalFunctions } = response.data
 
-          const funcs: ContractFunction[] = allFunctions.map(func => ({
+          const funcs: ContractFunction[] = allFunctions.map((func) => ({
             index: func.index,
             name: func.name,
             type: 'function',
@@ -125,7 +113,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
             outputs: func.outputs,
           }))
 
-          const abi = funcs.map(func => ({
+          const abi = funcs.map((func) => ({
             name: func.name,
             type: func.type,
             stateMutability: func.stateMutability,
@@ -139,60 +127,19 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
 
           toast({
             title: "Contract Loaded",
-            description: `${totalFunctions} functions discovered`,
+            description: `${totalFunctions} entry points discovered`,
           })
         }
       } catch (backendError: any) {
-        console.warn("Backend discovery failed, trying Etherscan fallback:", backendError.message)
+        console.warn("Backend discovery failed:", backendError?.message)
       }
     }
 
-    // 2) Fallback: direct Etherscan API (Arbitrum Sepolia)
-    if (!loaded) {
-      try {
-        const provider = new ethers.JsonRpcProvider(
-          process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc"
-        )
-
-        const code = await provider.getCode(normalizedAddress)
-
-        if (code === "0x") {
-          toast({
-            title: "Contract Not Found",
-            description: "No contract deployed at this address on Arbitrum Sepolia",
-            variant: "destructive",
-          })
-          setIsLoading(false)
-          return
-        }
-
-        const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || "YourApiKeyToken"
-        const apiUrl = `https://api.etherscan.io/v2/api?chainid=421614&module=contract&action=getabi&address=${normalizedAddress}&apikey=${apiKey}`
-
-        const response = await fetch(apiUrl)
-        const data = await response.json()
-
-        if (data.status === "1" && data.result) {
-          const abi = JSON.parse(data.result)
-          setContractABI(abi)
-          parseFunctions(abi)
-          loaded = true
-          toast({
-            title: "Contract Loaded",
-            description: `${abi.length} functions loaded`,
-          })
-        }
-      } catch (etherscanError: any) {
-        console.warn("Etherscan fallback also failed:", etherscanError.message)
-      }
-    }
-
-    // 3) Nothing worked — show manual ABI input
     if (!loaded) {
       setShowManualABI(true)
       toast({
-        title: "Contract Not Verified",
-        description: "Paste the ABI manually to interact with this contract.",
+        title: "Contract Not Indexed",
+        description: "Paste the entry-point schema (JSON ABI) manually to interact with this contract.",
         variant: "destructive",
       })
     }
@@ -222,7 +169,6 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
       }
     })
 
-    console.log("Functions parsed:", { read: readFunctions.length, write: writeFunctions.length })
     setFunctions({ read: readFunctions, write: writeFunctions })
   }
 
@@ -234,9 +180,9 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
       setShowManualABI(false)
       toast({
         title: "ABI Loaded",
-        description: "Contract ABI loaded successfully from manual input",
+        description: "Contract entry points loaded successfully from manual input",
       })
-    } catch (error) {
+    } catch {
       toast({
         title: "Invalid ABI",
         description: "Please enter a valid JSON ABI",
@@ -253,107 +199,43 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
     })
   }
 
-  const resolveAgentSigningContext = async () => {
-    if (!dbUser) {
-      return null
-    }
-
-    if (hasStoredPkpWallet(dbUser)) {
-      return {
-        walletType: "pkp" as const,
-        pkpPublicKey: dbUser.pkp_public_key,
-        pkpTokenId: dbUser.pkp_token_id,
-      }
-    }
-
-    const decryptedPrivateKey = await decryptStoredPrivateKey(dbUser.private_key)
-    if (!decryptedPrivateKey) {
-      return null
-    }
-
-    return {
-      walletType: "traditional" as const,
-      privateKey: decryptedPrivateKey,
-    }
-  }
-
-  // Helper function to convert parameter values based on type
-  const convertParamValue = (value: string, type: string): any => {
-    if (!value || value.trim() === "") return value
-
-    try {
-      // Handle arrays
-      if (type.includes('[]')) {
-        // If it's already a stringified array, parse it
-        if (value.startsWith('[')) {
-          return JSON.parse(value)
-        }
-        // Otherwise split by comma
-        return value.split(',').map(v => v.trim())
-      }
-
-      // Handle boolean
-      if (type === 'bool') {
-        return value.toLowerCase() === 'true'
-      }
-
-      // Handle integers/uints
-      if (type.match(/^u?int\d*$/)) {
-        return BigInt(value)
-      }
-
-      // Handle bytes
-      if (type.startsWith('bytes')) {
-        return value
-      }
-
-      // Handle address
-      if (type === 'address') {
-        return value.trim()
-      }
-
-      // Default: return as string
-      return value
-    } catch (error) {
-      console.warn(`Failed to convert param value "${value}" for type "${type}":`, error)
-      return value
-    }
-  }
+  const casperStateRpcUrl = () => `${CHAIN_CONFIGS[DEFAULT_CHAIN_ID].rpcUrl.replace(/\/$/, "")}/rpc`
 
   const executeReadFunction = async (func: ContractFunction) => {
     if (!contractABI) return
 
     setExecutingFunction(func.name)
     try {
-      const provider = new ethers.JsonRpcProvider(
-        process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc"
-      )
-      const contract = new ethers.Contract(contractAddress, contractABI, provider)
-
-      // Convert parameters based on their types
       const rawParams = functionParams[func.name] || []
-      const params = rawParams.map((value, index) => 
-        convertParamValue(value, func.inputs[index]?.type || 'string')
-      )
+      const params = rawParams.map((value) => value)
 
-      console.log("Executing read:", func.name, params)
-      const result = await contract[func.name](...params)
+      const stateRoot = await globalThis.fetch
+        ? null
+        : null
 
-      // Convert result to string for display
-      let displayResult: string
-      if (typeof result === 'object' && result !== null) {
-        if (result._isBigNumber || typeof result === 'bigint') {
-          displayResult = result.toString()
-        } else if (Array.isArray(result)) {
-          displayResult = JSON.stringify(result.map(r => 
-            (r._isBigNumber || typeof r === 'bigint') ? r.toString() : r
-          ), null, 2)
-        } else {
-          displayResult = JSON.stringify(result, null, 2)
-        }
-      } else {
-        displayResult = String(result)
+      const rpcBody = {
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "query_global_state",
+        params: {
+          contract_hash: contractHash.startsWith("hash-") ? contractHash : `hash-${contractHash}`,
+          key: func.name,
+          ...(params.length > 0 ? { args: params } : {}),
+        },
       }
+
+      const res = await fetch(casperStateRpcUrl(), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(rpcBody),
+      })
+
+      if (!res.ok) {
+        throw new Error(`RPC returned ${res.status}`)
+      }
+
+      const data: any = await res.json()
+      const displayResult = data?.result ? JSON.stringify(data.result, null, 2) : "OK"
 
       setFunctionResults((prev) => ({
         ...prev,
@@ -361,22 +243,21 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
       }))
 
       toast({
-        title: "Function Executed",
-        description: `${func.name} executed successfully`,
+        title: "Entry Point Queried",
+        description: `${func.name} returned a value`,
       })
 
       if (onInteraction) {
-        onInteraction(contractAddress, func.name, params)
+        onInteraction(contractHash, func.name, params)
       }
     } catch (error: any) {
-      console.error("Error executing function:", error)
       setFunctionResults((prev) => ({
         ...prev,
         [func.name]: { success: false, error: error.message || error.toString() },
       }))
       toast({
-        title: "Execution Failed",
-        description: error.message || "Failed to execute function",
+        title: "Query Failed",
+        description: error.message || "Failed to query entry point",
         variant: "destructive",
       })
     } finally {
@@ -385,16 +266,11 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
   }
 
   const executeWriteFunction = async (func: ContractFunction) => {
-    // Check if user has either agent wallet or Privy wallet
-    const hasTraditionalAgentWallet = hasStoredSigningKey(dbUser?.private_key)
-    const hasPkpAgentWallet = hasStoredPkpWallet(dbUser)
-    const hasAgentWallet = hasTraditionalAgentWallet || hasPkpAgentWallet
-    const hasPrivyWallet = isWalletLogin && privyWalletAddress
-    
-    if (!contractABI || (!hasAgentWallet && !hasPrivyWallet)) {
+    if (!contractABI) return
+    if (!publicKey) {
       toast({
         title: "Wallet Required",
-        description: "Please connect your wallet to execute write functions",
+        description: "Connect a Casper wallet via CSPR.click to invoke write entry points",
         variant: "destructive",
       })
       return
@@ -402,130 +278,57 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
 
     setExecutingFunction(func.name)
     try {
-      const provider = new ethers.JsonRpcProvider(
-        process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc"
-      )
-      
-      let contract: ethers.Contract
-      
-      if (hasTraditionalAgentWallet) {
-        const decryptedPrivateKey = await decryptStoredPrivateKey(dbUser?.private_key)
-        if (!decryptedPrivateKey) {
-          throw new Error("No valid agent wallet key found. Please set up your wallet again.")
-        }
+      const rawParams = functionParams[func.name] || []
+      const params = rawParams.map((value) => value)
 
-        const wallet = new ethers.Wallet(decryptedPrivateKey, provider)
-        contract = new ethers.Contract(contractAddress, contractABI, wallet)
-      } else if (hasPkpAgentWallet && dbUser?.wallet_address && dbUser?.pkp_public_key) {
-        const rawParams = functionParams[func.name] || []
-        const params = rawParams.map((value, index) => 
-          convertParamValue(value, func.inputs[index]?.type || 'string')
-        )
-        const functionSignature = `${func.name}(${func.inputs.map((input) => input.type).join(",")})`
-        const contractInterface = new ethers.Interface(contractABI)
-        const data = contractInterface.encodeFunctionData(functionSignature, params)
-        const gasEstimate = await provider.estimateGas({
-          from: dbUser.wallet_address,
-          to: contractAddress,
-          data,
-        })
-        const gasLimit = (gasEstimate * BigInt(12)) / BigInt(10)
-        const feeData = await provider.getFeeData()
-        const nonce = await provider.getTransactionCount(dbUser.wallet_address, "pending")
-
-        console.log("Executing write with PKP:", func.name, params)
-
-        toast({
-          title: "Transaction Sent",
-          description: "Broadcasting with your Lit PKP signer...",
-        })
-
-        const pkpResult = await signTransactionWithPkp({
-          pkpPublicKey: dbUser.pkp_public_key,
-          pkpTokenId: dbUser.pkp_token_id,
-          transaction: {
-            to: contractAddress,
-            data,
-            gas: gasLimit.toString(),
-            maxFeePerGas: feeData.maxFeePerGas?.toString() ?? feeData.gasPrice?.toString() ?? null,
-            maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.toString() ?? null,
-            nonce,
-          },
-        })
-
-        setFunctionResults((prev) => ({
-          ...prev,
-          [func.name]: { 
-            success: true, 
-            result: pkpResult.hash,
-            txHash: pkpResult.hash 
-          },
-        }))
-
-        toast({
-          title: "Transaction Confirmed",
-          description: `${func.name} executed successfully with your PKP wallet.`,
-        })
-
-        if (onInteraction) {
-          onInteraction(contractAddress, func.name, params)
-        }
-
-        return
-      } else if (hasPrivyWallet && window.ethereum) {
-        try {
-          const browserProvider = new ethers.BrowserProvider(window.ethereum)
-          const signer = await browserProvider.getSigner()
-          contract = new ethers.Contract(contractAddress, contractABI, signer)
-        } catch (providerError) {
-          throw new Error("Failed to connect to wallet. Please ensure your wallet is connected.")
-        }
-      } else {
-        throw new Error("No wallet available. Please connect your wallet first.")
+      const deployJson = {
+        contractHash: contractHash.startsWith("hash-") ? contractHash : `hash-${contractHash}`,
+        entryPoint: func.name,
+        args: params,
+        signingPublicKey: publicKey,
+        chainName: CHAIN_CONFIGS[DEFAULT_CHAIN_ID].chainName,
       }
 
-      // Convert parameters based on their types
-      const rawParams = functionParams[func.name] || []
-      const params = rawParams.map((value, index) => 
-        convertParamValue(value, func.inputs[index]?.type || 'string')
-      )
+      const signed = await signDeploy(deployJson as any, publicKey)
 
-      console.log("Executing write:", func.name, params)
-      const tx = await contract[func.name](...params)
-      
-      toast({
-        title: "Transaction Sent",
-        description: "Waiting for confirmation...",
-      })
-
-      const receipt = await tx.wait()
+      const deployHash =
+        (signed as any)?.deployHash ??
+        (signed as any)?.deploy_hash ??
+        (signed as any)?.hash ??
+        ""
 
       setFunctionResults((prev) => ({
         ...prev,
-        [func.name]: { 
-          success: true, 
-          result: receipt.hash,
-          txHash: receipt.hash 
+        [func.name]: {
+          success: true,
+          result: deployHash,
+          txHash: deployHash,
         },
       }))
 
       toast({
-        title: "Transaction Confirmed",
-        description: `${func.name} executed successfully`,
+        title: "Deploy Signed",
+        description: "Broadcast the signed deploy via CSPR.click or your RPC endpoint.",
       })
 
+      if (deployHash) {
+        toast({
+          title: "Explorer",
+          description: casperDeployUrl(deployHash),
+        })
+      }
+
       if (onInteraction) {
-        onInteraction(contractAddress, func.name, params)
+        onInteraction(contractHash, func.name, params)
       }
     } catch (error: any) {
-      console.error("Error executing function:", error)
       setFunctionResults((prev) => ({
         ...prev,
-        [func.name]: { success: false, error: error.message },
+        [func.name]: { success: false, error: error.message || String(error) },
       }))
       toast({
-        title: "Transaction Failed",
-        description: error.message || "Failed to execute function",
+        title: "Signing Failed",
+        description: error.message || "Failed to sign deploy",
         variant: "destructive",
       })
     } finally {
@@ -538,43 +341,38 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
 
     const userMessage = chatInput.trim()
     setChatInput("")
-    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    setChatMessages((prev) => [...prev, { role: 'user', content: userMessage }])
     setIsChatLoading(true)
 
     try {
-      // Detect if this is an execution command or an informational question
       const executionKeywords = /\b(call|execute|run|invoke|send|transfer|approve|mint|burn|swap|deposit|withdraw|stake|unstake|claim|set|update|change|modify)\b/i
       const isExecutionCommand = executionKeywords.test(userMessage) && !userMessage.trim().endsWith('?')
 
       if (isExecutionCommand) {
-        // --- Execution flow - requires the stored agent wallet (traditional or PKP) ---
-        const signingContext = await resolveAgentSigningContext()
-
-        if (!signingContext) {
-          setChatMessages(prev => [...prev, { 
-            role: 'assistant', 
-            content: 'Please set up your agent wallet to execute contract functions. You can still ask questions about the contract without a signer.' 
+        if (!publicKey) {
+          setChatMessages((prev) => [...prev, {
+            role: 'assistant',
+            content: 'Connect a Casper wallet via CSPR.click to execute entry points. You can still ask questions without a signer.',
           }])
           setIsChatLoading(false)
           return
         }
 
         const planResponse = await executeNaturalLanguageCommand(
-          contractAddress,
+          contractHash,
           userMessage,
-          signingContext,
-          false
+          { walletType: 'csprclick', publicKey },
+          false,
         )
 
         if (planResponse.success && planResponse.data?.executionPlan) {
           const plan = planResponse.data.executionPlan
           setExecutionPlan(plan)
-          
+
           let planMessage = `I've analyzed your request:\n\n`
-          planMessage += `**Function:** ${plan.functionName}\n`
-          planMessage += `**Signature:** ${plan.signature}\n`
-          planMessage += `**Type:** ${plan.isReadOnly ? 'Read-Only' : 'Write (requires transaction)'}\n\n`
-          
+          planMessage += `**Entry Point:** ${plan.functionName}\n`
+          planMessage += `**Type:** ${plan.isReadOnly ? 'Read-Only' : 'Write (requires deploy)'}\n\n`
+
           if (plan.parameters && plan.parameters.length > 0) {
             planMessage += `**Parameters:**\n`
             plan.parameters.forEach((param: any) => {
@@ -582,113 +380,79 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
             })
             planMessage += `\n`
           }
-          
+
           planMessage += `**Reasoning:** ${plan.reasoning}\n\n`
-          planMessage += `Would you like me to execute this? Reply with "yes" or "execute" to proceed.`
-          
-          setChatMessages(prev => [...prev, { 
-            role: 'assistant', 
-            content: planMessage 
-          }])
+          planMessage += `Reply with "yes" or "execute" to sign the deploy.`
+
+          setChatMessages((prev) => [...prev, { role: 'assistant', content: planMessage }])
         } else if (planResponse.data?.message) {
-          setChatMessages(prev => [...prev, { 
-            role: 'assistant' as const, 
-            content: String(planResponse.data.message)
-          }])
+          setChatMessages((prev) => [...prev, { role: 'assistant' as const, content: String(planResponse.data.message) }])
         } else {
-          setChatMessages(prev => [...prev, { 
-            role: 'assistant', 
-            content: planResponse.message || 'I couldn\'t process that request. Try asking about a specific function.' 
+          setChatMessages((prev) => [...prev, {
+            role: 'assistant',
+            content: planResponse.message || 'I couldn\'t process that request. Try asking about a specific entry point.',
           }])
         }
       } else {
-        // --- Question/Chat flow (new) - no wallet needed ---
         const chatResponse = await askContractQuestion(
-          contractAddress,
+          contractHash,
           userMessage,
           contractABI,
-          chatMessages.slice(-10) // Send last 10 messages for context
+          chatMessages.slice(-10),
         )
 
         if (chatResponse.success && chatResponse.data?.answer) {
-          setChatMessages(prev => [...prev, { 
-            role: 'assistant', 
-            content: chatResponse.data.answer 
-          }])
+          setChatMessages((prev) => [...prev, { role: 'assistant', content: chatResponse.data.answer }])
         } else {
-          setChatMessages(prev => [...prev, { 
-            role: 'assistant', 
-            content: chatResponse.message || 'I couldn\'t answer that question. Try rephrasing.' 
+          setChatMessages((prev) => [...prev, {
+            role: 'assistant',
+            content: chatResponse.message || 'I couldn\'t answer that question. Try rephrasing.',
           }])
         }
       }
     } catch (error: any) {
-      console.error('AI Chat error:', error)
-      setChatMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: `Error: ${error.message}` 
+      setChatMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: `Error: ${error.message}`,
       }])
     } finally {
       setIsChatLoading(false)
     }
   }
 
-  // Handle execution confirmation
   const handleExecuteConfirmation = async () => {
-    if (!executionPlan) return
+    if (!executionPlan || !publicKey) return
 
     setIsChatLoading(true)
-    setChatMessages(prev => [...prev, { role: 'user', content: 'yes, execute' }])
+    setChatMessages((prev) => [...prev, { role: 'user', content: 'yes, execute' }])
 
     try {
-      const signingContext = await resolveAgentSigningContext()
-      if (!signingContext) {
-        setChatMessages(prev => [...prev, {
-          role: 'assistant',
-          content: 'No valid signer found. Please set up your wallet again before execution.',
-        }])
-        return
+      const deployJson = {
+        contractHash: contractHash.startsWith("hash-") ? contractHash : `hash-${contractHash}`,
+        entryPoint: executionPlan.functionName,
+        args: (executionPlan.parameters || []).map((p: any) => p.rawValue),
+        signingPublicKey: publicKey,
+        chainName: CHAIN_CONFIGS[DEFAULT_CHAIN_ID].chainName,
       }
 
-      // Execute with confirmation
-      const execResponse = await executeNaturalLanguageCommand(
-        contractAddress,
-        `Execute ${executionPlan.functionName}`, // Command doesn't matter now, backend uses plan
-        signingContext,
-        true // Confirm execution
-      )
+      const sent = await sendDeploy(deployJson as any, publicKey, true)
+      const deployHash =
+        (sent as any)?.deployHash ??
+        (sent as any)?.deploy_hash ??
+        (sent as any)?.hash ??
+        ''
 
-      if (execResponse.success && execResponse.data) {
-        let resultMessage = '✓ Execution successful!\n\n'
-        
-        if (execResponse.data.transaction) {
-          const tx = execResponse.data.transaction
-          resultMessage += `**Transaction Hash:** ${tx.hash}\n`
-          resultMessage += `**Block Number:** ${tx.blockNumber}\n`
-          resultMessage += `**Gas Used:** ${tx.gasUsed}\n`
-          resultMessage += `**Status:** ${tx.status}\n`
-          resultMessage += `**Explorer:** [View on Arbiscan](${tx.explorerUrl})`
-        } else if (execResponse.data.result) {
-          resultMessage += `**Result:** ${execResponse.data.result}`
-        }
-        
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: resultMessage 
-        }])
-        setExecutionPlan(null)
-        
-        toast({
-          title: "Execution Successful",
-          description: "Function executed via natural language",
-        })
-      }
+      const resultMessage = `Deploy broadcasted!\n\n**Deploy Hash:** ${deployHash}\n**Explorer:** ${casperDeployUrl(deployHash)}`
+
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: resultMessage }])
+      setExecutionPlan(null)
+
+      toast({
+        title: "Deploy Broadcasted",
+        description: casperDeployUrl(deployHash),
+      })
     } catch (error: any) {
-      console.error('Execution error:', error)
-      setChatMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: `Execution failed: ${error.message}` 
-      }])
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: `Execution failed: ${error.message}` }])
     } finally {
       setIsChatLoading(false)
     }
@@ -697,7 +461,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
   const renderFunctionCard = (func: ContractFunction, isWrite: boolean) => {
     const result = functionResults[func.name]
     const isExecuting = executingFunction === func.name
-    const hasWallet = hasConfiguredAgentWallet(dbUser) || (isWalletLogin && privyWalletAddress)
+    const hasWallet = !!publicKey
 
     return (
       <AccordionItem key={func.name} value={func.name} className="border-b last:border-b-0">
@@ -754,7 +518,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
             {isWrite && !hasWallet && (
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <Wallet className="size-3" />
-                Connect wallet to execute write functions
+                Connect a Casper wallet to execute write entry points
               </p>
             )}
 
@@ -766,7 +530,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
                     <p className="font-mono break-all">{result.result}</p>
                     {result.txHash && (
                       <a
-                        href={`${process.env.NEXT_PUBLIC_EXPLORER_URL || "https://sepolia.etherscan.io"}/tx/${result.txHash}`}
+                        href={casperDeployUrl(result.txHash)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors mt-1"
@@ -802,26 +566,25 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
 
   return (
     <div className="space-y-8">
-      {/* Contract Address Input */}
       <section className="space-y-4">
         <div>
-          <h2 className="text-sm font-medium">Contract Address</h2>
+          <h2 className="text-sm font-medium">Contract Hash</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Enter a verified contract address to explore its functions
+            Enter a Casper contract hash to explore its entry points
           </p>
         </div>
         <div className="flex gap-2">
           <Input
-            placeholder="0x..."
-            value={contractAddress}
-            onChange={(e) => setContractAddress(e.target.value)}
+            placeholder="hash-..."
+            value={contractHash}
+            onChange={(e) => setContractHash(e.target.value)}
             disabled={isLoading}
             className="font-mono text-sm"
           />
           <Button
             variant="outline"
             onClick={fetchContractABI}
-            disabled={isLoading || !contractAddress}
+            disabled={isLoading || !contractHash}
             className="shrink-0"
           >
             {isLoading ? (
@@ -845,11 +608,11 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
               <Alert variant="destructive" className="py-2">
                 <AlertCircle className="size-3" />
                 <AlertDescription className="text-xs">
-                  Contract not verified. Paste the ABI below.
+                  Contract not indexed. Paste the entry-point schema (JSON ABI) below.
                 </AlertDescription>
               </Alert>
               <Textarea
-                placeholder='[{"inputs":[],"name":"functionName","outputs":[],...}]'
+                placeholder='[{"inputs":[],"name":"entry_point","outputs":[],...}]'
                 value={manualABI}
                 onChange={(e) => setManualABI(e.target.value)}
                 rows={6}
@@ -867,7 +630,6 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
         <>
           <Separator />
 
-          {/* AI Chat */}
           <section className="space-y-4">
             <div>
               <h2 className="text-sm font-medium flex items-center gap-2">
@@ -880,12 +642,11 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
             </div>
 
             <div className="rounded-md border">
-              {/* Messages */}
               <div ref={chatScrollRef} className="max-h-72 overflow-y-auto">
                 {chatMessages.length === 0 ? (
                   <div className="px-4 py-8 text-center">
                     <p className="text-xs text-muted-foreground">
-                      Try: &quot;What does this contract do?&quot; or &quot;Call the transfer function&quot;
+                      Try: &quot;What does this contract do?&quot; or &quot;Invoke the transfer entry point&quot;
                     </p>
                   </div>
                 ) : (
@@ -923,18 +684,17 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
                 )}
               </div>
 
-              {/* Input */}
               <div className="border-t p-3 space-y-2">
                 {executionPlan && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleExecuteConfirmation}
-                    disabled={isChatLoading}
+                    disabled={isChatLoading || !publicKey}
                     className="w-full h-8 text-xs"
                   >
                     <CheckCircle2 className="mr-1.5 size-3" />
-                    Confirm &amp; Execute
+                    Confirm &amp; Sign Deploy
                   </Button>
                 )}
                 <div className="flex gap-2">
@@ -967,10 +727,9 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
 
           <Separator />
 
-          {/* Functions */}
           <section className="space-y-4">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-medium">Functions</h2>
+              <h2 className="text-sm font-medium">Entry Points</h2>
               <span className="text-xs text-muted-foreground">
                 {functions.read.length + functions.write.length} total
               </span>
@@ -994,7 +753,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
                   </Accordion>
                 ) : (
                   <p className="text-center py-10 text-sm text-muted-foreground">
-                    No read functions found
+                    No read entry points found
                   </p>
                 )}
               </TabsContent>
@@ -1005,7 +764,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
                   </Accordion>
                 ) : (
                   <p className="text-center py-10 text-sm text-muted-foreground">
-                    No write functions found
+                    No write entry points found
                   </p>
                 )}
               </TabsContent>
@@ -1016,3 +775,5 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
     </div>
   )
 }
+
+export default ContractInteraction

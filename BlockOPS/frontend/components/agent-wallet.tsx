@@ -2,13 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -22,19 +19,42 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Wallet, Plus, Download, Copy, Check, Trash2, ExternalLink } from "lucide-react"
-import Image from "next/image"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Wallet,
+  Copy,
+  Check,
+  Trash2,
+  ExternalLink,
+  Loader2,
+  ChevronDown,
+  CircleAlert,
+  Fuel,
+} from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import {
-  createWallet,
-  getAddressFromPrivateKey,
-  isValidPrivateKey,
+  initCsprClick,
+  connectWallet,
+  disconnectWallet,
+  getActiveAccount,
+  getKnownAccounts,
+  switchAccount,
   saveWalletToUser,
-  getTokenBalancesForChain,
   removeWalletFromUser,
+  fetchCsprBalance,
+  casperExplorerUrl,
+  type ConnectedAccount,
 } from "@/lib/wallet"
+import { CHAIN_CONFIGS, getStoredChain } from "@/lib/chains"
+import { mapCsprClickError } from "@/lib/csprclick-errors"
 import { toast } from "@/components/ui/use-toast"
-import { CHAIN_CONFIGS, getStoredChain, normalizeChainId, setStoredChain, type SupportedChainId } from "@/lib/chains"
 
 interface AgentWalletModalProps {
   open: boolean
@@ -42,183 +62,186 @@ interface AgentWalletModalProps {
   hideButton?: boolean
 }
 
+const ACTIVE_PROVIDER = "casper-wallet"
+
 export function AgentWalletModal({ open, onOpenChange, hideButton = false }: AgentWalletModalProps) {
   const { user, dbUser, syncUser, loading } = useAuth()
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [showImportDialog, setShowImportDialog] = useState(false)
-  const [privateKeyInput, setPrivateKeyInput] = useState("")
-  const [isCreating, setIsCreating] = useState(false)
-  const [isImporting, setIsImporting] = useState(false)
+  const [account, setAccount] = useState<ConnectedAccount | null>(null)
+  const [knownAccounts, setKnownAccounts] = useState<ConnectedAccount[]>([])
+  const [balance, setBalance] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [newPrivateKey, setNewPrivateKey] = useState<string | null>(null)
-  const [selectedChain, setSelectedChain] = useState<SupportedChainId>("flow-testnet")
-  const [tokenBalances, setTokenBalances] = useState<{ native: string; symbol: string } | null>(null)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [sdkReady, setSdkReady] = useState(false)
 
-  const fetchBalances = useCallback(async () => {
-    if (!dbUser?.wallet_address) return
-    try {
-      const balances = await getTokenBalancesForChain(dbUser.wallet_address, selectedChain)
-      setTokenBalances(balances)
-    } catch (error) {
-      console.error("Error fetching balances:", error)
+  const chainConfig = CHAIN_CONFIGS[getStoredChain()]
+
+  const refreshBalance = useCallback(async (publicKey?: string | null) => {
+    const pk = publicKey || account?.publicKey || dbUser?.wallet_address
+    if (!pk) {
+      setBalance(null)
+      return
     }
-  }, [dbUser?.wallet_address, selectedChain])
+    const bal = await fetchCsprBalance(pk)
+    setBalance(bal)
+  }, [account?.publicKey, dbUser?.wallet_address])
 
-  useEffect(() => {
-    setSelectedChain(getStoredChain())
+  const refreshKnownAccounts = useCallback(async () => {
+    const list = await getKnownAccounts()
+    setKnownAccounts(list)
   }, [])
 
-  // Fetch balances immediately when component mounts and user has a wallet
+  // Bootstrap: initialize CSPR.click once on mount
   useEffect(() => {
-    if (dbUser?.wallet_address && !newPrivateKey) {
-      fetchBalances()
+    if (typeof window === "undefined") return
+    const sdk = initCsprClick()
+    if (sdk) {
+      setSdkReady(true)
     }
-  }, [dbUser?.wallet_address, newPrivateKey, fetchBalances])
+  }, [])
 
-  // Also refresh balance when modal opens to ensure it's up-to-date
+  // Session restore: pick up the user's previously connected account from
+  // CSPR.click local storage so refreshes don't break the workflow.
   useEffect(() => {
-    if (open && dbUser?.wallet_address && !newPrivateKey) {
-      fetchBalances()
+    if (typeof window === "undefined") return
+    if (!sdkReady) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const restored = await getActiveAccount()
+        if (cancelled) return
+        if (restored) {
+          setAccount(restored)
+          if (user?.id && restored.publicKey !== dbUser?.wallet_address) {
+            try {
+              await saveWalletToUser(user.id, restored.publicKey)
+              await syncUser()
+            } catch (err) {
+              console.warn("[agent-wallet] session restore sync failed:", err)
+            }
+          }
+        }
+        await refreshKnownAccounts()
+      } catch (err) {
+        console.warn("[agent-wallet] session restore failed:", err)
+      }
+    })()
+    return () => {
+      cancelled = true
     }
-  }, [open, dbUser?.wallet_address, newPrivateKey, fetchBalances])
+  }, [sdkReady, user?.id, dbUser?.wallet_address, syncUser, refreshKnownAccounts])
 
-  const handleCreateWallet = async () => {
+  // Refresh on modal open + when the underlying public key changes
+  useEffect(() => {
+    if (open && (account?.publicKey || dbUser?.wallet_address)) {
+      refreshBalance(account?.publicKey || dbUser?.wallet_address)
+      refreshKnownAccounts()
+    }
+  }, [open, account?.publicKey, dbUser?.wallet_address, refreshBalance, refreshKnownAccounts])
+
+  const handleConnect = async () => {
     if (!user?.id) {
+      toast({ title: "Error", description: "User not authenticated", variant: "destructive" })
+      return
+    }
+    if (!sdkReady) {
       toast({
-        title: "Error",
-        description: "User not authenticated",
+        title: "CSPR.click unavailable",
+        description: "The wallet connector is still loading. Refresh and try again.",
         variant: "destructive",
       })
       return
     }
-
-    setIsCreating(true)
+    setIsConnecting(true)
     try {
-      const wallet = createWallet()
-      await saveWalletToUser(user.id, wallet.address, wallet.privateKey)
-      setIsCreating(false)
-      setNewPrivateKey(wallet.privateKey)
-    } catch (error: any) {
+      const connected = await connectWallet(ACTIVE_PROVIDER)
+      if (!connected) {
+        toast({
+          title: "Connection cancelled",
+          description: "You declined the wallet connection. Nothing was changed.",
+        })
+        return
+      }
+      setAccount(connected)
+      await saveWalletToUser(user.id, connected.publicKey)
+      await syncUser()
+      await refreshBalance(connected.publicKey)
+      await refreshKnownAccounts()
       toast({
-        title: "Error creating wallet",
-        description: error.message || "Failed to create wallet",
-        variant: "destructive",
+        title: "Wallet connected",
+        description: `Connected to ${connected.publicKey.slice(0, 10)}…${connected.publicKey.slice(-6)}`,
       })
-      setIsCreating(false)
+    } catch (err) {
+      const mapped = mapCsprClickError(err)
+      toast({ title: mapped.title, description: mapped.message, variant: "destructive" })
+    } finally {
+      setIsConnecting(false)
     }
   }
 
-  const handleImportWallet = async () => {
-    if (!user?.id) {
-      toast({
-        title: "Error",
-        description: "User not authenticated",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!privateKeyInput.trim()) {
-      toast({
-        title: "Invalid input",
-        description: "Please enter a private key",
-        variant: "destructive",
-      })
-      return
-    }
-
-    const cleanKey = privateKeyInput.trim().startsWith("0x")
-      ? privateKeyInput.trim()
-      : `0x${privateKeyInput.trim()}`
-
-    if (!isValidPrivateKey(cleanKey)) {
-      toast({
-        title: "Invalid private key",
-        description: "Please enter a valid private key",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsImporting(true)
+  const handleSwitchAccount = async (next: ConnectedAccount) => {
+    if (next.publicKey === account?.publicKey) return
+    setIsConnecting(true)
     try {
-      const address = getAddressFromPrivateKey(cleanKey)
-      await saveWalletToUser(user.id, address, cleanKey)
-      await syncUser()
+      await switchAccount(next.publicKey, next.provider)
+      setAccount(next)
+      if (user?.id) {
+        await saveWalletToUser(user.id, next.publicKey)
+        await syncUser()
+      }
+      await refreshBalance(next.publicKey)
       toast({
-        title: "Wallet imported",
-        description: "Your wallet has been imported successfully",
+        title: "Account switched",
+        description: `Now signing with ${next.publicKey.slice(0, 10)}…${next.publicKey.slice(-6)}`,
       })
-      setShowImportDialog(false)
-      setPrivateKeyInput("")
-    } catch (error: any) {
-      toast({
-        title: "Error importing wallet",
-        description: error.message || "Failed to import wallet",
-        variant: "destructive",
-      })
+    } catch (err) {
+      const mapped = mapCsprClickError(err)
+      toast({ title: mapped.title, description: mapped.message, variant: "destructive" })
     } finally {
-      setIsImporting(false)
+      setIsConnecting(false)
     }
   }
 
   const copyAddress = () => {
-    if (dbUser?.wallet_address) {
-      navigator.clipboard.writeText(dbUser.wallet_address)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-      toast({
-        title: "Copied",
-        description: "Wallet address copied to clipboard",
-      })
-    }
+    const pk = account?.publicKey || dbUser?.wallet_address
+    if (!pk) return
+    navigator.clipboard.writeText(pk)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+    toast({ title: "Copied", description: "Wallet public key copied to clipboard" })
   }
 
   const handleRemoveWallet = async () => {
-    if (!user?.id) {
-      toast({
-        title: "Error",
-        description: "User not authenticated",
-        variant: "destructive",
-      })
-      return
-    }
-
+    if (!user?.id) return
     setIsRemoving(true)
     try {
+      await disconnectWallet(ACTIVE_PROVIDER)
       await removeWalletFromUser(user.id)
       await syncUser()
-      setTokenBalances(null)
-      toast({
-        title: "Wallet removed",
-        description: "Your wallet has been removed successfully",
-      })
+      setAccount(null)
+      setBalance(null)
+      toast({ title: "Wallet disconnected", description: "Your wallet has been removed." })
       setShowDeleteDialog(false)
-    } catch (error: any) {
-      toast({
-        title: "Error removing wallet",
-        description: error.message || "Failed to remove wallet",
-        variant: "destructive",
-      })
+    } catch (err) {
+      const mapped = mapCsprClickError(err)
+      toast({ title: mapped.title, description: mapped.message, variant: "destructive" })
     } finally {
       setIsRemoving(false)
     }
   }
 
   const handleClaimFunds = () => {
-    window.open(CHAIN_CONFIGS[selectedChain].faucetUrl, "_blank")
+    window.open(chainConfig.faucetUrl, "_blank")
   }
 
-  // Get balance for display in button
-  const displayBalance = tokenBalances?.native || "0.00"
-  const hasWallet = !!dbUser?.wallet_address
-  const selectedChainConfig = CHAIN_CONFIGS[selectedChain]
+  const publicKey = account?.publicKey || dbUser?.wallet_address
+  const hasWallet = !!publicKey
+  const displayBalance = balance ?? "0.00"
+  const balanceIsLow = balance !== null && Number(balance) < 1
 
   return (
     <>
-      {/* Wallet Button - Shows in header */}
       {!hideButton && (
         <Button
           variant="outline"
@@ -228,274 +251,156 @@ export function AgentWalletModal({ open, onOpenChange, hideButton = false }: Age
         >
           {hasWallet ? (
             <>
-              <div className="relative w-5 h-5 shrink-0">
-                <Image
-                  src="/stt-logo.png"
-                  alt={selectedChainConfig.symbol}
-                  fill
-                  className="object-contain"
-                  unoptimized
-                />
-              </div>
-              <span className="font-semibold">{displayBalance} {selectedChainConfig.symbol}</span>
+              <span className="font-semibold">{displayBalance} {chainConfig.symbol}</span>
+              {balanceIsLow && <CircleAlert className="h-4 w-4 text-amber-500" />}
             </>
           ) : (
             <>
               <Wallet className="h-5 w-5" />
-              <span className="font-semibold">Add Wallet</span>
+              <span className="font-semibold">Connect Casper Wallet</span>
             </>
           )}
         </Button>
       )}
 
-      {/* Main Wallet Modal */}
-      <Dialog open={open && !showCreateDialog && !showImportDialog && !newPrivateKey} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5" />
               Agent Wallet
             </DialogTitle>
+            <DialogDescription>
+              Sign and broadcast Casper deploys via CSPR.click. Your wallet stays in your browser — BlockOps only stores the public key.
+            </DialogDescription>
           </DialogHeader>
 
-          {dbUser?.wallet_address ? (
+          {hasWallet ? (
             <div className="space-y-6 py-4">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Network</Label>
-                <select
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  value={selectedChain}
-                  onChange={(event) => {
-                    const nextChain = normalizeChainId(event.target.value)
-                    setSelectedChain(nextChain)
-                    setStoredChain(nextChain)
-                  }}
-                >
-                  {Object.values(CHAIN_CONFIGS).map((chain) => (
-                    <option key={chain.id} value={chain.id}>
-                      {chain.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="rounded-md border bg-muted px-3 py-2 text-sm">
+                  {chainConfig.name}
+                </div>
               </div>
 
-              {/* Wallet Address */}
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">Wallet Address</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Public Key</Label>
+                  {knownAccounts.length > 1 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs">
+                          Switch <ChevronDown className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="max-w-[320px]">
+                        <DropdownMenuLabel>Connected accounts</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {knownAccounts.map((acct) => (
+                          <DropdownMenuItem
+                            key={acct.publicKey}
+                            onSelect={() => handleSwitchAccount(acct)}
+                            disabled={isConnecting}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-mono text-xs">
+                                {acct.publicKey.slice(0, 12)}…{acct.publicKey.slice(-6)}
+                              </span>
+                              {acct.csprName ? (
+                                <span className="text-[10px] text-muted-foreground">{acct.csprName}</span>
+                              ) : null}
+                            </div>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 font-mono text-sm bg-muted p-3 rounded-md break-all">
-                    {dbUser.wallet_address}
+                  <code className="flex-1 font-mono text-xs bg-muted p-3 rounded-md break-all">
+                    {publicKey}
                   </code>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={copyAddress} title="Copy address">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={copyAddress} title="Copy public key">
                     {copied ? <Check className="h-4 w-4 text-foreground" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
 
-              {/* Balance */}
               <div className="space-y-3">
                 <Label className="text-sm font-semibold text-muted-foreground text-center block">Balance</Label>
                 <div className="flex items-center justify-center gap-3">
-                  <div className="relative w-12 h-12 shrink-0">
-                    <Image
-                      src="/stt-logo.png"
-                      alt={selectedChainConfig.symbol}
-                      fill
-                      className="object-contain"
-                      unoptimized
-                    />
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <div className="text-4xl font-bold leading-none">
-                      {tokenBalances?.native || "0.00"}
-                    </div>
-                    <div className="text-sm text-muted-foreground font-medium">
-                      {selectedChainConfig.symbol}
-                    </div>
-                  </div>
+                  <div className="text-5xl font-bold leading-none">{displayBalance}</div>
+                  <div className="text-sm text-muted-foreground font-medium">{chainConfig.symbol}</div>
                 </div>
                 <p className="text-center text-xs text-muted-foreground">
-                  Viewing balances on {selectedChainConfig.name}
+                  Via CSPR.cloud · {chainConfig.name}
                 </p>
+                {balanceIsLow && (
+                  <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-xs flex items-center gap-2">
+                    <CircleAlert className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Low balance — fund the account before signing more deploys.</span>
+                  </div>
+                )}
               </div>
 
-              {/* Actions */}
               <div className="flex flex-col gap-2 pt-2">
                 <Button onClick={handleClaimFunds} variant="default" className="w-full">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Claim Funds
+                  <Fuel className="h-4 w-4 mr-2" />
+                  Claim CSPR from Faucet
                 </Button>
+                {publicKey && (
+                  <Button variant="outline" className="w-full" asChild>
+                    <a href={casperExplorerUrl(publicKey)} target="_blank" rel="noreferrer">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      View on Explorer
+                    </a>
+                  </Button>
+                )}
                 <Button
                   onClick={() => setShowDeleteDialog(true)}
                   variant="destructive"
                   className="w-full"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Remove Wallet
+                  Disconnect Wallet
                 </Button>
               </div>
             </div>
           ) : (
             <div className="space-y-4 py-4">
               <p className="text-sm text-muted-foreground text-center">
-                No wallet configured. Create or import a wallet to get started.
+                No wallet connected. Use CSPR.click to bring your existing Casper wallet (Casper Wallet, Ledger, MetaMask Snap, WalletConnect) or create a new one.
               </p>
-              <div className="flex flex-col gap-2">
-                <Button onClick={() => setShowCreateDialog(true)} className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Wallet
-                </Button>
-                <Button onClick={() => setShowImportDialog(true)} variant="outline" className="w-full">
-                  <Download className="h-4 w-4 mr-2" />
-                  Import Wallet
-                </Button>
-              </div>
+              <Button onClick={handleConnect} disabled={isConnecting || !sdkReady} className="w-full">
+                {isConnecting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Connecting…
+                  </>
+                ) : (
+                  <>
+                    <Wallet className="h-4 w-4 mr-2" />
+                    Connect Casper Wallet
+                  </>
+                )}
+              </Button>
+              {!sdkReady && (
+                <p className="text-xs text-center text-muted-foreground">
+                  Initializing CSPR.click…
+                </p>
+              )}
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Create Wallet Dialog */}
-      <Dialog
-        open={showCreateDialog || !!newPrivateKey}
-        onOpenChange={(open) => {
-          if (!open && newPrivateKey) {
-            return
-          }
-          if (open) {
-            setShowCreateDialog(true)
-          } else {
-            setShowCreateDialog(false)
-            setNewPrivateKey(null)
-          }
-        }}
-      >
-        <DialogContent
-          onEscapeKeyDown={(e) => {
-            if (newPrivateKey) {
-              e.preventDefault()
-            }
-          }}
-          onPointerDownOutside={(e) => {
-            if (newPrivateKey) {
-              e.preventDefault()
-            }
-          }}
-          onInteractOutside={(e) => {
-            if (newPrivateKey) {
-              e.preventDefault()
-            }
-          }}
-        >
-          {newPrivateKey ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>Wallet Created Successfully</DialogTitle>
-                <DialogDescription>
-                  Save your private key securely - you won't be able to see it again.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2 py-4">
-                <Label>Private Key</Label>
-                <div className="flex items-center gap-2">
-                  <Input value={newPrivateKey} readOnly className="font-mono text-sm" />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      navigator.clipboard.writeText(newPrivateKey)
-                      setCopied(true)
-                      setTimeout(() => setCopied(false), 2000)
-                    }}
-                  >
-                    {copied ? (
-                      <Check className="h-4 w-4 text-foreground" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  onClick={async () => {
-                    setNewPrivateKey(null)
-                    setShowCreateDialog(false)
-                    await syncUser()
-                  }}
-                >
-                  Close
-                </Button>
-              </DialogFooter>
-            </>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle>Create Agent Wallet</DialogTitle>
-                <DialogDescription>
-                  A new wallet will be generated for your agent. Make sure to securely store your private key.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateWallet} disabled={isCreating}>
-                  {isCreating ? "Creating..." : "Create Wallet"}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Import Wallet Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Import Wallet</DialogTitle>
-            <DialogDescription>Enter your private key to import an existing wallet.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="privateKey">Private Key</Label>
-              <Input
-                id="privateKey"
-                type="password"
-                placeholder="0x..."
-                value={privateKeyInput}
-                onChange={(e) => setPrivateKeyInput(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Your private key will be encrypted and stored securely.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowImportDialog(false)
-                setPrivateKeyInput("")
-              }}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleImportWallet} disabled={isImporting}>
-              {isImporting ? "Importing..." : "Import Wallet"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Wallet?</AlertDialogTitle>
+            <AlertDialogTitle>Disconnect wallet?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove your agent wallet? This will delete your wallet address and private key
-              from your account. This action cannot be undone.
+              Your wallet's public key will be removed from this account. You can re-connect any time via CSPR.click. Your funds stay safe in your wallet — only the connection is severed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -505,11 +410,15 @@ export function AgentWalletModal({ open, onOpenChange, hideButton = false }: Age
               disabled={isRemoving}
               className="bg-destructive text-white hover:bg-destructive/90"
             >
-              {isRemoving ? "Removing..." : "Remove Wallet"}
+              {isRemoving ? "Disconnecting…" : "Disconnect"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
   )
+}
+
+function Label({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <label className={className}>{children}</label>
 }

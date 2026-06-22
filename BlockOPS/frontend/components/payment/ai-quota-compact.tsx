@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAuth } from "@/lib/auth";
 import { Sparkles } from "lucide-react";
 
 interface AIQuotaCompactProps {
@@ -14,7 +14,7 @@ interface QuotaData {
 }
 
 export default function AIQuotaCompact({ className = "" }: AIQuotaCompactProps) {
-  const { user, authenticated } = usePrivy();
+  const { user, authenticated } = useAuth();
   const [quota, setQuota] = useState<QuotaData>({
     freeRemaining: 3,
     freeLimit: 3,
@@ -55,7 +55,7 @@ export default function AIQuotaCompact({ className = "" }: AIQuotaCompactProps) 
           {quota.freeRemaining}/{quota.freeLimit}
         </span>
       </div>
-      
+
       <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
         <div
           className="h-full bg-foreground transition-all duration-300 rounded-full"

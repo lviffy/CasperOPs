@@ -214,7 +214,7 @@ export function PaymentStatusIndicator({
               {details.amount && (
                 <div className="flex justify-between">
                   <span>Amount:</span>
-                  <span className="font-mono">{details.amount} USDC</span>
+                  <span className="font-mono">{details.amount} CSPR</span>
                 </div>
               )}
               {details.created_at && (

@@ -1,14 +1,20 @@
-// Payment Service - Core payment verification and management
-import { ethers } from 'ethers';
+// Payment Service - x402 payment verification and execution-token issuance.
+//
+// BlockOps now uses Casper x402: the user signs a CEP-18 transfer deploy via
+// CSPR.click and the backend verifies the deploy on-chain via CSPR.cloud,
+// then issues a short-lived JWT the frontend sends back to invoke the paid
+// tool. The old EVM payment-escrow contract is no longer required.
+
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
+import { CHAIN_CONFIGS, DEFAULT_CHAIN_ID } from '@/lib/chains';
 
-// Types
 export interface PaymentVerificationRequest {
   paymentHash: string;
   userId: string;
   agentId?: string;
   toolName?: string;
+  amountCspr?: string;
 }
 
 export interface PaymentVerificationResponse {
@@ -29,163 +35,165 @@ export interface PaymentStatus {
   executedAt?: Date;
 }
 
-// Payment Escrow ABI (minimal for verification)
-const PAYMENT_ESCROW_ABI = [
-  'function verifyPayment(bytes32 paymentId) external view returns (bool)',
-  'function getPayment(bytes32 paymentId) external view returns (address user, uint256 amount, address token, string agentId, string toolName, uint256 timestamp, bool executed, bool refunded)',
-  'function executePayment(bytes32 paymentId) external',
-  'function refundPayment(bytes32 paymentId) external',
-];
+const CSPR_DECIMALS = 9
+
+function motesToCspr(motes: string | number | bigint): string {
+  const m = typeof motes === 'bigint' ? motes : BigInt(motes || '0')
+  const divisor = BigInt(10) ** BigInt(CSPR_DECIMALS)
+  const whole = m / divisor
+  const frac = m % divisor
+  const fracStr = frac.toString().padStart(CSPR_DECIMALS, '0').replace(/0+$/, '')
+  return fracStr ? `${whole.toString()}.${fracStr}` : whole.toString()
+}
+
+async function verifyCasperDeploy(deployHash: string, expectedRecipient: string, minAmountCspr: string): Promise<{
+  ok: boolean;
+  error?: string;
+  amount?: string;
+}> {
+  const cfg = CHAIN_CONFIGS[DEFAULT_CHAIN_ID]
+  const base = cfg.csprCloudUrl.replace(/\/$/, '')
+  try {
+    const res = await fetch(`${base}/deploys/${deployHash}`, {
+      headers: { accept: 'application/json' },
+    })
+    if (!res.ok) {
+      return { ok: false, error: `CSPR.cloud returned ${res.status}` }
+    }
+    const data: any = await res.json().catch(() => null)
+    const deploy = data?.data ?? data
+    if (!deploy) {
+      return { ok: false, error: 'Deploy not found' }
+    }
+    if (deploy?.execution_result?.Executions?.[0]?.result?.Failure) {
+      return { ok: false, error: 'Deploy execution failed on-chain' }
+    }
+    const transfers: any[] = deploy?.execution_result?.Executions?.[0]?.result?.Success?.transfers ?? []
+    const minMotes = BigInt(Math.round(parseFloat(minAmountCspr) * 10 ** CSPR_DECIMALS))
+    let matched = BigInt(0)
+    for (const t of transfers) {
+      const to = String(t?.to ?? '')
+      if (to.toLowerCase() === expectedRecipient.toLowerCase()) {
+        try { matched += BigInt(t.amount) } catch { /* ignore */ }
+      }
+    }
+    if (matched < minMotes) {
+      return { ok: false, error: `Payment of ${motesToCspr(matched)} CSPR is below required ${minAmountCspr} CSPR` }
+    }
+    return { ok: true, amount: motesToCspr(matched) }
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'CSPR.cloud verification failed' }
+  }
+}
 
 export class PaymentService {
   private supabase;
-  private provider;
-  private contract;
-  private backendSigner;
   private jwtSecret: string;
+  private paymentRecipient: string;
 
   constructor() {
-    // Initialize Supabase
     this.supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Initialize blockchain provider
-    this.provider = new ethers.JsonRpcProvider(
-      process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC || 'https://sepolia-rollup.arbitrum.io/rpc'
-    );
-
-    // Initialize contract
-    this.contract = new ethers.Contract(
-      process.env.NEXT_PUBLIC_PAYMENT_CONTRACT_ADDRESS!,
-      PAYMENT_ESCROW_ABI,
-      this.provider
-    );
-
-    // Initialize backend signer (for executing/refunding payments)
-    this.backendSigner = new ethers.Wallet(
-      process.env.PAYMENT_BACKEND_PRIVATE_KEY!,
-      this.provider
-    );
-
-    // JWT secret for execution tokens
-    this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-this';
+    this.jwtSecret = process.env.JWT_SECRET || 'change-me-in-production';
+    this.paymentRecipient =
+      process.env.PAYMENT_RECIPIENT_PUBLIC_KEY ||
+      process.env.NEXT_PUBLIC_PAYMENT_RECIPIENT_PUBLIC_KEY ||
+      '';
   }
 
   /**
-   * Verify payment on-chain and create execution token
+   * Verify a x402 payment deploy on Casper and issue a short-lived JWT
+   * the frontend can present to invoke the paid tool.
    */
   async verifyPayment(
     request: PaymentVerificationRequest
   ): Promise<PaymentVerificationResponse> {
     try {
-      const { paymentHash, userId, agentId, toolName } = request;
+      const { paymentHash, userId, agentId, toolName, amountCspr } = request;
 
-      // 1. Check if payment already exists in database
+      if (!paymentHash) {
+        return { verified: false, error: 'paymentHash is required' };
+      }
+
+      // 1. Idempotent re-verification: if we already recorded this deploy, return the token.
       const { data: existingPayment } = await this.supabase
         .from('payments')
         .select('*')
         .eq('payment_hash', paymentHash)
-        .single();
+        .maybeSingle();
 
-      if (existingPayment) {
-        // Payment already verified
-        if (existingPayment.execution_token) {
-          return {
-            verified: true,
-            executionToken: existingPayment.execution_token,
-            paymentId: existingPayment.id,
-            expiresAt: new Date(existingPayment.expires_at),
-          };
-        }
-      }
-
-      // 2. Verify payment on-chain
-      const paymentId = ethers.keccak256(ethers.toUtf8Bytes(paymentHash));
-      const isValid = await this.contract.verifyPayment(paymentId);
-
-      if (!isValid) {
+      if (existingPayment?.execution_token) {
         return {
-          verified: false,
-          error: 'Payment not found or already processed on-chain',
+          verified: true,
+          executionToken: existingPayment.execution_token,
+          paymentId: existingPayment.id,
+          expiresAt: new Date(existingPayment.expires_at),
         };
       }
 
-      // 3. Get payment details from contract
-      const paymentDetails = await this.contract.getPayment(paymentId);
-      const [user, amount, token, agentIdOnChain, toolNameOnChain, timestamp, executed, refunded] = paymentDetails;
-
-      // 4. Verify user matches
-      if (user.toLowerCase() !== userId.toLowerCase()) {
-        return {
-          verified: false,
-          error: 'Payment user mismatch',
-        };
+      if (!this.paymentRecipient) {
+        return { verified: false, error: 'PAYMENT_RECIPIENT_PUBLIC_KEY is not configured' };
       }
 
-      // 5. Generate execution token (JWT)
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+      const minAmount = amountCspr || process.env.DEFAULT_TOOL_PRICE_CSPR || '0.25';
+      const verification = await verifyCasperDeploy(
+        paymentHash,
+        this.paymentRecipient,
+        minAmount,
+      );
+
+      if (!verification.ok) {
+        return { verified: false, error: verification.error || 'Payment verification failed' };
+      }
+
+      // 2. Issue JWT.
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
       const executionToken = jwt.sign(
         {
           paymentHash,
-          paymentId: paymentId,
+          paymentId: paymentHash,
           userId,
-          agentId: agentId || agentIdOnChain,
-          toolName: toolName || toolNameOnChain,
-          amount: ethers.formatUnits(amount, 6), // Assuming USDC (6 decimals)
+          agentId: agentId || null,
+          toolName: toolName || null,
+          amount: verification.amount || minAmount,
+          network: CHAIN_CONFIGS[DEFAULT_CHAIN_ID].chainName,
         },
         this.jwtSecret,
-        { expiresIn: '30m' }
+        { expiresIn: '30m' },
       );
 
-      // 6. Get token symbol
-      let tokenSymbol = 'ETH';
-      if (token !== ethers.ZeroAddress) {
-        try {
-          const tokenContract = new ethers.Contract(
-            token,
-            ['function symbol() view returns (string)'],
-            this.provider
-          );
-          tokenSymbol = await tokenContract.symbol();
-        } catch (e) {
-          tokenSymbol = 'USDC'; // Default to USDC
-        }
-      }
-
-      // 7. Store payment in database
+      // 3. Persist.
       const { data: payment, error: dbError } = await this.supabase
         .from('payments')
         .upsert({
           payment_hash: paymentHash,
-          payment_id: paymentId,
+          payment_id: paymentHash,
           user_id: userId,
-          agent_id: agentId,
-          amount: ethers.formatUnits(amount, 6),
-          token_address: token,
-          token_symbol: tokenSymbol,
-          tool_name: toolName || toolNameOnChain,
+          agent_id: agentId || null,
+          amount: verification.amount || minAmount,
+          token_address: this.paymentRecipient,
+          token_symbol: 'CSPR',
+          tool_name: toolName || null,
           status: 'confirmed',
           execution_token: executionToken,
-          confirmed_at: new Date(),
-          expires_at: expiresAt,
+          confirmed_at: new Date().toISOString(),
+          expires_at: expiresAt.toISOString(),
         })
         .select()
         .single();
 
       if (dbError) {
         console.error('Database error:', dbError);
-        return {
-          verified: false,
-          error: 'Failed to store payment',
-        };
+        return { verified: false, error: 'Failed to store payment' };
       }
 
       return {
         verified: true,
         executionToken,
-        paymentId: payment.id,
+        paymentId: payment?.id,
         expiresAt,
       };
     } catch (error) {
@@ -198,7 +206,7 @@ export class PaymentService {
   }
 
   /**
-   * Verify execution token
+   * Validate an execution JWT and return its payload.
    */
   verifyExecutionToken(token: string): { valid: boolean; payload?: any; error?: string } {
     try {
@@ -213,11 +221,12 @@ export class PaymentService {
   }
 
   /**
-   * Execute payment (release escrow to treasury)
+   * Mark a payment as executed (the tool was successfully run). x402 settles
+   * the funds via the original CEP-18 transfer; no further on-chain action is
+   * needed.
    */
   async executePayment(paymentId: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      // 1. Get payment from database
       const { data: payment, error: dbError } = await this.supabase
         .from('payments')
         .select('*')
@@ -232,40 +241,28 @@ export class PaymentService {
         return { success: false, error: 'Payment not in confirmed state' };
       }
 
-      // 2. Execute payment on-chain
-      const contractWithSigner = this.contract.connect(this.backendSigner) as any;
-      const tx = await contractWithSigner.executePayment(payment.payment_id);
-      const receipt = await tx.wait();
-
-      // 3. Update database
       await this.supabase
         .from('payments')
         .update({
           status: 'executed',
-          executed_at: new Date(),
-          transaction_hash: receipt.hash,
+          executed_at: new Date().toISOString(),
         })
         .eq('id', paymentId);
 
-      return {
-        success: true,
-        txHash: receipt.hash,
-      };
+      return { success: true, txHash: payment.payment_hash };
     } catch (error) {
       console.error('Payment execution error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Execution failed',
-      };
+      return { success: false, error: error instanceof Error ? error.message : 'Execution failed' };
     }
   }
 
   /**
-   * Refund payment (return funds to user)
+   * Refund a payment by writing a refund note to the database. The actual
+   * CSPR refund deploy is initiated by the operator manually; this method
+   * records the refund reason.
    */
   async refundPayment(paymentId: string, reason: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      // 1. Get payment from database
       const { data: payment, error: dbError } = await this.supabase
         .from('payments')
         .select('*')
@@ -280,48 +277,32 @@ export class PaymentService {
         return { success: false, error: 'Payment already processed' };
       }
 
-      // 2. Refund payment on-chain
-      const contractWithSigner = this.contract.connect(this.backendSigner) as any;
-      const tx = await contractWithSigner.refundPayment(payment.payment_id);
-      const receipt = await tx.wait();
-
-      // 3. Update database
       await this.supabase
         .from('payments')
         .update({
           status: 'refunded',
-          refunded_at: new Date(),
-          refund_hash: receipt.hash,
+          refunded_at: new Date().toISOString(),
           metadata: {
-            ...payment.metadata,
+            ...(payment.metadata || {}),
             refund_reason: reason,
           },
         })
         .eq('id', paymentId);
 
-      return {
-        success: true,
-        txHash: receipt.hash,
-      };
+      return { success: true };
     } catch (error) {
       console.error('Payment refund error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Refund failed',
-      };
+      return { success: false, error: error instanceof Error ? error.message : 'Refund failed' };
     }
   }
 
-  /**
-   * Get payment status
-   */
   async getPaymentStatus(paymentHash: string): Promise<PaymentStatus | null> {
     try {
       const { data: payment } = await this.supabase
         .from('payments')
         .select('*')
         .eq('payment_hash', paymentHash)
-        .single();
+        .maybeSingle();
 
       if (!payment) return null;
 
@@ -329,7 +310,7 @@ export class PaymentService {
         id: payment.id,
         status: payment.status,
         amount: payment.amount,
-        tokenSymbol: payment.token_symbol,
+        tokenSymbol: payment.token_symbol || 'CSPR',
         createdAt: new Date(payment.created_at),
         confirmedAt: payment.confirmed_at ? new Date(payment.confirmed_at) : undefined,
         executedAt: payment.executed_at ? new Date(payment.executed_at) : undefined,
@@ -340,9 +321,6 @@ export class PaymentService {
     }
   }
 
-  /**
-   * Check AI generation quota
-   */
   async checkAIQuota(userId: string): Promise<{
     canGenerate: boolean;
     freeRemaining: number;
@@ -355,11 +333,11 @@ export class PaymentService {
       });
 
       if (error) throw error;
-
+      const row = Array.isArray(data) ? data[0] : data;
       return {
-        canGenerate: data[0].can_generate,
-        freeRemaining: data[0].free_remaining,
-        needsPayment: data[0].needs_payment,
+        canGenerate: Boolean(row?.can_generate ?? row?.canGenerate),
+        freeRemaining: Number(row?.free_remaining ?? row?.freeRemaining ?? 0),
+        needsPayment: Boolean(row?.needs_payment ?? row?.needsPayment),
       };
     } catch (error) {
       console.error('Check AI quota error:', error);
@@ -367,9 +345,6 @@ export class PaymentService {
     }
   }
 
-  /**
-   * Increment AI generation usage
-   */
   async incrementAIUsage(userId: string, isPaid: boolean = false): Promise<boolean> {
     try {
       const { data, error } = await this.supabase.rpc('increment_ai_generation', {
@@ -378,21 +353,19 @@ export class PaymentService {
       });
 
       if (error) throw error;
-      return data;
+      return Boolean(data);
     } catch (error) {
       console.error('Increment AI usage error:', error);
       return false;
     }
   }
 
-  /**
-   * Get tool pricing
-   */
   async getToolPricing(toolName: string): Promise<{
     price: number;
     isFree: boolean;
     displayName: string;
     description: string;
+    symbol?: string;
   } | null> {
     try {
       const { data: pricing } = await this.supabase
@@ -400,15 +373,16 @@ export class PaymentService {
         .select('*')
         .eq('tool_name', toolName)
         .eq('enabled', true)
-        .single();
+        .maybeSingle();
 
       if (!pricing) return null;
 
       return {
-        price: parseFloat(pricing.price_usdc),
-        isFree: pricing.is_free,
+        price: parseFloat(pricing.price_cspr ?? pricing.price_usdc ?? '0'),
+        isFree: Boolean(pricing.is_free),
         displayName: pricing.display_name,
         description: pricing.description,
+        symbol: pricing.token_symbol || 'CSPR',
       };
     } catch (error) {
       console.error('Get tool pricing error:', error);
@@ -416,9 +390,6 @@ export class PaymentService {
     }
   }
 
-  /**
-   * Record payment agreement
-   */
   async recordPaymentAgreement(
     userId: string,
     version: string,
@@ -431,7 +402,7 @@ export class PaymentService {
         version,
         ip_address: ipAddress,
         user_agent: userAgent,
-        terms_content: 'Payment terms v1.0', // You can customize this
+        terms_content: 'Payment terms v1.0',
       });
 
       return !error;
@@ -441,9 +412,6 @@ export class PaymentService {
     }
   }
 
-  /**
-   * Check if user has agreed to payment terms
-   */
   async hasAgreedToTerms(userId: string, version: string = 'v1.0'): Promise<boolean> {
     try {
       const { data } = await this.supabase
@@ -451,14 +419,13 @@ export class PaymentService {
         .select('id')
         .eq('user_id', userId)
         .eq('version', version)
-        .single();
+        .maybeSingle();
 
-      return !!data;
+      return Boolean(data);
     } catch (error) {
       return false;
     }
   }
 }
 
-// Export singleton instance
 export const paymentService = new PaymentService();

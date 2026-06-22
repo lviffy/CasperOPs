@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BlockOps MCP Tool Catalog",
+  "description": "JSON Schema for the 22 backend tools exposed to LangGraph / CrewAI agents via the BlockOps MCP server. Pricing tier is sourced from backend/utils/chains.js TOOL_PRICING; see docs/x402.md.",
+  "version": "1.0.0",
+  "tools": [
+    {
+      "name": "get_balance",
+      "description": "Get the native CSPR balance (motes + CSPR) for a Casper public key via CSPR.cloud.",
+      "tier": "free",
+      "input": {
+        "type": "object",
+        "properties": {
+          "public_key": { "type": "string", "description": "Casper ed25519 public key (hex, with 0x/01/02 prefix)" }
+        },
+        "required": ["public_key"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "public_key": { "type": "string" },
+          "balance_motes": { "type": "string" },
+          "balance_cspr": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "transfer",
+      "description": "Sign + broadcast a native CSPR transfer via CSPR.click.",
+      "tier": "paid",
+      "input": {
+        "type": "object",
+        "properties": {
+          "recipient": { "type": "string" },
+          "amount_motes": { "type": "string" },
+          "memo": { "type": "string" }
+        },
+        "required": ["recipient", "amount_motes"]
+      }
+    },
+    {
+      "name": "batch_transfer",
+      "description": "Sign + broadcast a batch CSPR transfer (≤ 25 recipients per call).",
+      "tier": "paid",
+      "input": {
+        "type": "object",
+        "properties": {
+          "transfers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "recipient": { "type": "string" },
+                "amount_motes": { "type": "string" }
+              },
+              "required": ["recipient", "amount_motes"]
+            }
+          }
+        },
+        "required": ["transfers"]
+      }
+    },
+    {
+      "name": "deploy_cep18",
+      "description": "Deploy a CEP-18 (ERC-20-equivalent) token contract on Casper Testnet.",
+      "tier": "paid",
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "symbol": { "type": "string" },
+          "decimals": { "type": "integer" },
+          "total_supply": { "type": "string" }
+        },
+        "required": ["name", "symbol", "decimals", "total_supply"]
+      }
+    },
+    {
+      "name": "deploy_cep78",
+      "description": "Deploy a CEP-78 (ERC-721-equivalent) NFT collection contract on Casper Testnet.",
+      "tier": "paid",
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "symbol": { "type": "string" },
+          "total_supply": { "type": "integer" }
+        },
+        "required": ["name", "symbol", "total_supply"]
+      }
+    },
+    {
+      "name": "mint_nft",
+      "description": "Mint a new NFT from a previously deployed CEP-78 collection.",
+      "tier": "paid",
+      "input": {
+        "type": "object",
+        "properties": {
+          "collection_hash": { "type": "string", "description": "hash-<64hex> contract hash" },
+          "recipient": { "type": "string" },
+          "metadata_uri": { "type": "string" }
+        },
+        "required": ["collection_hash", "recipient"]
+      }
+    },
+    {
+      "name": "get_token_info",
+      "description": "Look up a CEP-18 token's name, symbol, decimals, total supply via CSPR.cloud.",
+      "tier": "free",
+      "input": {
+        "type": "object",
+        "properties": {
+          "contract_hash": { "type": "string" }
+        },
+        "required": ["contract_hash"]
+      }
+    },
+    {
+      "name": "get_token_balance",
+      "description": "Look up a CEP-18 token balance for an account via CSPR.cloud.",
+      "tier": "free",
+      "input": {
+        "type": "object",
+        "properties": {
+          "contract_hash": { "type": "string" },
+          "public_key": { "type": "string" }
+        },
+        "required": ["contract_hash", "public_key"]
+      }
+    },
+    {
+      "name": "get_nft_info",
+      "description": "Look up a CEP-78 NFT's metadata + owner via CSPR.cloud.",
+      "tier": "free",
+      "input": {
+        "type": "object",
+        "properties": {
+          "collection_hash": { "type": "string" },
+          "token_id": { "type": "string" }
+        },
+        "required": ["collection_hash", "token_id"]
+      }
+    },
+    {
+      "name": "lookup_deploy",
+      "description": "Look up a deploy's execution results via the Casper RPC.",
+      "tier": "free",
+      "input": {
+        "type": "object",
+        "properties": {
+          "deploy_hash": { "type": "string" }
+        },
+        "required": ["deploy_hash"]
+      }
+    },
+    {
+      "name": "lookup_block",
+      "description": "Look up a block by height or hash via the Casper RPC.",
+      "tier": "free",
+      "input": {
+        "type": "object",
+        "properties": {
+          "block_identifier": { "type": "object" }
+        },
+        "required": ["block_identifier"]
+      }
+    },
+    {
+      "name": "fetch_price",
+      "description": "Fetch CSPR market price (USD + 24h change) via CoinGecko / CSPR.cloud.",
+      "tier": "free",
+      "input": { "type": "object", "properties": {} }
+    },
+    {
+      "name": "send_email",
+      "description": "Send an email via the BlockOps transactional provider (Resend / SendGrid).",
+      "tier": "paid",
+      "input": {
+        "type": "object",
+        "properties": {
+          "to": { "type": "string" },
+          "subject": { "type": "string" },
+          "body": { "type": "string" }
+        },
+        "required": ["to", "subject", "body"]
+      }
+    },
+    {
+      "name": "calculate",
+      "description": "Evaluate a math expression locally (no on-chain effect).",
+      "tier": "free",
+      "input": {
+        "type": "object",
+        "properties": {
+          "expression": { "type": "string" }
+        },
+        "required": ["expression"]
+      }
+    },
+    {
+      "name": "register_agent",
+      "description": "Register an AI agent on the Casper AgentFactory contract. x402 payment required.",
+      "tier": "paid",
+      "input": {
+        "type": "object",
+        "properties": {
+          "agent_id": { "type": "string" },
+          "metadata_uri": { "type": "string" }
+        },
+        "required": ["agent_id"]
+      }
+    },
+    {
+      "name": "attest_agent",
+      "description": "Submit a positive/negative attestation for an agent on the Reputation contract. x402 payment required.",
+      "tier": "paid",
+      "input": {
+        "type": "object",
+        "properties": {
+          "agent_id": { "type": "string" },
+          "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "evidence_uri": { "type": "string" }
+        },
+        "required": ["agent_id", "score"]
+      }
+    },
+    {
+      "name": "get_reputation",
+      "description": "Look up the current reputation score + history for an agent.",
+      "tier": "free",
+      "input": {
+        "type": "object",
+        "properties": {
+          "agent_id": { "type": "string" }
+        },
+        "required": ["agent_id"]
+      }
+    },
+    {
+      "name": "yield_rebalance",
+      "description": "Rebalance treasury allocation across Casper staking validators. x402 payment required.",
+      "tier": "paid",
+      "input": {
+        "type": "object",
+        "properties": {
+          "allocations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "validator": { "type": "string" },
+                "weight_bps": { "type": "integer" }
+              },
+              "required": ["validator", "weight_bps"]
+            }
+          }
+        },
+        "required": ["allocations"]
+      }
+    },
+    {
+      "name": "wallet_readiness",
+      "description": "Check whether a Casper public key is ready to receive on-chain interactions (CSPR balance, faucet eligibility, last activity).",
+      "tier": "free",
+      "input": {
+        "type": "object",
+        "properties": {
+          "public_key": { "type": "string" }
+        },
+        "required": ["public_key"]
+      }
+    },
+    {
+      "name": "compliance_check",
+      "description": "Run a compliance check against the on-chain Compliance contract allowlist.",
+      "tier": "free",
+      "input": {
+        "type": "object",
+        "properties": {
+          "agent_id": { "type": "string" },
+          "jurisdiction": { "type": "string" }
+        },
+        "required": ["agent_id"]
+      }
+    },
+    {
+      "name": "escrow_deposit",
+      "description": "Deposit CSPR into the Escrow contract for an agent payout. x402 payment required.",
+      "tier": "paid",
+      "input": {
+        "type": "object",
+        "properties": {
+          "agent_id": { "type": "string" },
+          "amount_motes": { "type": "string" }
+        },
+        "required": ["agent_id", "amount_motes"]
+      }
+    },
+    {
+      "name": "escrow_payout",
+      "description": "Trigger an agent payout from the Escrow contract (operator-only). x402 payment required.",
+      "tier": "paid",
+      "input": {
+        "type": "object",
+        "properties": {
+          "agent_id": { "type": "string" }
+        },
+        "required": ["agent_id"]
+      }
+    }
+  ]
+}

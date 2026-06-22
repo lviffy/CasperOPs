@@ -59,4 +59,31 @@ mod tests {
         factory.deploy_agent(agent);
         assert_eq!(factory.get_agent_owner(agent), Some(owner));
     }
+
+    #[test]
+    fn test_deploy_multiple_agents_tracks_count_and_owners() {
+        let env = odra_test::env();
+        let mut factory = AgentFactory::deploy(&env, NoArgs);
+        let owner_a = env.get_account(0);
+        let owner_b = env.get_account(2);
+        let agent_a = env.get_account(1);
+        let agent_b = env.get_account(3);
+
+        env.set_caller(owner_a);
+        factory.deploy_agent(agent_a);
+        env.set_caller(owner_b);
+        factory.deploy_agent(agent_b);
+
+        assert_eq!(factory.get_deployed_count(), 2);
+        assert_eq!(factory.get_agent_owner(agent_a), Some(owner_a));
+        assert_eq!(factory.get_agent_owner(agent_b), Some(owner_b));
+    }
+
+    #[test]
+    fn test_get_agent_owner_unknown_returns_none() {
+        let env = odra_test::env();
+        let factory = AgentFactory::deploy(&env, NoArgs);
+        let unknown = env.get_account(5);
+        assert_eq!(factory.get_agent_owner(unknown), None);
+    }
 }

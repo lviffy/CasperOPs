@@ -7,3 +7,6 @@ groq
 requests
 httpx
 mcp
+redis
+asyncpg
+sse-starlette

@@ -155,5 +155,62 @@ mod tests {
         env.set_caller(non_backend);
         escrow.execute_payout(agent);
     }
+
+    #[test]
+    #[should_panic]
+    fn test_escrow_unauthorized_refund() {
+        let env = odra_test::env();
+        let backend = env.get_account(0);
+        let treasury = env.get_account(1);
+        let agent = env.get_account(2);
+        let attacker = env.get_account(3);
+
+        let mut escrow = Escrow::deploy(
+            &env,
+            super::__escrow_test_parts::EscrowInitArgs { backend, treasury }
+        );
+
+        env.set_caller(attacker);
+        escrow.refund(agent, attacker);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_escrow_payout_zero_balance_reverts() {
+        let env = odra_test::env();
+        let backend = env.get_account(0);
+        let treasury = env.get_account(1);
+        let agent = env.get_account(2);
+
+        let mut escrow = Escrow::deploy(
+            &env,
+            super::__escrow_test_parts::EscrowInitArgs { backend, treasury }
+        );
+
+        env.set_caller(backend);
+        let _ = escrow.execute_payout(agent);
+    }
+
+    #[test]
+    fn test_escrow_multiple_deposits_accumulate() {
+        let env = odra_test::env();
+        let backend = env.get_account(0);
+        let treasury = env.get_account(1);
+        let agent = env.get_account(2);
+        let depositor_a = env.get_account(3);
+        let depositor_b = env.get_account(4);
+
+        let mut escrow = Escrow::deploy(
+            &env,
+            super::__escrow_test_parts::EscrowInitArgs { backend, treasury }
+        );
+
+        env.set_caller(depositor_a);
+        escrow.with_tokens(U512::from(400)).deposit(agent);
+        env.set_caller(depositor_b);
+        escrow.with_tokens(U512::from(600)).deposit(agent);
+
+        assert_eq!(escrow.get_balance(agent), U512::from(1000));
+    }
 }
 

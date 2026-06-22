@@ -90,5 +90,43 @@ mod tests {
         env.set_caller(non_authority);
         compliance.attest_agent(agent, true, "ipfs://unauthorized".to_string());
     }
+
+    #[test]
+    fn test_compliance_attest_can_be_revoked() {
+        let env = odra_test::env();
+        let authority = env.get_account(0);
+        let agent = env.get_account(1);
+
+        let mut compliance = Compliance::deploy(
+            &env,
+            super::__compliance_test_parts::ComplianceInitArgs { authority }
+        );
+
+        env.set_caller(authority);
+        compliance.attest_agent(agent, true, "ipfs://approve".to_string());
+        assert_eq!(compliance.is_compliant(agent), true);
+
+        compliance.attest_agent(agent, false, "ipfs://revoke".to_string());
+        assert_eq!(compliance.is_compliant(agent), false);
+        assert_eq!(
+            compliance.get_attestation_uri(agent),
+            "ipfs://revoke".to_string()
+        );
+    }
+
+    #[test]
+    fn test_compliance_unattested_agent_defaults() {
+        let env = odra_test::env();
+        let authority = env.get_account(0);
+        let agent = env.get_account(1);
+
+        let compliance = Compliance::deploy(
+            &env,
+            super::__compliance_test_parts::ComplianceInitArgs { authority }
+        );
+
+        assert_eq!(compliance.is_compliant(agent), false);
+        assert_eq!(compliance.get_attestation_uri(agent), String::new());
+    }
 }
 

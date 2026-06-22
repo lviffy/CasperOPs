@@ -35,7 +35,7 @@ import { AgentWalletModal } from "@/components/agent-wallet"
 import { UserProfile } from "@/components/user-profile"
 import { PrivateKeySetupModal } from "@/components/private-key-setup-modal"
 import { toast } from "@/components/ui/use-toast"
-import { decryptStoredPrivateKey } from "@/lib/lit-private-key"
+import { signMessage, getActiveAccount } from "@/lib/wallet"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -133,22 +133,19 @@ export default function MyAgents() {
     if (!user?.id) return
     setRegisteringAgentId(agentId)
     try {
-      let resolvedPrivateKey: string | undefined
-
-      if (dbUser?.private_key) {
-        try {
-          resolvedPrivateKey = (await decryptStoredPrivateKey(dbUser.private_key)) || undefined
-        } catch (error) {
-          console.error("Error decrypting stored private key:", error)
-          setShowPrivateKeySetup(true)
-          toast({
-            title: "Wallet setup required",
-            description: "Your saved signing key could not be used. Please re-enter your private key to continue.",
-            variant: "destructive",
-          })
-          return
-        }
+      const account = await getActiveAccount()
+      if (!account?.publicKey) {
+        toast({
+          title: "Wallet connection required",
+          description: "Connect your CSPR.click wallet to register agents on the Casper testnet.",
+          variant: "destructive",
+        })
+        return
       }
+
+      const timestamp = Date.now()
+      const payload = `register-agent:${agentId}:${user.id}:${timestamp}`
+      const signature = await signMessage(payload, account.publicKey)
 
       const response = await fetch(`${BLOCKCHAIN_BACKEND_URL}/agents/${agentId}/register-on-chain`, {
         method: 'POST',
@@ -158,7 +155,10 @@ export default function MyAgents() {
         },
         body: JSON.stringify({
           userId: user.id,
-          ...(resolvedPrivateKey ? { privateKey: resolvedPrivateKey } : {}),
+          signerPublicKey: account.publicKey,
+          payload,
+          signature,
+          timestamp,
         }),
       })
 

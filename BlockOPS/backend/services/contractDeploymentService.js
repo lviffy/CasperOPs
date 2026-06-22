@@ -17,9 +17,9 @@ const { getClient, getKeysFromHex } = require('../utils/blockchain');
 const { getChainMetadata } = require('../utils/chains');
 
 // Expected WASM binary paths after `cargo odra build`
-const WASM_DIR = path.resolve(__dirname, '../../contract/target/wasm32-unknown-unknown/release');
-const CEP18_WASM = path.join(WASM_DIR, 'blockops_contracts_cep18.wasm');
-const CEP78_WASM = path.join(WASM_DIR, 'blockops_contracts_cep78.wasm');
+const WASM_DIR = path.resolve(__dirname, '../../contract/wasm');
+const CEP18_WASM = path.join(WASM_DIR, 'Cep18Token.wasm');
+const CEP78_WASM = path.join(WASM_DIR, 'Cep78Nft.wasm');
 
 function loadWasm(wasmPath) {
   if (!fs.existsSync(wasmPath)) {

@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState, useRef, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { Send, Loader2, ChevronDown, ChevronUp, Wrench, ArrowLeft, ArrowRight, CircleDot, Copy, Check, Database, RefreshCw, Link2, Clock3, BellRing, X, Star } from "lucide-react"
+import { Send, Loader2, ChevronDown, ChevronUp, Wrench, ArrowLeft, ArrowRight, CircleDot, Copy, Check, Database, RefreshCw, Link2, Clock3, BellRing, X, Star, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -34,12 +34,8 @@ import {
   type ScheduledTransferJob,
 } from "@/lib/backend"
 import type { Agent } from "@/lib/supabase"
-import { useWallets } from "@privy-io/react-auth"
-import { decryptStoredPrivateKey } from "@/lib/lit-private-key"
-import { hasStoredPkpWallet, signTransactionWithPkp } from "@/lib/lit-pkp"
-import { BrowserProvider } from "ethers"
-import { CHAIN_CONFIGS, getChainConfig, getStoredChain, setStoredChain, type SupportedChainId } from "@/lib/chains"
-import { getAddressFromPrivateKey } from "@/lib/wallet"
+import { signDeploy, sendDeploy, casperDeployUrl } from "@/lib/wallet"
+import { CHAIN_CONFIGS, getChainConfig, getStoredChain, type SupportedChainId } from "@/lib/chains"
 
 const DEFAULT_EMAIL_RECIPIENT_KEY = "blockops.defaultEmailRecipient"
 const AUDIT_LOG_FETCH_LIMIT = 200
@@ -1332,8 +1328,8 @@ export default function AgentChatPage() {
   const router = useRouter()
   const params = useParams()
   const agentId = params.agentId as string
-  const { logout, dbUser, privyWalletAddress, user } = useAuth()
-  const { wallets } = useWallets()
+  const { logout, dbUser, csprclickPublicKey, user } = useAuth()
+  const signerPublicKey = csprclickPublicKey ?? user?.publicKey ?? null
 
   const [agent, setAgent] = useState<Agent | null>(null)
   const [loadingAgent, setLoadingAgent] = useState(true)
@@ -1345,62 +1341,38 @@ export default function AgentChatPage() {
   const [isAuditSheetOpen, setIsAuditSheetOpen] = useState(false)
   const [isReminderSheetOpen, setIsReminderSheetOpen] = useState(false)
   const [conversationId, setConversationId] = useState<string | undefined>(undefined)
-  const [selectedChain, setSelectedChain] = useState<SupportedChainId>("flow-testnet")
+  const [selectedChain, setSelectedChain] = useState<SupportedChainId>("casper-testnet")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const sendInFlightRef = useRef(false)
   const selectedChainConfig = getChainConfig(selectedChain)
 
-  // Function to handle MetaMask transaction signing
-  const handleMetaMaskTransaction = async (txData: any): Promise<string> => {
-    try {
-      if (!wallets || wallets.length === 0) {
-        throw new Error("No wallet connected. Please connect your wallet.")
-      }
-
-      const wallet = wallets[0]
-      await wallet.switchChain(selectedChainConfig.chainId)
-
-      const ethereumProvider = await wallet.getEthereumProvider()
-      const provider = new BrowserProvider(ethereumProvider)
-      const signer = await provider.getSigner()
-
-      const tx = await signer.sendTransaction(txData.transaction)
-      const receipt = await tx.wait()
-        
-        if (!receipt) throw new Error("Transaction failed to confirm")
-
-      if (!receipt) {
-        throw new Error("Transaction receipt not available")
-      }
-
-      return receipt.hash
-    } catch (error: any) {
-      console.error("MetaMask transaction error:", error)
-      throw new Error(`Transaction failed: ${error.message}`)
-    }
-  }
-
-  const handlePkpTransaction = async (txData: any): Promise<{ hash: string; explorerUrl: string }> => {
-    if (!hasStoredPkpWallet(dbUser)) {
-      throw new Error("No PKP wallet is configured for this account.")
+  // Sign + broadcast a Casper deploy via CSPR.click (replaces MetaMask + Lit PKP).
+  const signAndSendCasperDeploy = async (txData: any): Promise<string> => {
+    if (!signerPublicKey) {
+      throw new Error("No Casper wallet connected. Please connect via CSPR.click.")
     }
 
-    const signed = await signTransactionWithPkp({
-      pkpPublicKey: dbUser.pkp_public_key,
-      pkpTokenId: dbUser.pkp_token_id,
-      chain: selectedChain,
-      transaction: {
-        to: txData.transaction?.to,
-        data: txData.transaction?.data || null,
-        value: txData.transaction?.value ? String(txData.transaction.value) : null,
-      },
-    })
-
-    return {
-      hash: signed.hash,
-      explorerUrl: signed.explorerUrl,
+    const deployJson = {
+      ...(txData?.deploy ?? {}),
+      signingPublicKey: signerPublicKey,
+      chainName: CHAIN_CONFIGS[selectedChain]?.chainName ?? "casper-testnet",
     }
+
+    const result = txData?.broadcast === false
+      ? await signDeploy(deployJson, signerPublicKey)
+      : await sendDeploy(deployJson, signerPublicKey, true)
+
+    const deployHash =
+      (result as any)?.deployHash ??
+      (result as any)?.deploy_hash ??
+      (result as any)?.hash ??
+      ""
+
+    if (!deployHash) {
+      throw new Error("CSPR.click did not return a deploy hash")
+    }
+    return deployHash
   }
 
   useEffect(() => {
@@ -1415,20 +1387,21 @@ export default function AgentChatPage() {
 
   const fetchReputation = async (onChainId: string) => {
     try {
-      const provider = new ethers.JsonRpcProvider("https://sepolia-rollup.arbitrum.io/rpc");
-      const reputationAddr = process.env.NEXT_PUBLIC_REPUTATION_REGISTRY_ADDRESS || "0xa497e1BFe08109D60A8F91AdEc868ffdD1e0055c";
-      
-      const REPUTATION_ABI = [
-        "function getAverageScore(uint256 agentId, string memory tag) public view returns (uint256)"
-      ];
-
-      const reputationContract = new ethers.Contract(reputationAddr, REPUTATION_ABI, provider);
-      const score = await reputationContract.getAverageScore(onChainId, "successRate");
-      setReputationScore(Number(score));
+      const cfg = CHAIN_CONFIGS[selectedChain] ?? CHAIN_CONFIGS["casper-testnet"]
+      const url = `${cfg.csprCloudUrl.replace(/\/$/, "")}/reputation/${encodeURIComponent(onChainId)}`
+      const res = await fetch(url, { headers: { accept: "application/json" } })
+      if (!res.ok) {
+        setReputationScore(null)
+        return
+      }
+      const data = await res.json().catch(() => null)
+      const score = Number(data?.averageScore ?? data?.score ?? data?.data?.averageScore ?? 0)
+      setReputationScore(Number.isFinite(score) ? score : null)
     } catch (e) {
-      console.error("Error fetching reputation:", e);
+      console.error("Error fetching reputation:", e)
+      setReputationScore(null)
     }
-  };
+  }
 
   useEffect(() => {
     const fetchAgent = async () => {
@@ -1478,38 +1451,13 @@ export default function AgentChatPage() {
     sendInFlightRef.current = true
 
     try {
-      let resolvedPrivateKey: string | undefined
-      let derivedSignerAddress: string | undefined
-      if (dbUser?.private_key) {
-        try {
-          resolvedPrivateKey = (await decryptStoredPrivateKey(dbUser.private_key)) || undefined
-          if (resolvedPrivateKey) {
-            derivedSignerAddress = getAddressFromPrivateKey(resolvedPrivateKey)
-          }
-        } catch (error: any) {
-          console.warn("Failed to decrypt stored private key for chat request:", error)
-        }
-      }
-
-      if (
-        dbUser?.wallet_address &&
-        derivedSignerAddress &&
-        dbUser.wallet_address.toLowerCase() !== derivedSignerAddress.toLowerCase()
-      ) {
-        console.warn("Stored agent wallet address does not match decrypted private key address.", {
-          storedWalletAddress: dbUser.wallet_address,
-          derivedSignerAddress,
-        })
-      }
-
       const savedEmailRecipient = typeof window !== "undefined"
         ? window.localStorage.getItem(DEFAULT_EMAIL_RECIPIENT_KEY)?.trim()
         : ""
       const effectiveDefaultEmailTo = savedEmailRecipient || user?.email?.address || undefined
       const effectiveWalletAddress =
-        derivedSignerAddress ||
         dbUser?.wallet_address ||
-        privyWalletAddress ||
+        signerPublicKey ||
         undefined
 
       const data = await sendChatWithMemory({
@@ -1521,10 +1469,10 @@ export default function AgentChatPage() {
         deliveryPlatform: "web",
         systemPrompt: `You are a helpful AI assistant for blockchain operations. The agent has these tools: ${agent.tools?.map((t) => t.tool).join(", ")}`,
         walletAddress: effectiveWalletAddress,
-        walletType: dbUser?.wallet_type || undefined,
-        pkpPublicKey: dbUser?.pkp_public_key || undefined,
-        pkpTokenId: dbUser?.pkp_token_id || undefined,
-        privateKey: resolvedPrivateKey,
+        walletType: "csprclick",
+        pkpPublicKey: undefined,
+        pkpTokenId: undefined,
+        privateKey: undefined,
         defaultEmailTo: effectiveDefaultEmailTo,
         userEmail: user?.email?.address || undefined,
       })
@@ -1533,54 +1481,38 @@ export default function AgentChatPage() {
         setConversationId(data.conversationId)
       }
 
-      // Check if any tool results require MetaMask signing
+      // Check if any tool results require CSPR.click deploy signing.
       let finalMessage = data.message
       if (data.toolResults?.results) {
         for (const result of data.toolResults.results) {
-          if (result.success && result.result?.requiresMetaMask && result.result?.transaction) {
-            try {
-              // Show signing prompt
-              toast({
-                title: "Transaction Signing",
-                description: "Please confirm the transaction in your wallet...",
-              })
+          const needsSigning =
+            result.success &&
+            (result.result?.requiresMetaMask || result.result?.requiresSigning) &&
+            (result.result?.transaction || result.result?.deploy)
 
-              const txHash = await handleMetaMaskTransaction(result.result)
-              
-              // Update message with transaction hash
-              const explorerUrl = `${selectedChainConfig.explorerBaseUrl}/tx/${txHash}`
-              finalMessage += `\n\n✅ Transaction confirmed!\nTransaction Hash: [${txHash.slice(0, 10)}...${txHash.slice(-8)}](${explorerUrl})`
-              
-              toast({
-                title: "Success",
-                description: "Transaction confirmed on blockchain",
-              })
-            } catch (error: any) {
-              finalMessage += `\n\n❌ Transaction failed: ${error.message}`
-              toast({
-                title: "Transaction Failed",
-                description: error.message,
-                variant: "destructive",
-              })
-            }
-          } else if (result.success && result.result?.requiresSigning && result.result?.transaction && hasStoredPkpWallet(dbUser)) {
+          if (needsSigning) {
             try {
               toast({
-                title: "PKP Signing",
-                description: "Signing the prepared transaction with your Lit PKP wallet...",
+                title: "Sign Deploy",
+                description: "Confirm the deploy in your Casper wallet (CSPR.click)…",
               })
 
-              const signedTx = await handlePkpTransaction(result.result)
-              finalMessage += `\n\n✅ PKP transaction confirmed!\nTransaction Hash: [${signedTx.hash.slice(0, 10)}...${signedTx.hash.slice(-8)}](${signedTx.explorerUrl})`
+              const deployHash = await signAndSendCasperDeploy({
+                deploy: result.result?.deploy ?? result.result?.transaction,
+                broadcast: result.result?.broadcast !== false,
+              })
+
+              const explorerUrl = casperDeployUrl(deployHash)
+              finalMessage += `\n\n✅ Deploy confirmed!\nDeploy Hash: [${deployHash.slice(0, 10)}…${deployHash.slice(-8)}](${explorerUrl})`
 
               toast({
                 title: "Success",
-                description: "Transaction confirmed with your PKP wallet",
+                description: "Deploy confirmed on Casper",
               })
             } catch (error: any) {
-              finalMessage += `\n\n❌ PKP transaction failed: ${error.message}`
+              finalMessage += `\n\n❌ Deploy failed: ${error.message}`
               toast({
-                title: "PKP Transaction Failed",
+                title: "Deploy Failed",
                 description: error.message,
                 variant: "destructive",
               })

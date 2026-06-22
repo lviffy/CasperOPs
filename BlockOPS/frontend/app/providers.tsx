@@ -1,45 +1,37 @@
 'use client'
 
-import { PrivyProvider } from '@privy-io/react-auth'
 import { Toaster } from '@/components/ui/toaster'
 import { useEffect, useState } from 'react'
-import { arbitrumSepolia, flowTestnet } from 'viem/chains'
+import { initCsprClick } from '@/lib/wallet'
 
+/**
+ * Root providers for the BlockOps app.
+ *
+ * BlockOps now uses CSPR.click for wallet session management, so the provider
+ * tree only needs to:
+ *   1. Eagerly initialise the CSPR.click SDK on the client (so the first hook
+ *      that calls `initCsprClick()` doesn't pay the cost of bootstrapping
+ *      iframe message listeners).
+ *   2. Mount the UI toaster.
+ *
+ * No EVM wagmi/RainbowKit/Privy provider is needed.
+ */
 export function Providers({ children }: { children: React.ReactNode }) {
-  const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
+    initCsprClick()
   }, [])
 
-  if (!privyAppId) {
-    throw new Error('NEXT_PUBLIC_PRIVY_APP_ID is not set')
-  }
-
-
-  // Don't render children until PrivyProvider is available on client side
-  // This prevents Privy hooks (useWallets, usePrivy) from being called outside PrivyProvider
   if (!mounted) {
     return null
   }
 
   return (
-    <PrivyProvider
-      appId={privyAppId}
-      config={{
-        loginMethods: ['email', 'wallet', 'google', 'github'],
-        supportedChains: [flowTestnet, arbitrumSepolia],
-        defaultChain: flowTestnet,
-        appearance: {
-          theme: 'dark',
-          accentColor: '#1a1a1a',
-          logo: undefined,
-        },
-      }}
-    >
+    <>
       {children}
       <Toaster />
-    </PrivyProvider>
+    </>
   )
 }

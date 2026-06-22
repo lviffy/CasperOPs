@@ -1,7 +1,6 @@
 const { randomUUID } = require('crypto');
 const supabase = require('../config/supabase');
 const { NETWORK_NAME } = require('../config/constants');
-const { archiveJsonToFilecoin } = require('./filecoinStorageService');
 
 const SENSITIVE_KEY_REGEX = /(private[_-]?key|mnemonic|seed|passphrase|password|secret|api[_-]?key|authorization|token|jwt|signature)/i;
 const SENSITIVE_VALUE_CONTEXT_REGEX = /(private[_-]?key|mnemonic|seed|passphrase|secret|wallet[_-]?key)/i;
@@ -329,19 +328,8 @@ async function archiveToolExecutionLogs({
       }
     };
 
-    const filecoin = await archiveJsonToFilecoin(auditPayload, {
-      namespace: 'blockops-tool-execution',
-      name: `tool-execution-${agentId}-${Date.now()}-${index + 1}`,
-      metadata: { tool: toolName, userId: String(userId) },
-      privateKey: archivePrivateKey
-    });
-
-    if (filecoin?.prepareTxHash) {
-      resultSummary.prepareTxHash = filecoin.prepareTxHash;
-    }
-
-    const filecoinCid = filecoin?.pieceCid || filecoin?.cid || null;
-
+    // Filecoin archival was removed when BlockOps migrated off EVM/RWA.
+    // The audit log itself is persisted to Supabase below.
     const dbRecord = {
       agent_id: String(agentId),
       user_id: String(userId),
@@ -357,11 +345,11 @@ async function archiveToolExecutionLogs({
       success: Boolean(resultSummary.success),
       tx_hash: resultSummary.txHash,
       amount: resultSummary.amount,
-      filecoin_cid: filecoinCid,
-      filecoin_uri: filecoin.uri || null,
-      filecoin_provider: filecoin.provider || null,
-      storage_status: filecoin.status,
-      storage_error: filecoin.error || null,
+      filecoin_cid: null,
+      filecoin_uri: null,
+      filecoin_provider: null,
+      storage_status: 'disabled',
+      storage_error: 'filecoin archival removed in Casper migration',
       created_at: timestamp
     };
 
@@ -384,11 +372,11 @@ async function archiveToolExecutionLogs({
       timestamp,
       txHash: resultSummary.txHash,
       amount: resultSummary.amount,
-      storageStatus: filecoin.status,
-      filecoinCid,
-      filecoinUri: filecoin.uri || null,
-      prepareTxHash: filecoin.prepareTxHash || null,
-      storageError: filecoin.error || null,
+      storageStatus: 'disabled',
+      filecoinCid: null,
+      filecoinUri: null,
+      prepareTxHash: null,
+      storageError: 'filecoin archival removed in Casper migration',
       dbError
     });
   }
@@ -396,7 +384,7 @@ async function archiveToolExecutionLogs({
   return {
     totalCount: entries.length,
     successfulCount: entries.filter((entry) => entry.success).length,
-    filecoinStoredCount: entries.filter((entry) => entry.storageStatus === 'stored').length,
+    filecoinStoredCount: 0,
     entries
   };
 }

@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Star,
 } from "lucide-react"
-import { ethers } from "ethers"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,25 +68,66 @@ type MarketplaceAgent = {
   detailSummary: string
 }
 
-const RPC_URL = "https://sepolia-rollup.arbitrum.io/rpc"
-const CHAIN_ID = 421614
-const IDENTITY_REGISTRY_ADDRESS =
-  process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS || "0x734C984AE7d64aa917D9D2e4B9C08A0CD6C0589B"
-const REPUTATION_REGISTRY_ADDRESS =
-  process.env.NEXT_PUBLIC_REPUTATION_REGISTRY_ADDRESS || "0xa497e1BFe08109D60A8F91AdEc868ffdD1e0055c"
-const VALIDATION_REGISTRY_ADDRESS =
-  process.env.NEXT_PUBLIC_VALIDATION_REGISTRY_ADDRESS || "0xFab8731b8d1a978e78086179dC5494F0dbA1f6bE"
+const CASPER_NETWORK = "casper-testnet"
+const AGENT_REGISTRY_CONTRACT_HASH =
+  process.env.NEXT_PUBLIC_AGENT_FACTORY_CONTRACT_HASH || ""
+const REPUTATION_CONTRACT_HASH =
+  process.env.NEXT_PUBLIC_REPUTATION_CONTRACT_HASH || ""
+const VALIDATION_CONTRACT_HASH =
+  process.env.NEXT_PUBLIC_COMPLIANCE_CONTRACT_HASH || ""
+const CSPR_CLOUD_BASE = "https://node.cspr.cloud"
 
-const IDENTITY_ABI = [
-  "function tokenURI(uint256 agentId) view returns (string)",
-  "function ownerOf(uint256 agentId) view returns (address)",
-  "event AgentRegistered(uint256 indexed agentId, address indexed owner, string agentURI)"
-]
+interface CasperEvent {
+  contractHash: string
+  entryPoint: string
+  data: Record<string, unknown>
+}
 
-const REPUTATION_ABI = [
-  "function getAverageScore(uint256 agentId, string memory tag) view returns (uint256)",
-  "function getSummary(uint256 agentId, string memory tag) view returns (uint256 count, uint256 summaryValue)"
-]
+interface CasperAgentSummary {
+  onChainId: string
+  owner: string
+  manifestUri: string
+  score: number
+  executions: number
+}
+
+async function fetchCasperAgents(): Promise<CasperAgentSummary[]> {
+  if (!AGENT_REGISTRY_CONTRACT_HASH) return []
+  try {
+    const url = `${CSPR_CLOUD_BASE}/contracts/${AGENT_REGISTRY_CONTRACT_HASH}/events?entry_point=agent_registered&limit=200`
+    const res = await fetch(url, { headers: { accept: "application/json" } })
+    if (!res.ok) return []
+    const json = await res.json().catch(() => null)
+    const events: CasperEvent[] = json?.data ?? json?.events ?? []
+    const summaries = await Promise.all(
+      events.map(async (ev) => {
+        const onChainId = String(ev.data?.agent_id ?? ev.data?.agentId ?? "")
+        const owner = String(ev.data?.owner ?? "")
+        const manifestUri = String(ev.data?.agent_uri ?? ev.data?.agentURI ?? "")
+        let score = 0
+        let executions = 0
+        if (REPUTATION_CONTRACT_HASH && onChainId) {
+          try {
+            const repUrl = `${CSPR_CLOUD_BASE}/contracts/${REPUTATION_CONTRACT_HASH}/query?entry_point=get_average_score&args=${encodeURIComponent(JSON.stringify({ agent_id: onChainId, tag: "successRate" }))}`
+            const repRes = await fetch(repUrl)
+            if (repRes.ok) {
+              const rep = await repRes.json().catch(() => null)
+              score = Number(rep?.data?.score ?? rep?.score ?? 0)
+              executions = Number(rep?.data?.count ?? rep?.count ?? 0)
+            }
+          } catch {
+            // ignore reputation failures
+          }
+        }
+        return { onChainId, owner, manifestUri, score, executions } satisfies CasperAgentSummary
+      }),
+    )
+    return summaries
+  } catch (err) {
+    console.warn("[marketplace] Casper event fetch failed:", err)
+    return []
+  }
+}
 
 function parseLocalAgentIdFromUri(manifestUri: string) {
   const match = manifestUri.match(/\/agents\/([^/]+)\/manifest\/?$/i)
@@ -147,17 +187,17 @@ function buildFallbackManifest(agent: {
     description: agent.description,
     author: "BlockOps",
     erc8004: {
-      identityRegistry: `eip155:${CHAIN_ID}:${IDENTITY_REGISTRY_ADDRESS}`,
-      reputationRegistry: `eip155:${CHAIN_ID}:${REPUTATION_REGISTRY_ADDRESS}`,
-      validationRegistry: `eip155:${CHAIN_ID}:${VALIDATION_REGISTRY_ADDRESS}`,
+      identityRegistry: `casper:${CASPER_NETWORK}:contract:${AGENT_REGISTRY_CONTRACT_HASH}`,
+      reputationRegistry: `casper:${CASPER_NETWORK}:contract:${REPUTATION_CONTRACT_HASH}`,
+      validationRegistry: `casper:${CASPER_NETWORK}:contract:${VALIDATION_CONTRACT_HASH}`,
       agentId: agent.onChainId,
       operatorWallet: agent.owner,
     },
     capabilities: agent.capabilities,
     paymentProtocol: "x402",
     chain: {
-      name: "Arbitrum Sepolia",
-      chainId: CHAIN_ID,
+      name: "Casper Testnet",
+      network: CASPER_NETWORK,
     },
   } satisfies AgentManifest
 }
@@ -174,25 +214,22 @@ export default function MarketplacePage() {
     async function fetchOnChainAgents() {
       setLoading(true)
       try {
-        const provider = new ethers.JsonRpcProvider(RPC_URL)
-        const identityContract = new ethers.Contract(IDENTITY_REGISTRY_ADDRESS, IDENTITY_ABI, provider)
-        const reputationContract = new ethers.Contract(REPUTATION_REGISTRY_ADDRESS, REPUTATION_ABI, provider)
-        const registeredEvents = await identityContract.queryFilter(identityContract.filters.AgentRegistered(), 0, "latest")
+        const summaries = await fetchCasperAgents()
 
         const realAgents = await Promise.all(
-          registeredEvents.map(async (event: any) => {
-            const onChainId = event.args.agentId.toString()
-            const manifestUri = String(event.args.agentURI || "")
+          summaries.map(async (summary) => {
+            const onChainId = summary.onChainId
+            const manifestUri = summary.manifestUri
             const localAgentId = parseLocalAgentIdFromUri(manifestUri)
 
             try {
-              const [remoteManifest, localManifest, localAgent, owner, score, summary] = await Promise.all([
+              const [remoteManifest, localManifest, localAgent, owner, score, executions] = await Promise.all([
                 fetchManifest(manifestUri),
                 localAgentId ? fetchManifest(`${BLOCKCHAIN_BACKEND_URL}/agents/${localAgentId}/manifest`) : Promise.resolve(null),
                 localAgentId ? getAgentById(localAgentId) : Promise.resolve(null),
-                identityContract.ownerOf(event.args.agentId),
-                reputationContract.getAverageScore(event.args.agentId, "successRate"),
-                reputationContract.getSummary(event.args.agentId, "successRate"),
+                Promise.resolve(summary.owner),
+                Promise.resolve(summary.score),
+                Promise.resolve(summary.executions),
               ])
 
               const manifest = localManifest || remoteManifest
@@ -213,7 +250,7 @@ export default function MarketplacePage() {
                 localAgent?.description?.trim() ||
                 localManifest?.description?.trim() ||
                 remoteManifest?.description?.trim() ||
-                "ERC-8004 registered agent"
+                "Casper-registered agent"
               const price = manifest?.paymentProtocol ? String(manifest.paymentProtocol).toUpperCase() : "Varies"
               const ownerLabel = shortenAddress(owner)
               const detailSummary =
@@ -230,7 +267,7 @@ export default function MarketplacePage() {
                 description,
                 onChainId,
                 score: Number(score),
-                executions: Number(summary[0] || 0),
+                executions: Number(executions),
                 capabilities,
                 owner,
                 price,

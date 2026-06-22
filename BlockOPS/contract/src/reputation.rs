@@ -122,5 +122,83 @@ mod tests {
         // Expecting set_rating to revert/panic
         reputation.set_rating(agent, 100);
     }
+
+    #[test]
+    #[should_panic]
+    fn test_reputation_log_success_unauthorized() {
+        let env = odra_test::env();
+        let validator = env.get_account(0);
+        let attacker = env.get_account(2);
+        let agent = env.get_account(1);
+
+        let mut reputation = Reputation::deploy(
+            &env,
+            super::__reputation_test_parts::ReputationInitArgs { validator_address: validator }
+        );
+
+        env.set_caller(attacker);
+        reputation.log_success(agent);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_reputation_log_failure_unauthorized() {
+        let env = odra_test::env();
+        let validator = env.get_account(0);
+        let attacker = env.get_account(2);
+        let agent = env.get_account(1);
+
+        let mut reputation = Reputation::deploy(
+            &env,
+            super::__reputation_test_parts::ReputationInitArgs { validator_address: validator }
+        );
+
+        env.set_caller(attacker);
+        reputation.log_failure(agent);
+    }
+
+    #[test]
+    fn test_reputation_rating_can_be_updated() {
+        let env = odra_test::env();
+        let validator = env.get_account(0);
+        let agent = env.get_account(1);
+
+        let mut reputation = Reputation::deploy(
+            &env,
+            super::__reputation_test_parts::ReputationInitArgs { validator_address: validator }
+        );
+
+        env.set_caller(validator);
+        reputation.set_rating(agent, 50);
+        assert_eq!(reputation.get_rating(agent), 50);
+        reputation.set_rating(agent, 90);
+        assert_eq!(reputation.get_rating(agent), 90);
+    }
+
+    #[test]
+    fn test_reputation_stats_are_per_agent() {
+        let env = odra_test::env();
+        let validator = env.get_account(0);
+        let agent_a = env.get_account(1);
+        let agent_b = env.get_account(2);
+
+        let mut reputation = Reputation::deploy(
+            &env,
+            super::__reputation_test_parts::ReputationInitArgs { validator_address: validator }
+        );
+
+        env.set_caller(validator);
+        reputation.log_success(agent_a);
+        reputation.log_success(agent_a);
+        reputation.log_failure(agent_b);
+
+        let (succ_a, fail_a) = reputation.get_stats(agent_a);
+        assert_eq!(succ_a, 2);
+        assert_eq!(fail_a, 0);
+
+        let (succ_b, fail_b) = reputation.get_stats(agent_b);
+        assert_eq!(succ_b, 0);
+        assert_eq!(fail_b, 1);
+    }
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAuth } from "@/lib/auth";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,7 @@ export default function PaymentAgreementModal({
   onClose,
   onAccept,
 }: PaymentAgreementModalProps) {
-  const { user } = usePrivy();
+  const { user } = useAuth();
   const [hasRead, setHasRead] = useState(false);
   const [hasAgreed, setHasAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,9 +108,9 @@ export default function PaymentAgreementModal({
                 <li>
                   Premium tools and additional AI generations require payment
                 </li>
-                <li>Prices range from $0.25 to $5.00 USD in USDC</li>
+                <li>Prices range from 0.25 to 5.00 CSPR per invocation</li>
                 <li>Pricing is displayed before each transaction</li>
-                <li>All payments are in USDC on Arbitrum Sepolia</li>
+                <li>All payments are in CSPR on the Casper network</li>
               </ul>
             </section>
 
@@ -137,7 +137,7 @@ export default function PaymentAgreementModal({
                 4. Payment Process
               </h3>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li>You approve USDC spending (one-time per amount tier)</li>
+                <li>You sign a CEP-18 transfer deploy via CSPR.click</li>
                 <li>You confirm payment transaction in your wallet</li>
                 <li>Payment is held in escrow until service is delivered</li>
                 <li>Upon success, payment is released to treasury</li>
@@ -174,10 +174,10 @@ export default function PaymentAgreementModal({
                 7. Network & Fees
               </h3>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li>All transactions occur on Arbitrum Sepolia (testnet)</li>
-                <li>You pay gas fees for blockchain transactions</li>
+                <li>All transactions occur on the Casper network</li>
+                <li>You pay network gas fees in CSPR</li>
                 <li>Gas fees are separate from service pricing</li>
-                <li>Arbitrum offers low gas fees compared to Ethereum</li>
+                <li>Casper offers low, predictable gas fees</li>
               </ul>
             </section>
 

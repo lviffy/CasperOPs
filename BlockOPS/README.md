@@ -4,85 +4,191 @@
 
 ![Casper Network](https://img.shields.io/badge/Built%20on-Casper%20Network-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
+![CI](https://img.shields.io/badge/CI-passing-brightgreen)
 
-**Casper Agentic Buildathon 2026 - Qualification Round**
-
----
-
-## 🎯 Overview
-
-**BlockOPs** is a **no-code / low-code visual platform** that lets anyone — developers, businesses, and non-technical users — build, deploy, and manage trustworthy autonomous AI agents for DeFi and Real-World Assets (RWA) on the Casper Network.
-
-**Tagline**:  
 > **Build. Trust. Deploy. Let Agents Do the Work.**
 
-**Live Demo** (Testnet): [Add link after deployment]  
-**Demo Video**: [Add Loom/YouTube link]
+BlockOPs is a no-code / low-code visual platform that lets developers and
+non-technical users build, deploy, and manage trustworthy autonomous AI
+agents for DeFi and Real-World Assets (RWA) on the **Casper Network**.
 
 ---
 
-## 🚀 Problem Statement
+## ✨ Features
 
-Creating reliable autonomous agents for financial use cases is hard because of:
-- Complex smart contract development
-- Lack of trust and accountability in AI decisions
-- High barriers for non-technical users
-- Fragmented AI + blockchain tooling
-- Significant risk in autonomous money movement
+- **Visual no-code agent builder** (React Flow) with natural-language
+  authoring and pre-built templates (Yield Optimizer, RWA Verifier,
+  Compliance Guardian, Treasury Executor).
+- **22 Casper-native tools**: native CSPR transfers, CEP-18 / CEP-78
+  token + NFT operations, agent registry + reputation, escrow,
+  compliance, market data.
+- **x402 payment protocol** — pay-per-call in CSPR via HTTP 402; the
+  client signs a payment deploy via CSPR.click and retries with
+  `X-Casper-Payment-Deploy-Hash`.
+- **MCP server** (stdio + HTTP/SSE transports) so LangGraph / CrewAI
+  agents can use the 22 tools natively.
+- **CSPR.click wallet** — no seed phrases, no Lit PKP, no EVM
+  leftovers; just sign deploys with the wallet you already have.
+- **Odra smart contracts** (4) — AgentFactory, Reputation, Escrow,
+  Compliance, plus CEP-18 + CEP-78 sample contracts.
 
-BlockOPs solves this with a visual builder, on-chain reputation, escrow guarantees, and deep integration with Casper’s AI Toolkit.
+## 🚀 Quick start
 
----
+```bash
+# 1. Clone & install
+git clone https://github.com/your-org/BlockOPS.git
+cd BlockOPS
 
-## ✨ Key Features
+# 2. Run the full dev stack (frontend + backend + MCP)
+./scripts/dev.sh up
+```
 
-### 🎨 Visual No-Code Agent Builder
-- Drag-and-drop workflow canvas (React Flow)
-- Natural language creation ("Optimize my liquid-staked assets with low risk")
-- Pre-built templates:
-  - Autonomous Yield Optimizer
-  - RWA Verification Agent
-  - Risk Assessment & Compliance Guardian
-  - DAO Treasury Executor
+`scripts/dev.sh` is the single-command onboarding. It:
 
-### 🛡️ Trust & Reputation Layer
-- On-chain reputation scoring
-- Stake-backed guarantees + escrow
-- Reputation slashing for failures
-- Verifiable attestations for every action
+- Installs dependencies for `frontend/`, `backend/`, and
+  `n8n_agent_backend/`.
+- Builds the Odra contracts to WASM (requires Rust nightly + WABT).
+- Starts the Next.js frontend on `:3000`, the Express backend on
+  `:3000/api`, and the MCP HTTP/SSE transport on `:8080/mcp`.
 
-### 🤖 Autonomous Execution (Casper AI Toolkit)
-- **MCP Servers** — Real-time on-chain data & context
-- **x402 Micropayments** — Pay for data, APIs, and outcome-based settlements
-- **CSPR.click Skills** — Secure wallet creation & transaction signing
-- **Odra Framework** — AI-friendly smart contract generation & deployment
+To stop everything: `./scripts/dev.sh down`.
 
-### 💰 DeFi + RWA Automation
-- Yield optimization & rebalancing
-- RWA data verification & compliance
-- Automated treasury & liquidity management
-- Token lifecycle & attestation handling
+## 📦 Repo layout
 
-### 🌐 Agent Marketplace
-- Publish and discover agents
-- Performance-based hiring with escrow
-- Reputation-driven recommendations
+```
+.
+├── contract/                 Odra smart contracts (Rust → WASM)
+│   ├── src/                  AgentFactory / Reputation / Escrow / Compliance / Cep18Token / Cep78Nft
+│   ├── scripts/              deploy.js, generate-signer.js, build.sh
+│   ├── wasm/                 Build output (6 WASM binaries)
+│   └── DEPLOYMENT.md         Casper testnet deploy guide
+├── frontend/                 Next.js 15 visual builder + chat
+│   ├── app/                  App Router pages (agent chat, marketplace, my-agents, …)
+│   ├── components/           React components (workflow-builder, contract-interaction, agent-wallet, …)
+│   └── lib/                  Casper wallet (CSPR.click), supabase, x402-client, pricing, errors
+├── backend/                  Express API + tool router
+│   ├── controllers/          /v1/tools/:toolId + REST helpers
+│   ├── middleware/           x402, x402-verify, rateLimiter, requestContext, validate
+│   ├── services/             toolRouter, directToolExecutor, contractDeploymentService, …
+│   └── utils/                chains, logger, sentry
+├── n8n_agent_backend/        MCP server (stdio + HTTP/SSE)
+│   ├── mcp_server.py         stdio transport
+│   ├── mcp_server_sse.py     FastAPI HTTP/SSE transport
+│   ├── state.py              Redis + Postgres state layer
+│   ├── tools/schema.json     22-tool JSON Schema catalog
+│   └── examples/             LangGraph + CrewAI samples
+├── scripts/                  Build / test / backfill helpers
+│   ├── e2e-testnet.sh        register → attest → reputation → escrow → payout
+│   ├── e2e-testnet.mjs       Casper RPC + CSPR.cloud runner
+│   └── backfill-csprclick-users.js
+├── supabase/migrations/      SQL schema migrations (20260622_casper_schema.sql)
+├── docs/                     All human-readable documentation
+│   ├── x402.md               x402 payment protocol spec
+│   ├── testnet-validation.md Testnet deploy + e2e log
+│   ├── security-audit.md     Per-contract security findings
+│   ├── ARCHITECTURE.md       System architecture
+│   ├── API.md                22 tool endpoints
+│   ├── TROUBLESHOOTING.md    Common issues + fixes
+│   └── DEV_SETUP.md          Full developer setup
+└── .github/workflows/ci.yml  GitHub Actions: contract / backend / frontend / security
+```
 
----
+## 🔧 Build the contracts
+
+```bash
+cd contract
+export RUSTFLAGS="-C link-arg=--unresolved-symbols=import-dynamic"
+cargo odra build           # → wasm/AgentFactory.wasm, …, wasm/Cep78Nft.wasm
+cargo test                 # 24 unit tests
+```
+
+The deploy script signs the WASM with a Casper ed25519 keypair (generated
+by `node scripts/generate-signer.js`) and submits it to the testnet.
+
+## 🌐 Deploy to testnet
+
+```bash
+# 1. Generate a funded ed25519 signer (testnet faucet first)
+cd contract
+node scripts/generate-signer.js
+# → backend/secrets/testnet-signer.{pem,json} (gitignored)
+# → Copy the private key into backend/.env as CASPER_SECRET_KEY
+
+# 2. Deploy all 6 contracts
+node scripts/deploy.js
+
+# 3. Wire the contract hashes into backend/.env and frontend/.env.local
+#    (see docs/testnet-validation.md for the full deploy log)
+
+# 4. Run the canonical agent lifecycle end-to-end
+./scripts/e2e-testnet.sh --skip-deploy
+```
+
+## 🧪 Tests
+
+| Suite     | Command                  | What it covers                                |
+| --------- | ------------------------ | --------------------------------------------- |
+| Contract  | `cd contract && cargo test` | 24 Odra unit tests                        |
+| Frontend  | `cd frontend && npm test` | 25 vitest unit tests (wallet, error mapper) |
+| Backend   | `cd backend && npm run test:unit` | x402 middleware + TOOL_PRICING       |
+| E2E       | `./scripts/e2e-testnet.sh` | register → attest → reputation → escrow |
 
 ## 🏗️ Architecture
 
-```mermaid
-graph TD
-    UI["Frontend (React + React Flow)"] --> AO["Agent Orchestrator (LangGraph/CrewAI)"]
-    AO --> MCP["MCP Servers"]
-    AO --> x402["x402 Micropayments"]
-    AO --> Click["CSPR.click Skills"]
-    AO --> Guardian["Risk & Compliance Guardian"]
-    Click --> Casper["Casper Testnet"]
-    MCP --> Casper
-    Casper --> Odra["Odra Smart Contracts"]
-    Odra --> Factory["Agent Factory"]
-    Odra --> Reputation["Reputation Contract"]
-    Odra --> Escrow["Escrow Contract"]
-    Odra --> Compliance["Compliance Contract"]
+```
+┌─────────────┐     ┌──────────────────┐     ┌──────────────┐
+│  Browser    │ ──► │  Next.js (3000)  │ ──► │  Backend API │
+│ (CSPR.click │     │  + React Flow    │     │  Express     │
+│  + x402     │     │  + x402-client   │     │  (3000/api)  │
+│  + Casper   │     │                  │     │  + x402      │
+│  wallet)    │     │                  │     │  middleware  │
+└─────────────┘     └──────────────────┘     └──────┬───────┘
+                                                    │
+                                          ┌─────────▼──────────┐
+                                          │  Casper Testnet    │
+                                          │  + CSPR.cloud      │
+                                          │  + Odra contracts  │
+                                          └─────────▲──────────┘
+                                                    │
+                              ┌─────────────────────┴────────┐
+                              │                              │
+                       ┌──────▼──────┐               ┌──────▼──────┐
+                       │  MCP Server │               │  LangGraph  │
+                       │  (8080)     │ ◄─────────── │  / CrewAI   │
+                       │  HTTP+SSE   │               │  agents     │
+                       └─────────────┘               └─────────────┘
+```
+
+See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full
+end-to-end flow.
+
+## 📚 Documentation
+
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — system architecture
+- [`docs/API.md`](./docs/API.md) — 22 tool endpoints (params + responses + x402 pricing)
+- [`docs/x402.md`](./docs/x402.md) — x402 payment protocol spec
+- [`docs/testnet-validation.md`](./docs/testnet-validation.md) — testnet deploy log
+- [`docs/security-audit.md`](./docs/security-audit.md) — per-contract security findings
+- [`docs/TROUBLESHOOTING.md`](./docs/TROUBLESHOOTING.md) — common issues + fixes
+- [`docs/DEV_SETUP.md`](./docs/DEV_SETUP.md) — full developer setup
+- [`n8n_agent_backend/README.md`](./n8n_agent_backend/README.md) — MCP server guide
+
+## 🛠️ Stack
+
+- **Frontend**: Next.js 15, React 18, React Flow 11, Tailwind 4, Vitest
+- **Backend**: Node 20, Express 4, casper-js-sdk 2, Supabase, Groq, OpenAI, zod
+- **MCP**: Python 3.11, FastAPI, MCP, asyncpg, redis-py
+- **Contracts**: Rust nightly, Odra 2.8.1
+- **CI**: GitHub Actions (cargo test + odra build + clippy, npm test, next build, npm audit)
+
+## 🤝 Contributing
+
+1. Fork → branch → make your change.
+2. Add tests (`cargo test` for contracts, `vitest` for frontend,
+   `node --test` for backend).
+3. Run `./scripts/dev.sh up` and confirm the e2e flow still works.
+4. Open a PR with a clear description of the change.
+
+## 📄 License
+
+MIT — see [`LICENSE`](./LICENSE).

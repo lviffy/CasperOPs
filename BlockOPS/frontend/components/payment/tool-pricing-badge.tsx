@@ -1,77 +1,78 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DollarSign, Sparkles, Info } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Coins, Sparkles, Info } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ToolPricingBadgeProps {
   toolName: string;
-  showTooltip?: boolean;
-  size?: "sm" | "md" | "lg";
   onClick?: () => void;
+  showTooltip?: boolean;
   className?: string;
+  variant?: "default" | "compact";
 }
 
-interface PricingData {
-  price: number;
+interface PricingInfo {
+  price: string;
   isFree: boolean;
   displayName: string;
-  description?: string;
+  description: string;
   category?: string;
+  symbol?: string;
 }
 
 export default function ToolPricingBadge({
   toolName,
-  showTooltip = true,
-  size = "md",
   onClick,
-  className = "",
+  showTooltip = true,
+  className,
+  variant = "default",
 }: ToolPricingBadgeProps) {
-  const [pricing, setPricing] = useState<PricingData | null>(null);
+  const [pricing, setPricing] = useState<PricingInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchPricing = async () => {
-      try {
-        const response = await fetch(
-          `/api/payments/pricing?toolName=${encodeURIComponent(toolName)}`
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch pricing");
-        }
-
-        const data = await response.json();
-        setPricing(data);
-      } catch (err) {
-        console.error("Error fetching pricing:", err);
-        // Default to showing as paid if fetch fails
-        setPricing({
-          price: 0,
-          isFree: false,
-          displayName: toolName,
-          description: "Pricing unavailable",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPricing();
   }, [toolName]);
 
+  const fetchPricing = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/payments/pricing?toolName=${encodeURIComponent(toolName)}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        setPricing(data);
+      } else {
+        setPricing({
+          price: "0.25",
+          isFree: false,
+          displayName: toolName,
+          description: "Premium tool",
+          symbol: "CSPR",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching pricing:", error);
+      setPricing({
+        price: "0.25",
+        isFree: false,
+        displayName: toolName,
+        description: "Premium tool",
+        symbol: "CSPR",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 ${className}`}
-      >
-        <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
+      <Badge variant="outline" className={cn("gap-1 animate-pulse", className)}>
+        <div className="h-3 w-12 bg-muted rounded" />
+      </Badge>
     );
   }
 
@@ -79,127 +80,93 @@ export default function ToolPricingBadge({
     return null;
   }
 
-  const sizeClasses = {
-    sm: "text-xs px-2 py-0.5",
-    md: "text-sm px-2.5 py-1",
-    lg: "text-base px-3 py-1.5",
-  };
+  const symbol = pricing.symbol || "CSPR";
 
-  const iconSizes = {
-    sm: "h-3 w-3",
-    md: "h-3.5 w-3.5",
-    lg: "h-4 w-4",
-  };
-
-  const badge = (
-    <div
-      className={`inline-flex items-center gap-1 rounded-full font-medium transition-all ${
-        sizeClasses[size]
-      } ${
-        pricing.isFree
-          ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-          : "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-      } ${onClick ? "cursor-pointer hover:scale-105" : ""} ${className}`}
+  const badgeContent = pricing.isFree ? (
+    <Badge
+      variant="secondary"
+      className={cn("gap-1 cursor-default", className)}
+    >
+      <Sparkles className="h-3 w-3" />
+      {variant === "compact" ? "FREE" : "Free"}
+    </Badge>
+  ) : (
+    <Badge
+      variant="default"
+      className={cn("gap-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600", onClick && "cursor-pointer", className)}
       onClick={onClick}
     >
-      {pricing.isFree ? (
-        <>
-          <Sparkles className={iconSizes[size]} />
-          <span>FREE</span>
-        </>
-      ) : (
-        <>
-          <DollarSign className={iconSizes[size]} />
-          <span>${pricing.price.toFixed(2)}</span>
-        </>
-      )}
-    </div>
+      <Coins className="h-3 w-3" />
+      {variant === "compact" ? pricing.price : `${pricing.price} ${symbol}`}
+    </Badge>
   );
 
-  if (!showTooltip) {
-    return badge;
+  if (!showTooltip || pricing.isFree) {
+    return badgeContent;
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>{badge}</TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs">
-          <div className="space-y-2">
-            <div className="font-semibold">{pricing.displayName}</div>
-            {pricing.description && (
-              <p className="text-xs text-muted-foreground">
-                {pricing.description}
-              </p>
-            )}
-            <div className="flex items-center gap-2 text-xs pt-1 border-t">
-              {pricing.isFree ? (
-                <span className="text-green-600 dark:text-green-400 font-medium">
-                  ✨ No payment required
-                </span>
-              ) : (
-                <>
-                  <span className="text-blue-600 dark:text-blue-400 font-medium">
-                    💳 ${pricing.price.toFixed(2)} USDC
-                  </span>
-                  <span className="text-muted-foreground">per use</span>
-                </>
+    <HoverCard>
+      <HoverCardTrigger asChild>
+        {badgeContent}
+      </HoverCardTrigger>
+      <HoverCardContent className="w-80" side="top">
+        <div className="space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-semibold">{pricing.displayName}</h4>
+              {pricing.category && (
+                <Badge variant="outline" className="mt-1 text-xs">
+                  {pricing.category}
+                </Badge>
               )}
             </div>
-            {!pricing.isFree && (
-              <div className="flex items-start gap-1 text-xs text-muted-foreground pt-1">
-                <Info className="h-3 w-3 shrink-0 mt-0.5" />
-                <span>Protected by escrow - automatic refund if failed</span>
-              </div>
-            )}
+            <Badge variant="default" className="shrink-0">
+              {pricing.price} {symbol}
+            </Badge>
           </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+
+          <p className="text-sm text-muted-foreground">
+            {pricing.description}
+          </p>
+
+          <div className="border-t pt-2 space-y-1">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Info className="h-3 w-3" />
+              <span>Payment held in escrow on Casper until execution</span>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Info className="h-3 w-3" />
+              <span>Automatic refund if operation fails</span>
+            </div>
+          </div>
+
+          {onClick && (
+            <div className="text-xs text-center pt-2 border-t">
+              <span className="text-muted-foreground">Click badge to pay and use this tool</span>
+            </div>
+          )}
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
-// Compact version for inline display
-export function ToolPricingInline({
-  toolName,
-  className = "",
-}: {
-  toolName: string;
-  className?: string;
-}) {
-  const [pricing, setPricing] = useState<PricingData | null>(null);
+export function ToolPricingInline({ toolName }: { toolName: string }) {
+  const [pricing, setPricing] = useState<PricingInfo | null>(null);
 
   useEffect(() => {
-    const fetchPricing = async () => {
-      try {
-        const response = await fetch(
-          `/api/payments/pricing?toolName=${encodeURIComponent(toolName)}`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setPricing(data);
-        }
-      } catch (err) {
-        console.error("Error fetching pricing:", err);
-      }
-    };
-
-    fetchPricing();
+    fetch(`/api/payments/pricing?toolName=${encodeURIComponent(toolName)}`)
+      .then((res) => res.json())
+      .then((data) => setPricing(data))
+      .catch(() => {});
   }, [toolName]);
 
-  if (!pricing) {
-    return null;
-  }
+  if (!pricing) return null;
 
   return (
-    <span className={`text-xs text-muted-foreground ${className}`}>
-      {pricing.isFree ? (
-        <span className="text-green-600 dark:text-green-400">FREE</span>
-      ) : (
-        <span className="text-blue-600 dark:text-blue-400">
-          ${pricing.price.toFixed(2)}
-        </span>
-      )}
+    <span className="text-xs text-muted-foreground">
+      {pricing.isFree ? "Free" : `${pricing.price} ${pricing.symbol || "CSPR"}`}
     </span>
   );
 }

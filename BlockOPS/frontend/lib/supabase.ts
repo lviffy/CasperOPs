@@ -15,29 +15,42 @@ console.log('Supabase initialized with URL:', supabaseUrl)
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-export type WalletType = 'traditional' | 'pkp'
-const USER_FULL_SELECT = 'id, private_key, wallet_address, wallet_type, pkp_public_key, pkp_token_id, created_at, updated_at'
-const USER_LEGACY_SELECT = 'id, private_key, wallet_address, created_at, updated_at'
+/**
+ * The only supported wallet type after the Casper migration.
+ * The DB CHECK constraint in supabase/migrations/20260622_casper_schema.sql
+ * also enforces this on the SQL side.
+ */
+export type WalletType = 'csprclick'
+
+const USER_FULL_SELECT =
+  'id, wallet_address, wallet_type, ed25519_public_key, csprclick_session_id, last_connected_at, created_at, updated_at'
 
 export interface User {
-  id: string // Privy DID (format: did:privy:xxxxx)
-  private_key: string | null // Lit ciphertext payload or legacy plaintext key
+  /** Supabase auth user id (uuid-as-text). */
+  id: string
+  /** Casper ed25519 public key (hex with 0x/01 prefix) bound via CSPR.click. */
   wallet_address: string | null
+  /** Always 'csprclick' for new connections. Null for users who never connected. */
   wallet_type: WalletType | null
-  pkp_public_key: string | null
-  pkp_token_id: string | null
+  /** Canonical Casper ed25519 public key (mirrors wallet_address; preferred in new code). */
+  ed25519_public_key: string | null
+  /** CSPR.click session id used to detect session-restore on refresh. */
+  csprclick_session_id: string | null
+  /** Last time the user connected via CSPR.click. */
+  last_connected_at: string | null
   created_at: string
   updated_at: string
 }
 
 function normalizeUserRow(row: Partial<User> & { id: string }): User {
+  const wallet = row.wallet_address ?? row.ed25519_public_key ?? null
   return {
     id: row.id,
-    private_key: row.private_key ?? null,
-    wallet_address: row.wallet_address ?? null,
+    wallet_address: wallet,
     wallet_type: row.wallet_type ?? null,
-    pkp_public_key: row.pkp_public_key ?? null,
-    pkp_token_id: row.pkp_token_id ?? null,
+    ed25519_public_key: row.ed25519_public_key ?? row.wallet_address ?? null,
+    csprclick_session_id: row.csprclick_session_id ?? null,
+    last_connected_at: row.last_connected_at ?? null,
     created_at: row.created_at ?? new Date().toISOString(),
     updated_at: row.updated_at ?? new Date().toISOString(),
   }
@@ -47,10 +60,9 @@ export function isMissingUsersWalletSchemaError(error: { code?: string; message?
   if (!error) {
     return false
   }
-
   return (
     error.code === 'PGRST204' &&
-    /wallet_type|pkp_public_key|pkp_token_id/i.test(error.message || '')
+    /wallet_type|ed25519_public_key|csprclick_session_id/i.test(error.message || '')
   )
 }
 
@@ -62,18 +74,8 @@ export async function fetchCompatibleUser(userId: string): Promise<{ user: User 
     .maybeSingle()
 
   if (isMissingUsersWalletSchemaError(fullResponse.error)) {
-    const legacyResponse = await supabase
-      .from('users')
-      .select(USER_LEGACY_SELECT)
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (legacyResponse.error) {
-      throw legacyResponse.error
-    }
-
     return {
-      user: legacyResponse.data ? normalizeUserRow(legacyResponse.data as User) : null,
+      user: null,
       pkpSchemaReady: false,
     }
   }
@@ -91,11 +93,11 @@ export async function fetchCompatibleUser(userId: string): Promise<{ user: User 
 export async function createCompatibleUser(userId: string): Promise<{ user: User; pkpSchemaReady: boolean }> {
   const fullPayload = {
     id: userId,
-    private_key: null,
     wallet_address: null,
     wallet_type: null,
-    pkp_public_key: null,
-    pkp_token_id: null,
+    ed25519_public_key: null,
+    csprclick_session_id: null,
+    last_connected_at: null,
   }
 
   const fullResponse = await supabase
@@ -105,22 +107,8 @@ export async function createCompatibleUser(userId: string): Promise<{ user: User
     .single()
 
   if (isMissingUsersWalletSchemaError(fullResponse.error)) {
-    const legacyResponse = await supabase
-      .from('users')
-      .insert({
-        id: userId,
-        private_key: null,
-        wallet_address: null,
-      })
-      .select(USER_LEGACY_SELECT)
-      .single()
-
-    if (legacyResponse.error) {
-      throw legacyResponse.error
-    }
-
     return {
-      user: normalizeUserRow(legacyResponse.data as User),
+      user: normalizeUserRow({ id: userId }),
       pkpSchemaReady: false,
     }
   }
@@ -135,9 +123,22 @@ export async function createCompatibleUser(userId: string): Promise<{ user: User
   }
 }
 
+export interface WalletUpdate {
+  /** Casper ed25519 public key from CSPR.click. Pass `null` to disconnect. */
+  wallet_address?: string | null
+  /** Always 'csprclick' for new connections. Pass `null` to disconnect. */
+  wallet_type?: WalletType | null
+  /** Canonical ed25519 public key (mirrors wallet_address). */
+  ed25519_public_key?: string | null
+  /** CSPR.click session id (set after a successful connect). */
+  csprclick_session_id?: string | null
+  /** Timestamp of the latest CSPR.click connect. */
+  last_connected_at?: string | null
+}
+
 export async function updateCompatibleUserWallet(
   userId: string,
-  updates: Partial<Pick<User, 'private_key' | 'wallet_address' | 'wallet_type' | 'pkp_public_key' | 'pkp_token_id'>>
+  updates: WalletUpdate,
 ): Promise<{ pkpSchemaReady: boolean }> {
   const fullResponse = await supabase
     .from('users')
@@ -145,29 +146,6 @@ export async function updateCompatibleUserWallet(
     .eq('id', userId)
 
   if (isMissingUsersWalletSchemaError(fullResponse.error)) {
-    const isPkpWrite =
-      updates.wallet_type === 'pkp' ||
-      typeof updates.pkp_public_key === 'string' ||
-      typeof updates.pkp_token_id === 'string'
-
-    if (isPkpWrite) {
-      throw new Error(
-        'Your Supabase users table is missing the PKP columns. Run frontend/MIGRATION_FIX.sql in Supabase, then reload the app.'
-      )
-    }
-
-    const legacyResponse = await supabase
-      .from('users')
-      .update({
-        private_key: updates.private_key ?? null,
-        wallet_address: updates.wallet_address ?? null,
-      })
-      .eq('id', userId)
-
-    if (legacyResponse.error) {
-      throw legacyResponse.error
-    }
-
     return { pkpSchemaReady: false }
   }
 
@@ -191,4 +169,104 @@ export interface Agent {
   on_chain_id?: string | null
   created_at: string
   updated_at: string
+}
+
+// =============================================================================
+// New tables (deploy_history, tool_executions, reputation_events)
+// =============================================================================
+
+export type DeployStatus = 'pending' | 'executed' | 'finalized' | 'failed'
+
+export interface DeployHistoryRow {
+  id: string
+  user_id: string
+  tool_id: string | null
+  contract_hash: string | null
+  entry_point: string | null
+  deploy_hash: string
+  status: DeployStatus
+  error_message: string | null
+  cost_motes: string | null
+  created_at: string
+  finalized_at: string | null
+}
+
+export interface ToolExecutionRow {
+  id: string
+  user_id: string | null
+  workflow_id: string | null
+  tool_id: string
+  params: Record<string, unknown>
+  result: Record<string, unknown> | null
+  x402_payment_hash: string | null
+  price_motes: string | null
+  created_at: string
+}
+
+export async function recordDeploy(
+  userId: string,
+  fields: {
+    tool_id?: string
+    contract_hash?: string
+    entry_point?: string
+    deploy_hash: string
+    status?: DeployStatus
+  },
+): Promise<DeployHistoryRow | null> {
+  const { data, error } = await supabase
+    .from('deploy_history')
+    .insert({
+      user_id: userId,
+      tool_id: fields.tool_id ?? null,
+      contract_hash: fields.contract_hash ?? null,
+      entry_point: fields.entry_point ?? null,
+      deploy_hash: fields.deploy_hash,
+      status: fields.status ?? 'pending',
+    })
+    .select('*')
+    .single()
+  if (error) {
+    console.warn('[supabase] recordDeploy failed:', error)
+    return null
+  }
+  return data as DeployHistoryRow
+}
+
+export async function updateDeployStatus(
+  deployHash: string,
+  status: DeployStatus,
+  errorMessage?: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('deploy_history')
+    .update({
+      status,
+      error_message: errorMessage ?? null,
+      finalized_at: status === 'finalized' || status === 'failed' ? new Date().toISOString() : null,
+    })
+    .eq('deploy_hash', deployHash)
+  if (error) console.warn('[supabase] updateDeployStatus failed:', error)
+}
+
+export async function recordToolExecution(
+  userId: string | null,
+  fields: {
+    workflow_id?: string
+    tool_id: string
+    params: Record<string, unknown>
+    result?: Record<string, unknown> | null
+    x402_payment_hash?: string | null
+    price_motes?: string | null
+  },
+): Promise<void> {
+  const { error } = await supabase.from('tool_executions').insert({
+    user_id: userId,
+    workflow_id: fields.workflow_id ?? null,
+    tool_id: fields.tool_id,
+    params: fields.params,
+    result: fields.result ?? null,
+    x402_payment_hash: fields.x402_payment_hash ?? null,
+    price_motes: fields.price_motes ?? null,
+  })
+  if (error) console.warn('[supabase] recordToolExecution failed:', error)
 }

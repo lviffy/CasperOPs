@@ -93,7 +93,7 @@ export function ToolPricingBadge({
       onClick={onClick}
     >
       <DollarSign className="h-3 w-3" />
-      {variant === "compact" ? pricing.price : `${pricing.price} USDC`}
+      {variant === "compact" ? pricing.price : `${pricing.price} CSPR`}
     </Badge>
   )
 
@@ -118,7 +118,7 @@ export function ToolPricingBadge({
               )}
             </div>
             <Badge variant="default" className="shrink-0">
-              ${pricing.price} USDC
+              {pricing.price} CSPR
             </Badge>
           </div>
           

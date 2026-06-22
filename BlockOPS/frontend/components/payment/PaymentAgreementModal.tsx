@@ -99,7 +99,7 @@ export function PaymentAgreementModal({ open, onOpenChange, onAccepted }: Paymen
               <h4 className="font-semibold mb-2">1. Payment Overview</h4>
               <p className="text-muted-foreground">
                 BlockOps offers a mix of free and paid tools for blockchain automation. By accepting these terms, 
-                you agree to pay for premium tools using USDC (USD Coin) on the Arbitrum Sepolia network.
+                you agree to pay for premium tools in CSPR on the Casper network.
               </p>
             </section>
 
@@ -119,8 +119,8 @@ export function PaymentAgreementModal({ open, onOpenChange, onAccepted }: Paymen
                 Once you exceed your free quota or use premium tools, you must pay per usage:
               </p>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li>AI workflow generation (after free quota): $0.25 USDC per generation</li>
-                <li>Premium blockchain tools: $0.25 - $5.00 USDC per operation</li>
+                <li>AI workflow generation (after free quota): 0.25 CSPR per generation</li>
+                <li>Premium blockchain tools: 0.25 - 5.00 CSPR per operation</li>
                 <li>Tool pricing is displayed before each operation</li>
               </ul>
             </section>
@@ -151,7 +151,7 @@ export function PaymentAgreementModal({ open, onOpenChange, onAccepted }: Paymen
             <section>
               <h4 className="font-semibold mb-2">6. Network & Fees</h4>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li>All payments must be made on <strong>Arbitrum Sepolia</strong> testnet</li>
+                <li>All payments must be made on <strong>Casper</strong> (testnet or mainnet)</li>
                 <li>You are responsible for network gas fees</li>
                 <li>Gas fees are separate from tool payment amounts</li>
                 <li>Ensure you have enough ETH for gas fees before initiating payment</li>

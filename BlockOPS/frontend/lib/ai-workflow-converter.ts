@@ -1,25 +1,64 @@
 import type { Node, Edge } from 'reactflow'
 import { createNode, generateNodeId } from './workflow-utils'
 
-// Map AI tool types to our in-app tool types
+/**
+ * Map AI-returned tool types to the in-app Casper-native tool types.
+ * Anything not in this map is forwarded as-is and validated against
+ * `CASPER_VALID_TOOL_TYPES` below.
+ */
 const toolTypeMap: Record<string, string> = {
+  // CSPR / transfers
   transfer: 'transfer',
   batch_transfer: 'batch_transfer',
-  swap: 'swap',
+  airdrop: 'batch_transfer',
+  // Token / NFT deploys
+  deploy_cep18: 'deploy_cep18',
+  deploy_erc20: 'deploy_cep18',
+  deploy_cep78: 'deploy_cep78',
+  deploy_erc721: 'deploy_cep78',
+  mint_nft: 'mint_nft',
+  // On-chain agent registry / reputation / compliance
+  register_agent: 'register_agent',
+  attest_agent: 'attest_agent',
+  get_reputation: 'get_reputation',
+  yield_rebalance: 'yield_rebalance',
+  // Lookups
+  lookup_deploy: 'lookup_deploy',
+  tx_status: 'lookup_deploy',
+  lookup_block: 'lookup_block',
+  get_balance: 'get_balance',
   stt_balance_fetch: 'get_balance',
-  deploy_erc20: 'deploy_erc20',
-  deploy_erc721: 'deploy_erc721',
-  create_dao: 'create_dao',
-  airdrop: 'airdrop',
+  fetch_price: 'fetch_price',
   fetch_token_price: 'fetch_price',
-  deposit_with_yield_prediction: 'deposit_yield',
-  create_savings_plan: 'create_savings_plan',
-  schedule_payout: 'schedule_payout',
-  create_payroll_plan: 'create_payroll_plan',
-  create_grant_payout: 'create_grant_payout',
-  get_flow_network_overview: 'get_flow_network_overview',
-  get_flow_wallet_readiness: 'get_flow_wallet_readiness',
+  // Notifications / utilities
+  send_email: 'send_email',
+  wallet_readiness: 'wallet_readiness',
 }
+
+/**
+ * Casper-native tool types the visual workflow builder accepts.
+ * Mirrors the `toolTypes` array in components/workflow-builder.tsx.
+ */
+const CASPER_VALID_TOOL_TYPES = [
+  'transfer',
+  'batch_transfer',
+  'get_balance',
+  'deploy_cep18',
+  'deploy_cep78',
+  'mint_nft',
+  'get_token_info',
+  'get_token_balance',
+  'get_nft_info',
+  'register_agent',
+  'attest_agent',
+  'get_reputation',
+  'yield_rebalance',
+  'lookup_deploy',
+  'lookup_block',
+  'fetch_price',
+  'send_email',
+  'wallet_readiness',
+]
 
 interface AITool {
   id: string
@@ -37,75 +76,49 @@ interface AIResponse {
 }
 
 /**
- * Convert AI response format to ReactFlow nodes and edges
+ * Convert AI response format to ReactFlow nodes and edges.
  */
 export function aiResponseToWorkflow(aiResponse: AIResponse): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = []
   const edges: Edge[] = []
-  
-  // Create a map of AI tool IDs to our node IDs
+
   const toolIdToNodeId = new Map<string, string>()
-  
-  // Create nodes with proper positioning
+
   aiResponse.tools.forEach((tool, index) => {
-    // Map AI tool type to our tool type
     const ourToolType = toolTypeMap[tool.type] || tool.type
-    
-    // Check if this tool type exists in our system
-    const validToolTypes = [
-      'transfer',
-      'batch_transfer',
-      'swap',
-      'get_balance',
-      'deploy_erc20',
-      'deploy_erc721',
-      'create_dao',
-      'airdrop',
-      'fetch_price',
-      'deposit_yield',
-      'create_savings_plan',
-      'schedule_payout',
-      'create_payroll_plan',
-      'create_grant_payout',
-      'get_flow_network_overview',
-      'get_flow_wallet_readiness',
-    ]
-    
-    if (!validToolTypes.includes(ourToolType)) {
-      console.warn(`Unknown tool type from AI: ${tool.type} (mapped to: ${ourToolType})`)
+
+    if (!CASPER_VALID_TOOL_TYPES.includes(ourToolType)) {
+      console.warn(`Unknown / unsupported tool type from AI: ${tool.type} (mapped to: ${ourToolType})`)
       return
     }
-    
+
     const nodeId = generateNodeId(ourToolType)
     toolIdToNodeId.set(tool.id, nodeId)
-    
-    // Position nodes in a grid layout
+
     const row = Math.floor(index / 3)
     const col = index % 3
     const position = {
       x: col * 250 + 100,
       y: row * 150 + 100,
     }
-    
+
     const node = createNode({
       type: ourToolType,
       position,
       id: nodeId,
     })
-    
-    // Update label with AI-provided name if available
+
     if (tool.name) {
       node.data.label = tool.name
     }
-    
+
     nodes.push(node)
   })
-  
-  // Create edges based on next_tools relationships
+
   aiResponse.tools.forEach((tool) => {
     const sourceNodeId = toolIdToNodeId.get(tool.id)
     if (!sourceNodeId) return
-    
+
     tool.next_tools.forEach((nextToolId) => {
       const targetNodeId = toolIdToNodeId.get(nextToolId)
       if (targetNodeId) {
@@ -118,12 +131,12 @@ export function aiResponseToWorkflow(aiResponse: AIResponse): { nodes: Node[]; e
       }
     })
   })
-  
+
   return { nodes, edges }
 }
 
 /**
- * Check if a response is a valid AI workflow response
+ * Check if a response is a valid AI workflow response.
  */
 export function isValidAIWorkflowResponse(data: any): data is AIResponse {
   return (

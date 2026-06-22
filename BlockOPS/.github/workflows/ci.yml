@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  contract:
+    name: Contract (cargo test + odra build + clippy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install nightly
+          rustup target add wasm32-unknown-unknown --toolchain nightly
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contract/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('contract/Cargo.lock') }}
+      - name: cargo test
+        working-directory: contract
+        run: cargo test
+      - name: cargo clippy
+        working-directory: contract
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: cargo odra build
+        working-directory: contract
+        run: |
+          export RUSTFLAGS="-C link-arg=--unresolved-symbols=import-dynamic"
+          cargo odra build
+        env:
+          PATH: /tmp/wabt-1.0.36/bin:/opt/dart-sdk/bin/utils:$PATH
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-wasm
+          path: contract/wasm/*.wasm
+          if-no-files-found: error
+
+  backend:
+    name: Backend (lint + test)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    env:
+      SUPABASE_URL: http://localhost:54321
+      SUPABASE_SERVICE_ROLE_KEY: test-service-role
+      JWT_SECRET: ci-jwt-secret
+      CASPER_RPC_URL: https://rpc.testnet.casper.live/rpc
+      CSPR_CLOUD_API_URL: https://api.testnet.cspr.cloud
+      REDIS_URL: redis://localhost:6379/0
+      POSTGRES_DSN: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - working-directory: backend
+        run: npm install --no-audit --no-fund
+      - working-directory: backend
+        run: npm run lint --if-present
+      - working-directory: backend
+        run: npm test --if-present
+
+  frontend:
+    name: Frontend (lint + test + build)
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: test-service-role
+      JWT_SECRET: ci-jwt-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - working-directory: frontend
+        run: npm run lint
+      - working-directory: frontend
+        run: npm test
+      - working-directory: frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: test-service-role
+          JWT_SECRET: ci-jwt-secret
+
+  security:
+    name: Security audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: cargo audit (contract)
+        working-directory: contract
+        run: |
+          cargo install --locked cargo-audit || true
+          cargo audit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: npm audit (backend)
+        working-directory: backend
+        run: npm audit --audit-level=high
+      - name: npm audit (frontend)
+        working-directory: frontend
+        run: npm audit --audit-level=high

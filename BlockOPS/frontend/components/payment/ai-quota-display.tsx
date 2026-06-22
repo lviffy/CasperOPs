@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAuth } from "@/lib/auth";
 import { Sparkles, Zap, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +28,7 @@ export default function AIQuotaDisplay({
   onUpgrade,
   className = "",
 }: AIQuotaDisplayProps) {
-  const { user, authenticated } = usePrivy();
+  const { user, authenticated } = useAuth();
   const [quota, setQuota] = useState<QuotaData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +61,6 @@ export default function AIQuotaDisplay({
     fetchQuota();
   }, [authenticated, user?.id]);
 
-  // Refresh quota every 30 seconds
   useEffect(() => {
     const interval = setInterval(fetchQuota, 30000);
     return () => clearInterval(interval);
@@ -95,7 +94,6 @@ export default function AIQuotaDisplay({
   return (
     <TooltipProvider>
       <div className={`space-y-2 ${className}`}>
-        {/* Quota Badge */}
         <Tooltip>
           <TooltipTrigger asChild>
             <div
@@ -122,7 +120,6 @@ export default function AIQuotaDisplay({
           </TooltipContent>
         </Tooltip>
 
-        {/* Progress Bar */}
         <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <div
             className={`h-full transition-all duration-300 ${
@@ -136,7 +133,6 @@ export default function AIQuotaDisplay({
           />
         </div>
 
-        {/* Warning Message */}
         {remaining === 0 && (
           <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
             <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
@@ -146,7 +142,7 @@ export default function AIQuotaDisplay({
               </p>
               <p className="text-xs text-yellow-800 dark:text-yellow-300 mt-1">
                 You've used all free AI generations today. Additional generations
-                cost $0.25 USDC each.
+                cost 0.25 CSPR each.
               </p>
               {onUpgrade && (
                 <Button
@@ -163,18 +159,16 @@ export default function AIQuotaDisplay({
           </div>
         )}
 
-        {/* Low Quota Warning */}
         {remaining === 1 && (
           <div className="flex items-start gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
             <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
             <p className="text-xs text-blue-800 dark:text-blue-300">
-              Last free generation! After this, AI generations will cost $0.25
-              USDC each.
+              Last free generation! After this, AI generations will cost 0.25
+              CSPR each.
             </p>
           </div>
         )}
 
-        {/* Info Message - All Good */}
         {remaining > 1 && (
           <p className="text-xs text-muted-foreground">
             ✨ Enjoying free AI workflow generation! Resets daily.

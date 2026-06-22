@@ -1,82 +1,76 @@
-import { arbitrumSepolia, flowTestnet } from "viem/chains"
+/**
+ * Casper Network chain metadata for the BlockOps frontend.
+ * BlockOps is Casper-only — Arbitrum and Flow have been removed.
+ */
 
-export type SupportedChainId = "flow-testnet" | "arbitrum-sepolia"
+export type SupportedChainId = "casper-test"
 
 export const CHAIN_STORAGE_KEY = "blockops.selectedChain"
 
-export const CHAIN_CONFIGS: Record<
-  SupportedChainId,
-  {
-    id: SupportedChainId
-    chainId: number
-    name: string
-    symbol: string
-    faucetUrl: string
-    explorerBaseUrl: string
-    viemChain: typeof flowTestnet | typeof arbitrumSepolia
-  }
-> = {
-  "flow-testnet": {
-    id: "flow-testnet",
-    chainId: flowTestnet.id,
-    name: "Flow EVM Testnet",
-    symbol: "FLOW",
-    faucetUrl: "https://testnet-faucet.onflow.org/fund-account",
-    explorerBaseUrl: "https://evm-testnet.flowscan.io",
-    viemChain: flowTestnet,
-  },
-  "arbitrum-sepolia": {
-    id: "arbitrum-sepolia",
-    chainId: arbitrumSepolia.id,
-    name: "Arbitrum Sepolia",
-    symbol: "ETH",
-    faucetUrl: "https://www.alchemy.com/faucets/arbitrum-sepolia",
-    explorerBaseUrl: "https://sepolia.arbiscan.io",
-    viemChain: arbitrumSepolia,
+export const DEFAULT_CHAIN_ID: SupportedChainId = "casper-test"
+
+export type ChainConfig = {
+  id: SupportedChainId
+  chainName: string
+  name: string
+  symbol: string
+  decimals: number
+  faucetUrl: string
+  explorerBaseUrl: string
+  rpcUrl: string
+  csprCloudUrl: string
+}
+
+export const CHAIN_CONFIGS: Record<SupportedChainId, ChainConfig> = {
+  "casper-test": {
+    id: "casper-test",
+    chainName: "casper-test",
+    name: "Casper Network (Testnet)",
+    symbol: "CSPR",
+    decimals: 9,
+    faucetUrl: "https://testnet.cspr.live/tools/faucet",
+    explorerBaseUrl: "https://testnet.cspr.live",
+    rpcUrl: "https://rpc.testnet.casper.live/rpc",
+    csprCloudUrl: "https://api.testnet.cspr.cloud",
   },
 }
 
-export const DEFAULT_CHAIN_ID: SupportedChainId = "flow-testnet"
-
+/**
+ * Normalize an inbound chain string. Anything Casper-shaped resolves to
+ * `casper-test`; legacy EVM chain ids (flow-testnet, arbitrum-sepolia, 545,
+ * 421614, …) are silently mapped to Casper Testnet since BlockOps no longer
+ * supports them.
+ */
 export function normalizeChainId(chain?: string | null): SupportedChainId {
   const normalized = String(chain || "").trim().toLowerCase()
   if (
-    normalized === "flow-testnet" ||
-    normalized === "flow" ||
-    normalized === "flow-evm" ||
-    normalized === "545"
+    normalized === "casper-test" ||
+    normalized === "casper" ||
+    normalized === "casper-testnet" ||
+    normalized === "mainnet" ||
+    normalized === "1" ||
+    normalized === "2"
   ) {
-    return "flow-testnet"
+    return "casper-test"
   }
-
-  if (
-    normalized === "arbitrum-sepolia" ||
-    normalized === "arbitrum" ||
-    normalized === "arb" ||
-    normalized === "421614"
-  ) {
-    return "arbitrum-sepolia"
-  }
-
   return DEFAULT_CHAIN_ID
 }
 
-export function getChainConfig(chain?: string | null) {
+export function getChainConfig(chain?: string | null): ChainConfig {
   return CHAIN_CONFIGS[normalizeChainId(chain)]
 }
 
 export function getStoredChain(): SupportedChainId {
-  if (typeof window === "undefined") {
-    return DEFAULT_CHAIN_ID
-  }
-
+  if (typeof window === "undefined") return DEFAULT_CHAIN_ID
   return normalizeChainId(window.localStorage.getItem(CHAIN_STORAGE_KEY))
 }
 
 export function setStoredChain(chain: SupportedChainId) {
-  if (typeof window === "undefined") {
-    return
-  }
-
+  if (typeof window === "undefined") return
   window.localStorage.setItem(CHAIN_STORAGE_KEY, chain)
+}
+
+export function explorerUrl(accountOrDeploy: string, kind: "account" | "deploy" = "account"): string {
+  const base = CHAIN_CONFIGS[DEFAULT_CHAIN_ID].explorerBaseUrl
+  return `${base}/${kind}/${accountOrDeploy}`
 }

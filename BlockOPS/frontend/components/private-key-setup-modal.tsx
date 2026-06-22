@@ -4,12 +4,11 @@ import { useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
   CheckCircle2,
-  Eye,
-  EyeOff,
   Key,
   Loader2,
   ShieldCheck,
   Sparkles,
+  Wallet as WalletIcon,
 } from "lucide-react"
 import {
   Dialog,
@@ -19,16 +18,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { updateCompatibleUserWallet, type WalletType } from "@/lib/supabase"
 import { toast } from "@/components/ui/use-toast"
-import { encryptPrivateKeyForStorage, normalizePrivateKey } from "@/lib/lit-private-key"
-import { createWallet } from "@/lib/wallet"
-import { mintPkpWallet, type PkpWalletResult } from "@/lib/lit-pkp"
+import { connectWallet, getActiveAccount, saveWalletToUser } from "@/lib/wallet"
+import { CHAIN_CONFIGS, DEFAULT_CHAIN_ID } from "@/lib/chains"
 
 interface PrivateKeySetupModalProps {
   open: boolean
@@ -38,7 +35,7 @@ interface PrivateKeySetupModalProps {
   pkpSchemaReady?: boolean
 }
 
-const DEFAULT_TAB: WalletType = "pkp"
+const DEFAULT_TAB: WalletType = "csprclick"
 
 export function PrivateKeySetupModal({
   open,
@@ -47,159 +44,94 @@ export function PrivateKeySetupModal({
   onComplete,
   pkpSchemaReady = true,
 }: PrivateKeySetupModalProps) {
-  const [activeTab, setActiveTab] = useState<WalletType>(pkpSchemaReady ? DEFAULT_TAB : "traditional")
-  const [privateKey, setPrivateKey] = useState("")
-  const [showPrivateKey, setShowPrivateKey] = useState(false)
-  const [isTraditionalLoading, setIsTraditionalLoading] = useState(false)
-  const [isPkpLoading, setIsPkpLoading] = useState(false)
-  const [pkpResult, setPkpResult] = useState<PkpWalletResult | null>(null)
+  const [activeTab, setActiveTab] = useState<WalletType>(DEFAULT_TAB)
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [csprPublicKey, setCsprPublicKey] = useState<string | null>(null)
+  const [provider, setProvider] = useState<string>("casper-wallet")
   const [error, setError] = useState<string | null>(null)
 
-  const isLoading = isTraditionalLoading || isPkpLoading
-  const hasTraditionalInput = privateKey.trim().length > 0
+  const isLoading = isConnecting
+  const chain = CHAIN_CONFIGS[DEFAULT_CHAIN_ID]
 
   const canDismiss = useMemo(() => !isLoading, [isLoading])
 
   const resetState = () => {
-    setActiveTab(pkpSchemaReady ? DEFAULT_TAB : "traditional")
-    setPrivateKey("")
-    setShowPrivateKey(false)
-    setIsTraditionalLoading(false)
-    setIsPkpLoading(false)
-    setPkpResult(null)
+    setActiveTab(DEFAULT_TAB)
+    setIsConnecting(false)
+    setCsprPublicKey(null)
     setError(null)
   }
 
-  const pkpSchemaMessage =
-    "Your Supabase users table is still on the old schema. Run frontend/MIGRATION_FIX.sql in Supabase, refresh the app, and the PKP tab will be fully enabled."
-
   useEffect(() => {
     if (open) {
-      setActiveTab(pkpSchemaReady ? DEFAULT_TAB : "traditional")
+      setActiveTab(DEFAULT_TAB)
       setError(null)
     }
   }, [open, pkpSchemaReady])
 
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const account = await getActiveAccount()
+        if (cancelled) return
+        if (account?.publicKey) {
+          setCsprPublicKey(account.publicKey)
+          setProvider(account.provider || "casper-wallet")
+        }
+      } catch (err) {
+        // Silent: user is just not connected.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
   const handleDialogChange = (nextOpen: boolean) => {
-    if (!nextOpen && !canDismiss) {
-      return
-    }
-
-    if (!nextOpen) {
-      resetState()
-    }
-
+    if (!nextOpen && !canDismiss) return
+    if (!nextOpen) resetState()
     onOpenChange(nextOpen)
   }
 
-  const validatePrivateKey = (key: string): boolean => {
-    const cleanKey = key.startsWith("0x") ? key.slice(2) : key
-    return /^[0-9a-fA-F]{64}$/.test(cleanKey)
-  }
-
-  const handleGenerateTraditionalKey = () => {
-    const wallet = createWallet()
-    setPrivateKey(wallet.privateKey)
-    setShowPrivateKey(true)
+  const handleConnect = async (selectedProvider: string) => {
     setError(null)
-  }
-
-  const handleTraditionalSubmit = async (event: React.FormEvent) => {
-    event.preventDefault()
-    setError(null)
-
-    if (!privateKey.trim()) {
-      setError("Please enter or generate a private key first.")
-      return
-    }
-
-    if (!validatePrivateKey(privateKey.trim())) {
-      setError(
-        "Invalid private key format. Please enter a valid 64-character hexadecimal private key with or without the 0x prefix."
-      )
-      return
-    }
-
-    setIsTraditionalLoading(true)
-
+    setIsConnecting(true)
+    setProvider(selectedProvider)
     try {
-      const formattedKey = normalizePrivateKey(privateKey.trim())
-      const { ethers } = await import("ethers")
-      const wallet = new ethers.Wallet(formattedKey)
-      const litEncryptedPayload = await encryptPrivateKeyForStorage(formattedKey)
+      const account = await connectWallet(selectedProvider)
+      if (!account?.publicKey) {
+        throw new Error("Wallet connection was cancelled.")
+      }
 
+      await saveWalletToUser(userId, account.publicKey)
       await updateCompatibleUserWallet(userId, {
-        private_key: litEncryptedPayload,
-        wallet_address: wallet.address,
-        wallet_type: "traditional",
+        wallet_address: account.publicKey,
+        private_key: null,
+        wallet_type: "csprclick",
         pkp_public_key: null,
         pkp_token_id: null,
       })
 
+      setCsprPublicKey(account.publicKey)
       toast({
-        title: "Traditional wallet secured",
-        description: "Your private key is now encrypted with Lit before storage.",
+        title: "CSPR.click wallet connected",
+        description: `Your ${chain.symbol} account is now bound to your BlockOps identity.`,
       })
-
-      resetState()
       onComplete()
-      onOpenChange(false)
-    } catch (submitError: any) {
-      console.error("Error setting up traditional wallet:", submitError)
+    } catch (connectError: any) {
+      console.error("Error connecting CSPR.click wallet:", connectError)
       setError(
-        submitError?.message ||
-          "Failed to secure and store your private key. Please check your key and Lit configuration, then try again."
+        connectError?.message ||
+          "Failed to connect your Casper wallet. Install the Casper Wallet extension or try a different provider.",
       )
     } finally {
-      setIsTraditionalLoading(false)
-    }
-  }
-
-  const handleGeneratePkp = async () => {
-    setError(null)
-
-    if (!pkpSchemaReady) {
-      setError(pkpSchemaMessage)
-      return
-    }
-
-    setIsPkpLoading(true)
-
-    try {
-      const mintedWallet = await mintPkpWallet()
-
-      await updateCompatibleUserWallet(userId, {
-        private_key: null,
-        wallet_address: mintedWallet.walletAddress,
-        wallet_type: "pkp",
-        pkp_public_key: mintedWallet.pkpPublicKey,
-        pkp_token_id: mintedWallet.pkpTokenId,
-      })
-
-      setPkpResult(mintedWallet)
-      onComplete()
-
-      toast({
-        title: "PKP wallet created",
-        description: "Your Lit-powered decentralized wallet is live on naga-test with no seed exposed.",
-      })
-    } catch (pkpError: any) {
-      console.error("Error minting PKP wallet:", pkpError)
-      setError(
-        pkpError?.message ||
-          "Failed to mint your PKP wallet. Make sure the Lit Naga testnet controller wallet is configured and funded, then try again."
-      )
-    } finally {
-      setIsPkpLoading(false)
+      setIsConnecting(false)
     }
   }
 
   const handleSkip = () => {
-    resetState()
-    onOpenChange(false)
-  }
-
-  const handleContinueAfterPkp = () => {
     resetState()
     onOpenChange(false)
   }
@@ -209,18 +141,25 @@ export function PrivateKeySetupModal({
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
-            Set Up Agent Wallet
+            <WalletIcon className="h-5 w-5" />
+            Connect a Casper Wallet
           </DialogTitle>
           <DialogDescription>
-            Generate a true decentralized PKP wallet powered by Lit Protocol&apos;s Naga testnet with no seed ever exposed, or keep the legacy encrypted-key flow for an existing wallet.
+            BlockOps signs every on-chain interaction with your CSPR.click wallet — no seed phrases
+            or raw private keys are ever stored in Supabase.
           </DialogDescription>
         </DialogHeader>
 
         {!pkpSchemaReady && (
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{pkpSchemaMessage}</AlertDescription>
+            <AlertDescription>
+              Your Supabase users table is missing the legacy wallet columns. We only need
+              <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">wallet_address</code>
+              and
+              <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">wallet_type</code> now;
+              CSPR.click will populate them for you.
+            </AlertDescription>
           </Alert>
         )}
 
@@ -232,64 +171,44 @@ export function PrivateKeySetupModal({
           }}
           className="space-y-4"
         >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="pkp" className="gap-2">
+          <TabsList className="grid w-full grid-cols-1">
+            <TabsTrigger value="csprclick" className="gap-2">
               <Sparkles className="h-4 w-4" />
-              Create PKP Wallet
+              CSPR.click (Casper Wallet)
               <Badge variant="secondary" className="ml-1 hidden sm:inline-flex">
                 Recommended
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="traditional" className="gap-2">
-              <ShieldCheck className="h-4 w-4" />
-              Import Existing Wallet
-            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="pkp" className="space-y-4">
+          <TabsContent value="csprclick" className="space-y-4">
             <Alert className="border-emerald-500/30 bg-emerald-500/5">
               <Sparkles className="h-4 w-4" />
               <AlertDescription className="text-sm">
-                <strong>Flagship experience:</strong> mint a new Lit PKP through distributed key
-                generation on the Naga testnet. We only store the PKP public key and tokenId in
-                Supabase, never any raw wallet secret.
+                <strong>Flagship experience:</strong> CSPR.click connects directly to the Casper
+                Wallet, Ledger, or signer you already use. Your public key is saved to Supabase so
+                the BlockOps backend can route deploys to you, but the secret key never leaves the
+                wallet.
               </AlertDescription>
             </Alert>
 
-            {pkpResult ? (
+            {csprPublicKey ? (
               <div className="space-y-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">PKP wallet created successfully</p>
+                    <p className="text-sm font-medium">Wallet connected</p>
                     <p className="text-xs text-muted-foreground">
-                      Your new seedless wallet is ready for both the web app and Telegram signing
-                      flow.
+                      BlockOps will sign deploys on {chain.chainName} with this account.
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-3 rounded-lg bg-background/70 p-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Wallet Address
-                    </Label>
-                    <p className="break-all font-mono text-xs">{pkpResult.walletAddress}</p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                      PKP Public Key
-                    </Label>
-                    <p className="break-all font-mono text-xs">{pkpResult.pkpPublicKey}</p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                      PKP Token ID
-                    </Label>
-                    <p className="break-all font-mono text-xs">{pkpResult.pkpTokenId}</p>
-                  </div>
+                <div className="space-y-1 rounded-lg bg-background/70 p-3">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Public Key
+                  </Label>
+                  <p className="break-all font-mono text-xs">{csprPublicKey}</p>
                 </div>
 
                 <div className="flex gap-2">
@@ -301,134 +220,70 @@ export function PrivateKeySetupModal({
                   >
                     Close
                   </Button>
-                  <Button type="button" onClick={handleContinueAfterPkp} className="flex-1">
-                    Continue
+                  <Button
+                    type="button"
+                    onClick={() => handleConnect(provider)}
+                    className="flex-1"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Reconnecting…
+                      </>
+                    ) : (
+                      "Reconnect"
+                    )}
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Create a Lit PKP wallet</p>
+                  <p className="text-sm font-medium">Choose a Casper wallet provider</p>
                   <p className="text-sm text-muted-foreground">
-                    This creates an ERC-721 PKP on Lit&apos;s Naga testnet and uses it as your
-                    agent signer. No seed phrase or raw private key is ever exposed in the UI or
-                    stored in Supabase.
+                    Each provider opens its native popup so you can confirm the connection. We
+                    only receive your public key, balance, and CSPR name.
                   </p>
                 </div>
 
                 <ul className="space-y-2 text-xs text-muted-foreground">
-                  <li>Stores `wallet_type = "pkp"` plus the PKP public key and tokenId.</li>
-                  <li>Uses the PKP directly for future signing flows instead of decrypting a key.</li>
-                  <li>Keeps the legacy encrypted-key path available for existing wallets.</li>
+                  <li>Stores <code>wallet_type = "csprclick"</code> and the public key.</li>
+                  <li>No seed phrases, no Lit ciphertext, no EOA private keys.</li>
+                  <li>Required for on-chain agent registration and x402 tool payments.</li>
                 </ul>
 
-                <Button
-                  type="button"
-                  onClick={handleGeneratePkp}
-                  disabled={isLoading || !pkpSchemaReady}
-                  className="w-full"
-                >
-                  {isPkpLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating PKP on naga-test...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate PKP
-                    </>
-                  )}
-                </Button>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {[
+                    { id: "casper-wallet", label: "Casper Wallet" },
+                    { id: "casper-signer", label: "Casper Signer" },
+                    { id: "ledger", label: "Ledger" },
+                    { id: "walletconnect", label: "WalletConnect" },
+                  ].map((p) => (
+                    <Button
+                      key={p.id}
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleConnect(p.id)}
+                      disabled={isLoading}
+                      className="w-full"
+                    >
+                      {isLoading && provider === p.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Connecting…
+                        </>
+                      ) : (
+                        <>
+                          <WalletIcon className="mr-2 h-4 w-4" />
+                          {p.label}
+                        </>
+                      )}
+                    </Button>
+                  ))}
+                </div>
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="traditional" className="space-y-4">
-            <form onSubmit={handleTraditionalSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Label htmlFor="privateKey">Private Key</Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleGenerateTraditionalKey}
-                    disabled={isLoading}
-                    className="h-8 px-2 text-xs"
-                  >
-                    Generate New EOA Key
-                  </Button>
-                </div>
-
-                <div className="relative">
-                  <Input
-                    id="privateKey"
-                    type={showPrivateKey ? "text" : "password"}
-                    placeholder="0x... or paste your 64-character hex key"
-                    value={privateKey}
-                    onChange={(event) => {
-                      setPrivateKey(event.target.value)
-                      setError(null)
-                    }}
-                    disabled={isLoading}
-                    className="pr-10"
-                    autoComplete="off"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                    onClick={() => setShowPrivateKey((current) => !current)}
-                    disabled={isLoading}
-                  >
-                    {showPrivateKey ? (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                </div>
-
-                <p className="text-xs text-muted-foreground">
-                  This legacy flow still works exactly as before: your EOA private key is encrypted
-                  with Lit and stored as a `lit:v1:` payload.
-                </p>
-              </div>
-
-              <Alert>
-                <ShieldCheck className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  We never store plaintext keys in Supabase. Only Lit-encrypted ciphertext is
-                  persisted, and the decrypted key is resolved just-in-time for traditional signing
-                  flows.
-                </AlertDescription>
-              </Alert>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleSkip}
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  Skip for Now
-                </Button>
-                <Button type="submit" disabled={isLoading || !hasTraditionalInput} className="flex-1">
-                  {isTraditionalLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Securing Wallet...
-                    </>
-                  ) : (
-                    "Save Traditional Wallet"
-                  )}
-                </Button>
-              </div>
-            </form>
           </TabsContent>
         </Tabs>
 
@@ -438,6 +293,22 @@ export function PrivateKeySetupModal({
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Your secret key never leaves the Casper wallet.
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleSkip}
+            disabled={isLoading}
+          >
+            Skip for now
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )

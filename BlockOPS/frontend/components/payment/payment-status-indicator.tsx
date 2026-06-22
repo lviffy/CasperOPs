@@ -1,21 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  CheckCircle,
   Clock,
+  CheckCircle2,
   XCircle,
+  AlertCircle,
   ExternalLink,
   Loader2,
   RefreshCw,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { casperDeployUrl } from "@/lib/wallet";
+
+interface PaymentStatusIndicatorProps {
+  paymentHash?: string;
+  paymentId?: string;
+  status?: PaymentStatus;
+  onRefresh?: () => void;
+  showDetails?: boolean;
+  variant?: "badge" | "full";
+  className?: string;
+}
 
 type PaymentStatus =
   | "pending"
@@ -25,345 +34,261 @@ type PaymentStatus =
   | "failed"
   | "expired";
 
-interface PaymentStatusIndicatorProps {
-  paymentHash: string;
-  autoRefresh?: boolean;
-  refreshInterval?: number; // in milliseconds
-  showDetails?: boolean;
-  size?: "sm" | "md" | "lg";
-  className?: string;
-  onStatusChange?: (status: PaymentStatus) => void;
-}
-
-interface PaymentData {
+interface PaymentDetails {
+  payment_hash: string;
+  payment_id: string;
   status: PaymentStatus;
-  amount: number;
-  tokenSymbol: string;
-  createdAt: string;
-  expiresAt?: string;
-  executedAt?: string;
-  refundedAt?: string;
+  amount: string;
+  token_symbol: string;
+  tool_name: string;
+  created_at: string;
+  executed_at?: string;
+  refunded_at?: string;
+  error_message?: string;
 }
-
-const EXPLORER_URL = "https://sepolia.arbiscan.io";
 
 export default function PaymentStatusIndicator({
   paymentHash,
-  autoRefresh = true,
-  refreshInterval = 10000,
+  paymentId,
+  status: initialStatus,
+  onRefresh,
   showDetails = true,
-  size = "md",
-  className = "",
-  onStatusChange,
+  variant = "badge",
+  className,
 }: PaymentStatusIndicatorProps) {
-  const [payment, setPayment] = useState<PaymentData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<PaymentStatus>(initialStatus || "pending");
+  const [details, setDetails] = useState<PaymentDetails | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    if ((paymentHash || paymentId) && showDetails) {
+      fetchPaymentStatus();
+    }
+  }, [paymentHash, paymentId]);
 
   const fetchPaymentStatus = async () => {
+    if (!paymentHash && !paymentId) return;
+
+    setLoading(true);
+    setError("");
+
     try {
-      const response = await fetch(
-        `/api/payments/verify?paymentHash=${paymentHash}`
-      );
+      const query = paymentHash ? `paymentHash=${paymentHash}` : `paymentId=${paymentId}`;
+      const response = await fetch(`/api/payments/verify?${query}`);
 
       if (!response.ok) {
         throw new Error("Failed to fetch payment status");
       }
 
       const data = await response.json();
-      setPayment(data.payment);
-      setError(null);
-
-      if (onStatusChange && data.payment?.status) {
-        onStatusChange(data.payment.status);
+      if (data.payment) {
+        setDetails(data.payment);
+        setStatus(data.payment.status);
       }
     } catch (err: any) {
       console.error("Error fetching payment status:", err);
-      setError(err.message || "Failed to load status");
+      setError(err.message || "Failed to load payment status");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchPaymentStatus();
-  }, [paymentHash]);
-
-  // Auto-refresh for pending/confirmed statuses
-  useEffect(() => {
-    if (!autoRefresh || !payment) return;
-
-    // Stop refreshing if payment is in final state
-    if (["executed", "refunded", "failed", "expired"].includes(payment.status)) {
-      return;
+  const handleRefresh = () => {
+    if (onRefresh) {
+      onRefresh();
+    } else {
+      fetchPaymentStatus();
     }
+  };
 
-    const interval = setInterval(fetchPaymentStatus, refreshInterval);
-    return () => clearInterval(interval);
-  }, [autoRefresh, payment?.status, refreshInterval]);
-
-  if (loading) {
-    return (
-      <div className={`flex items-center gap-2 ${className}`}>
-        <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-        <span className="text-sm text-muted-foreground">
-          Loading payment status...
-        </span>
-      </div>
-    );
-  }
-
-  if (error || !payment) {
-    return (
-      <div className={`flex items-center gap-2 text-red-500 ${className}`}>
-        <XCircle className="h-4 w-4" />
-        <span className="text-sm">{error || "Unknown error"}</span>
-      </div>
-    );
-  }
-
-  const getStatusConfig = (status: PaymentStatus) => {
-    switch (status) {
+  const getStatusConfig = (currentStatus: PaymentStatus) => {
+    switch (currentStatus) {
       case "pending":
         return {
           icon: Clock,
           label: "Pending",
-          color: "text-yellow-600 dark:text-yellow-400",
-          bgColor: "bg-yellow-100 dark:bg-yellow-900/20",
-          description: "Waiting for blockchain confirmation",
+          variant: "secondary" as const,
+          color: "text-yellow-500",
+          description: "Payment deploy is being processed on Casper",
         };
       case "confirmed":
         return {
-          icon: CheckCircle,
+          icon: CheckCircle2,
           label: "Confirmed",
-          color: "text-blue-600 dark:text-blue-400",
-          bgColor: "bg-blue-100 dark:bg-blue-900/20",
-          description: "Payment confirmed, ready for execution",
+          variant: "default" as const,
+          color: "text-blue-500",
+          description: "Payment deploy confirmed, waiting for service execution",
         };
       case "executed":
         return {
-          icon: CheckCircle,
-          label: "Executed",
-          color: "text-green-600 dark:text-green-400",
-          bgColor: "bg-green-100 dark:bg-green-900/20",
-          description: "Service delivered successfully",
+          icon: CheckCircle2,
+          label: "Completed",
+          variant: "default" as const,
+          color: "text-green-500",
+          description: "Payment completed and funds released to treasury",
         };
       case "refunded":
         return {
-          icon: RefreshCw,
+          icon: AlertCircle,
           label: "Refunded",
-          color: "text-purple-600 dark:text-purple-400",
-          bgColor: "bg-purple-100 dark:bg-purple-900/20",
-          description: "Payment refunded to your wallet",
+          variant: "outline" as const,
+          color: "text-orange-500",
+          description: "Payment refunded due to service failure",
         };
       case "failed":
         return {
           icon: XCircle,
           label: "Failed",
-          color: "text-red-600 dark:text-red-400",
-          bgColor: "bg-red-100 dark:bg-red-900/20",
-          description: "Transaction failed",
+          variant: "destructive" as const,
+          color: "text-red-500",
+          description: "Payment deploy failed",
         };
       case "expired":
         return {
           icon: XCircle,
           label: "Expired",
-          color: "text-gray-600 dark:text-gray-400",
-          bgColor: "bg-gray-100 dark:bg-gray-900/20",
-          description: "Payment expired",
+          variant: "outline" as const,
+          color: "text-gray-500",
+          description: "Payment authorization expired",
         };
       default:
         return {
-          icon: Clock,
+          icon: AlertCircle,
           label: "Unknown",
-          color: "text-gray-600",
-          bgColor: "bg-gray-100",
+          variant: "outline" as const,
+          color: "text-gray-500",
           description: "Status unknown",
         };
     }
   };
 
-  const statusConfig = getStatusConfig(payment.status);
+  const statusConfig = getStatusConfig(status);
   const Icon = statusConfig.icon;
 
-  const sizeClasses = {
-    sm: "text-xs px-2 py-1",
-    md: "text-sm px-3 py-1.5",
-    lg: "text-base px-4 py-2",
-  };
-
-  const iconSizes = {
-    sm: "h-3 w-3",
-    md: "h-4 w-4",
-    lg: "h-5 w-5",
-  };
-
-  const indicator = (
-    <div
-      className={`inline-flex items-center gap-2 rounded-full font-medium ${statusConfig.bgColor} ${statusConfig.color} ${sizeClasses[size]} ${className}`}
-    >
-      <Icon className={iconSizes[size]} />
-      <span>{statusConfig.label}</span>
-      {["pending", "confirmed"].includes(payment.status) && (
-        <Loader2 className={`${iconSizes[size]} animate-spin ml-1`} />
-      )}
-    </div>
-  );
-
-  if (!showDetails) {
-    return indicator;
+  if (variant === "badge") {
+    return (
+      <Badge variant={statusConfig.variant} className={cn("gap-1", className)}>
+        {loading ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <Icon className={cn("h-3 w-3", statusConfig.color)} />
+        )}
+        {statusConfig.label}
+      </Badge>
+    );
   }
 
   return (
-    <TooltipProvider>
-      <div className={`space-y-2 ${className}`}>
-        <Tooltip>
-          <TooltipTrigger asChild>{indicator}</TooltipTrigger>
-          <TooltipContent side="bottom" className="max-w-xs">
-            <div className="space-y-2 text-xs">
-              <p className="font-medium">{statusConfig.description}</p>
-              <div className="space-y-1 text-muted-foreground">
-                <div>
-                  Amount: {payment.amount} {payment.tokenSymbol}
-                </div>
-                <div>
-                  Created:{" "}
-                  {new Date(payment.createdAt).toLocaleString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </div>
-                {payment.executedAt && (
-                  <div>
-                    Executed:{" "}
-                    {new Date(payment.executedAt).toLocaleString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                )}
-                {payment.refundedAt && (
-                  <div>
-                    Refunded:{" "}
-                    {new Date(payment.refundedAt).toLocaleString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Transaction Link */}
-        <a
-          href={`${EXPLORER_URL}/tx/${paymentHash}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-        >
-          View on Arbiscan
-          <ExternalLink className="h-3 w-3" />
-        </a>
-
-        {/* Manual Refresh Button */}
-        {!autoRefresh && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={fetchPaymentStatus}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-3 w-3 mr-1 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+    <Alert className={cn("relative", className)}>
+      <div className="flex items-start gap-3">
+        {loading ? (
+          <Loader2 className="h-5 w-5 animate-spin mt-0.5" />
+        ) : (
+          <Icon className={cn("h-5 w-5 mt-0.5", statusConfig.color)} />
         )}
+
+        <div className="flex-1 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h4 className="font-semibold text-sm">{statusConfig.label}</h4>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {error || statusConfig.description}
+              </p>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={loading}
+              className="h-8 w-8 p-0"
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            </Button>
+          </div>
+
+          {showDetails && details && (
+            <div className="space-y-1.5 text-xs text-muted-foreground pt-2 border-t">
+              {details.tool_name && (
+                <div className="flex justify-between">
+                  <span>Tool:</span>
+                  <span className="font-mono">{details.tool_name}</span>
+                </div>
+              )}
+              {details.amount && (
+                <div className="flex justify-between">
+                  <span>Amount:</span>
+                  <span className="font-mono">
+                    {details.amount} {details.token_symbol || "CSPR"}
+                  </span>
+                </div>
+              )}
+              {details.created_at && (
+                <div className="flex justify-between">
+                  <span>Created:</span>
+                  <span>{new Date(details.created_at).toLocaleString()}</span>
+                </div>
+              )}
+              {details.executed_at && (
+                <div className="flex justify-between">
+                  <span>Executed:</span>
+                  <span>{new Date(details.executed_at).toLocaleString()}</span>
+                </div>
+              )}
+              {details.refunded_at && (
+                <div className="flex justify-between">
+                  <span>Refunded:</span>
+                  <span>{new Date(details.refunded_at).toLocaleString()}</span>
+                </div>
+              )}
+              {details.error_message && (
+                <div className="pt-1">
+                  <span className="text-red-500">Error: {details.error_message}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {(paymentHash || details?.payment_hash) && (
+            <div className="flex items-center gap-2 pt-2 border-t">
+              <span className="text-xs text-muted-foreground">Deploy:</span>
+              <a
+                href={casperDeployUrl(paymentHash || details?.payment_hash || "")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-primary hover:underline font-mono"
+              >
+                {(paymentHash || details?.payment_hash || "").slice(0, 10)}…
+                {(paymentHash || details?.payment_hash || "").slice(-8)}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          )}
+        </div>
       </div>
-    </TooltipProvider>
+    </Alert>
   );
 }
 
-// Compact version for lists
-export function PaymentStatusBadge({
-  status,
-  size = "sm",
-}: {
-  status: PaymentStatus;
-  size?: "sm" | "md";
-}) {
-  const getStatusConfig = (status: PaymentStatus) => {
+export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
+  const getIcon = () => {
     switch (status) {
       case "pending":
-        return {
-          icon: Clock,
-          label: "Pending",
-          color: "text-yellow-700 dark:text-yellow-300",
-          bgColor: "bg-yellow-100 dark:bg-yellow-900/20",
-        };
+        return <Clock className="h-4 w-4 text-yellow-500 animate-pulse" />;
       case "confirmed":
-        return {
-          icon: CheckCircle,
-          label: "Confirmed",
-          color: "text-blue-700 dark:text-blue-300",
-          bgColor: "bg-blue-100 dark:bg-blue-900/20",
-        };
+        return <CheckCircle2 className="h-4 w-4 text-blue-500" />;
       case "executed":
-        return {
-          icon: CheckCircle,
-          label: "Executed",
-          color: "text-green-700 dark:text-green-300",
-          bgColor: "bg-green-100 dark:bg-green-900/20",
-        };
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
       case "refunded":
-        return {
-          icon: RefreshCw,
-          label: "Refunded",
-          color: "text-purple-700 dark:text-purple-300",
-          bgColor: "bg-purple-100 dark:bg-purple-900/20",
-        };
+        return <AlertCircle className="h-4 w-4 text-orange-500" />;
       case "failed":
-        return {
-          icon: XCircle,
-          label: "Failed",
-          color: "text-red-700 dark:text-red-300",
-          bgColor: "bg-red-100 dark:bg-red-900/20",
-        };
       case "expired":
-        return {
-          icon: XCircle,
-          label: "Expired",
-          color: "text-gray-700 dark:text-gray-300",
-          bgColor: "bg-gray-100 dark:bg-gray-900/20",
-        };
+        return <XCircle className="h-4 w-4 text-red-500" />;
       default:
-        return {
-          icon: Clock,
-          label: "Unknown",
-          color: "text-gray-700",
-          bgColor: "bg-gray-100",
-        };
+        return <AlertCircle className="h-4 w-4 text-gray-500" />;
     }
   };
 
-  const config = getStatusConfig(status);
-  const Icon = config.icon;
-
-  const sizeClasses = size === "sm" ? "text-xs px-2 py-0.5" : "text-sm px-2.5 py-1";
-  const iconSize = size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5";
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full font-medium ${config.bgColor} ${config.color} ${sizeClasses}`}
-    >
-      <Icon className={iconSize} />
-      {config.label}
-    </span>
-  );
+  return getIcon();
 }

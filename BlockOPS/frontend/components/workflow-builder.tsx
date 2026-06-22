@@ -22,7 +22,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css"
 import { toast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
-import { Save, ArrowLeft } from "lucide-react"
+import { Save, ArrowLeft, Wallet } from "lucide-react"
 import NodeLibrary from "./node-library"
 import NodeConfigPanel from "./node-config-panel"
 import CustomEdge from "./custom-edge"
@@ -35,6 +35,8 @@ import { UserProfile } from "./user-profile"
 import { useAuth } from "@/lib/auth"
 import { createAgent, getAgentById, updateAgent } from "@/lib/agents"
 import { workflowToTools, toolsToWorkflow } from "@/lib/workflow-converter"
+import { AgentWalletModal } from "./agent-wallet"
+import { initCsprClick, getActiveAccount } from "@/lib/wallet"
 import AIQuotaCompact from "./payment/ai-quota-compact"
 import {
   AlertDialog,
@@ -58,57 +60,57 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
+/**
+ * Casper-native tool set used by the workflow builder. Mirrors
+ * `backend/services/toolRouter.js` AVAILABLE_TOOLS plus the on-chain
+ * agent workflow nodes. Update both files together when adding tools.
+ */
 const toolTypes = [
+  // Native CSPR
   "transfer",
   "batch_transfer",
-  "swap",
   "get_balance",
-  "deploy_erc20",
-  "deploy_erc721",
-  "create_dao",
-  "airdrop",
+  // Token / NFT deploys
+  "deploy_cep18",
+  "deploy_cep78",
+  "mint_nft",
+  "get_token_info",
+  "get_token_balance",
+  "get_nft_info",
+  // On-chain agent registry / reputation / compliance
+  "register_agent",
+  "attest_agent",
+  "get_reputation",
+  "yield_rebalance",
+  // On-chain lookups
+  "lookup_deploy",
+  "lookup_block",
+  // Notifications / utilities
   "fetch_price",
-  "deposit_yield",
-  "wrap_eth",
-  "token_metadata",
-  "tx_status",
-  "wallet_history",
-  "approve_token",
-  "revoke_approval",
   "send_email",
-  "create_savings_plan",
-  "schedule_payout",
-  "create_payroll_plan",
-  "create_grant_payout",
-  "get_flow_network_overview",
-  "get_flow_wallet_readiness",
+  "wallet_readiness",
 ]
 
 const nodeTypes: NodeTypes = {
   agent: AgentNode,
   transfer: ToolNode,
   batch_transfer: ToolNode,
-  swap: ToolNode,
   get_balance: ToolNode,
-  deploy_erc20: ToolNode,
-  deploy_erc721: ToolNode,
-  create_dao: ToolNode,
-  airdrop: ToolNode,
+  deploy_cep18: ToolNode,
+  deploy_cep78: ToolNode,
+  mint_nft: ToolNode,
+  get_token_info: ToolNode,
+  get_token_balance: ToolNode,
+  get_nft_info: ToolNode,
+  register_agent: ToolNode,
+  attest_agent: ToolNode,
+  get_reputation: ToolNode,
+  yield_rebalance: ToolNode,
+  lookup_deploy: ToolNode,
+  lookup_block: ToolNode,
   fetch_price: ToolNode,
-  deposit_yield: ToolNode,
-  wrap_eth: ToolNode,
-  token_metadata: ToolNode,
-  tx_status: ToolNode,
-  wallet_history: ToolNode,
-  approve_token: ToolNode,
-  revoke_approval: ToolNode,
   send_email: ToolNode,
-  create_savings_plan: ToolNode,
-  schedule_payout: ToolNode,
-  create_payroll_plan: ToolNode,
-  create_grant_payout: ToolNode,
-  get_flow_network_overview: ToolNode,
-  get_flow_wallet_readiness: ToolNode,
+  wallet_readiness: ToolNode,
 }
 
 const edgeTypes: EdgeTypes = {
@@ -121,14 +123,13 @@ interface WorkflowBuilderProps {
 
 const AGENT_NODE_ID = "agent-node"
 
-// Create the initial agent node
 const createAgentNode = (): Node => ({
   id: AGENT_NODE_ID,
   type: "agent",
   position: { x: 100, y: 100 },
   data: {
     label: "Agent",
-    description: "Your agent",
+    description: "Your Casper agent",
     config: {},
   },
   draggable: true,
@@ -138,7 +139,7 @@ const createAgentNode = (): Node => ({
 
 export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
   const router = useRouter()
-  const { user, authenticated, logout } = useAuth()
+  const { user, authenticated, logout, dbUser } = useAuth()
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState([createAgentNode()])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
@@ -147,30 +148,37 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
   const [isAIChatOpen, setIsAIChatOpen] = useState(false)
   const [showExitDialog, setShowExitDialog] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [showWalletModal, setShowWalletModal] = useState(false)
   const [agentName, setAgentName] = useState("")
   const [agentDescription, setAgentDescription] = useState("")
   const [loadingAgent, setLoadingAgent] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showNodeLibrary, setShowNodeLibrary] = useState(false)
+  const [walletBalance, setWalletBalance] = useState<string | null>(null)
 
-  // Wrapper for onNodesChange to prevent agent node deletion
+  // Initialize CSPR.click once on mount
+  useEffect(() => {
+    initCsprClick()
+    // Try to refresh the active account balance for the header chip
+    if (dbUser?.wallet_address) {
+      getActiveAccount()
+        .then((acc) => {
+          if (acc?.balance) setWalletBalance(acc.balance)
+        })
+        .catch(() => {})
+    }
+  }, [dbUser?.wallet_address])
+
   const handleNodesChange = useCallback(
     (changes: any[]) => {
-      // Filter out any delete operations on the agent node
       const filteredChanges = changes.filter((change) => {
-        if (change.type === "remove" && change.id === AGENT_NODE_ID) {
-          return false
-        }
+        if (change.type === "remove" && change.id === AGENT_NODE_ID) return false
         return true
       })
       onNodesChange(filteredChanges)
-      
-      // Ensure agent node always exists
       setNodes((nds) => {
         const hasAgentNode = nds.some((node) => node.id === AGENT_NODE_ID)
-        if (!hasAgentNode) {
-          return [...nds, createAgentNode()]
-        }
+        if (!hasAgentNode) return [...nds, createAgentNode()]
         return nds
       })
     },
@@ -190,35 +198,21 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
   const onDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault()
-
       const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect()
       const type = event.dataTransfer.getData("application/reactflow")
-
-      // Check if the dropped element is valid
-      if (typeof type === "undefined" || !type || !toolTypes.includes(type)) {
-        return
-      }
+      if (typeof type === "undefined" || !type || !toolTypes.includes(type)) return
 
       if (reactFlowBounds && reactFlowInstance) {
         const position = reactFlowInstance.screenToFlowPosition({
           x: event.clientX - reactFlowBounds.left,
           y: event.clientY - reactFlowBounds.top,
         })
-
-        const newNode = createNode({
-          type,
-          position,
-          id: generateNodeId(type),
-        })
+        const newNode = createNode({ type, position, id: generateNodeId(type) })
 
         setNodes((nds) => {
           const updatedNodes = nds.concat(newNode)
-          // Auto-connect new node to agent node if it's a starting node
-          // (nodes with no incoming edges will be connected to agent)
           setEdges((eds) => {
-            // Check if this node already has incoming edges
             const hasIncoming = eds.some((edge) => edge.target === newNode.id)
-            // If no incoming edges, connect to agent node
             if (!hasIncoming) {
               const agentEdge: Edge = {
                 id: `edge-${AGENT_NODE_ID}-${newNode.id}`,
@@ -241,122 +235,64 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
     setSelectedNode(node)
   }, [])
 
-  const onPaneClick = useCallback(() => {
-    setSelectedNode(null)
-  }, [])
+  const onPaneClick = useCallback(() => setSelectedNode(null), [])
 
   const updateNodeData = useCallback(
     (nodeId: string, data: any) => {
       setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === nodeId) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                ...data,
-              },
-            }
-          }
-          return node
-        }),
+        nds.map((node) => (node.id === nodeId ? { ...node, data: { ...node.data, ...data } } : node)),
       )
     },
     [setNodes],
   )
 
   const handleSaveClick = () => {
-    // Check if there are any tool nodes (excluding agent node)
     const toolNodes = nodes.filter((node) => node.id !== AGENT_NODE_ID)
     if (toolNodes.length === 0) {
-      toast({
-        title: "Nothing to save",
-        description: "Add some tools to your workflow first",
-        variant: "destructive",
-      })
+      toast({ title: "Nothing to save", description: "Add some tools to your workflow first", variant: "destructive" })
       return
     }
-
     if (!authenticated || !user?.id) {
-      toast({
-        title: "Not authenticated",
-        description: "Please log in to save your workflow",
-        variant: "destructive",
-      })
+      toast({ title: "Not authenticated", description: "Please log in to save your workflow", variant: "destructive" })
       return
     }
-
-    // Show the save dialog
     setShowSaveDialog(true)
   }
 
   const saveWorkflow = async () => {
     if (!agentName.trim()) {
-      toast({
-        title: "Agent name required",
-        description: "Please enter a name for your agent",
-        variant: "destructive",
-      })
+      toast({ title: "Agent name required", description: "Please enter a name for your agent", variant: "destructive" })
       return
     }
 
     setSaving(true)
     try {
       const tools = workflowToTools(nodes, edges, AGENT_NODE_ID)
-
       if (agentId) {
-        // Update existing agent
-        await updateAgent(agentId, {
-          name: agentName,
-          description: agentDescription || null,
-          tools,
-        })
-        toast({
-          title: "Agent updated",
-          description: "Your agent has been updated successfully",
-        })
-        setShowSaveDialog(false)
-        // Redirect to my-agents page
-        router.push("/my-agents")
+        await updateAgent(agentId, { name: agentName, description: agentDescription || null, tools })
+        toast({ title: "Agent updated", description: "Your agent has been updated successfully" })
       } else {
-        // Create new agent
         if (!user?.id) {
-          toast({
-            title: "Error",
-            description: "User not authenticated",
-            variant: "destructive",
-          })
+          toast({ title: "Error", description: "User not authenticated", variant: "destructive" })
           return
         }
-        const agent = await createAgent(user.id, agentName, agentDescription || null, tools)
-        toast({
-          title: "Agent created",
-          description: "Your agent has been created successfully",
-        })
-        setShowSaveDialog(false)
-        // Redirect to my-agents page
-        router.push("/my-agents")
+        await createAgent(user.id, agentName, agentDescription || null, tools)
+        toast({ title: "Agent created", description: "Your agent has been created successfully" })
       }
+      setShowSaveDialog(false)
+      router.push("/my-agents")
     } catch (error: any) {
       console.error("Error saving agent:", error)
-      toast({
-        title: "Error saving agent",
-        description: error.message || "Failed to save agent",
-        variant: "destructive",
-      })
+      toast({ title: "Error saving agent", description: error.message || "Failed to save agent", variant: "destructive" })
     } finally {
       setSaving(false)
     }
   }
 
-
-
   const handleBackClick = () => {
-    // Check for unsaved changes (excluding agent node)
     const toolNodes = nodes.filter((node) => node.id !== AGENT_NODE_ID)
     const toolEdges = edges.filter((edge) => edge.source !== AGENT_NODE_ID && edge.target !== AGENT_NODE_ID)
-    const hasUnsavedChanges = toolNodes.length > 0 || toolEdges.length > 0
-    if (hasUnsavedChanges) {
+    if (toolNodes.length > 0 || toolEdges.length > 0) {
       setShowExitDialog(true)
     } else {
       router.push("/my-agents")
@@ -368,7 +304,6 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
     router.push("/my-agents")
   }
 
-  // Load agent if agentId is provided
   useEffect(() => {
     if (agentId && authenticated && user?.id) {
       loadAgent()
@@ -381,47 +316,26 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
     try {
       const agent = await getAgentById(agentId)
       if (agent) {
-        // Verify ownership
         if (agent.user_id !== user?.id) {
-          toast({
-            title: "Access denied",
-            description: "You don't have permission to access this agent",
-            variant: "destructive",
-          })
+          toast({ title: "Access denied", description: "You don't have permission to access this agent", variant: "destructive" })
           router.push("/my-agents")
           return
         }
-
         setAgentName(agent.name)
         setAgentDescription(agent.description || "")
-        
-        // Convert tools back to workflow format and display on canvas
         if (agent.tools && agent.tools.length > 0) {
           const { nodes: loadedNodes, edges: loadedEdges } = toolsToWorkflow(agent.tools, AGENT_NODE_ID)
-          // Ensure agent node is included
-          const allNodes = [createAgentNode(), ...loadedNodes]
-          setNodes(allNodes)
+          setNodes([createAgentNode(), ...loadedNodes])
           setEdges(loadedEdges)
-          
-          // Fit view to show all nodes after loading
-          setTimeout(() => {
-            if (reactFlowInstance) {
-              reactFlowInstance.fitView({ padding: 0.2 })
-            }
-          }, 100)
+          setTimeout(() => reactFlowInstance?.fitView({ padding: 0.2 }), 100)
         } else {
-          // Even if no tools, ensure agent node exists
           setNodes([createAgentNode()])
           setEdges([])
         }
       }
     } catch (error) {
       console.error("Error loading agent:", error)
-      toast({
-        title: "Error loading agent",
-        description: "Failed to load agent data",
-        variant: "destructive",
-      })
+      toast({ title: "Error loading agent", description: "Failed to load agent data", variant: "destructive" })
     } finally {
       setLoadingAgent(false)
     }
@@ -429,29 +343,22 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
 
   return (
     <div className="flex h-screen relative">
-      {/* Desktop Sidebar */}
       <div className="hidden md:flex w-64 border-r border-gray-200 flex-col bg-gray-50">
         <div className="flex-1 p-4 overflow-y-auto">
           <NodeLibrary />
         </div>
-        
-        {/* AI Quota at bottom of sidebar */}
         <div className="border-t border-gray-200 p-3">
           <AIQuotaCompact />
         </div>
       </div>
 
-      {/* Mobile Node Library Overlay */}
       {showNodeLibrary && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowNodeLibrary(false)} />
           <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="font-semibold text-lg">Node Library</h3>
-              <button
-                onClick={() => setShowNodeLibrary(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
+              <button onClick={() => setShowNodeLibrary(false)} className="p-2 hover:bg-gray-100 rounded-lg">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -493,12 +400,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
               <MiniMap className="hidden sm:block" />
               <Panel position="top-left">
                 <div className="flex gap-2">
-                  <Button
-                    onClick={handleBackClick}
-                    size="sm"
-                    variant="outline"
-                    className="font-medium"
-                  >
+                  <Button onClick={handleBackClick} size="sm" variant="outline" className="font-medium">
                     <ArrowLeft className="h-4 w-4 sm:mr-2" />
                     <span className="hidden sm:inline">Back</span>
                   </Button>
@@ -511,7 +413,6 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
                     <span className="hidden sm:inline">Create with AI</span>
                     <span className="sm:hidden">AI</span>
                   </Button>
-                  {/* Mobile Node Library Toggle */}
                   <Button
                     onClick={() => setShowNodeLibrary(true)}
                     size="sm"
@@ -526,14 +427,34 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
               </Panel>
               <Panel position="top-right">
                 <div className="flex gap-2 items-center">
+                  {dbUser?.wallet_address ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowWalletModal(true)}
+                      className="font-medium text-xs sm:text-sm"
+                    >
+                      <Wallet className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">
+                        {walletBalance ? `${walletBalance} CSPR` : "Wallet"}
+                      </span>
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowWalletModal(true)}
+                      className="font-medium text-xs sm:text-sm"
+                    >
+                      <Wallet className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Connect Wallet</span>
+                    </Button>
+                  )}
                   <Button onClick={handleSaveClick} size="sm" variant="outline" disabled={loadingAgent} className="text-xs sm:text-sm">
                     <Save className="h-4 w-4 sm:mr-2" />
                     <span className="hidden sm:inline">{agentId ? "Update Agent" : "Save Agent"}</span>
                   </Button>
-                  <UserProfile onLogout={() => {
-                    logout()
-                    router.push("/")
-                  }} />
+                  <UserProfile onLogout={() => { logout(); router.push("/") }} />
                 </div>
               </Panel>
             </ReactFlow>
@@ -543,7 +464,6 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
 
       {selectedNode && selectedNode.id !== AGENT_NODE_ID && (
         <>
-          {/* Mobile: Overlay */}
           <div className="md:hidden fixed inset-0 z-50">
             <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedNode(null)} />
             <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl max-h-[80vh] overflow-y-auto">
@@ -554,7 +474,6 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
               />
             </div>
           </div>
-          {/* Desktop: Sidebar */}
           <div className="hidden md:block w-80 border-l border-gray-200 p-4 bg-gray-50">
             <NodeConfigPanel
               node={selectedNode as WorkflowNode}
@@ -565,21 +484,16 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
         </>
       )}
 
+      <AgentWalletModal open={showWalletModal} onOpenChange={setShowWalletModal} />
+
       <AIChatModal
         open={isAIChatOpen}
         onOpenChange={setIsAIChatOpen}
         onApplyWorkflow={(aiNodes, aiEdges) => {
-          // Ensure agent node is included and connect starting nodes to it
           const agentNode = createAgentNode()
           const allNodes = [agentNode, ...aiNodes]
-          
-          // Find starting nodes (nodes with no incoming edges)
           const nodesWithIncoming = new Set<string>()
-          aiEdges.forEach((edge) => {
-            nodesWithIncoming.add(edge.target)
-          })
-          
-          // Connect all starting nodes to agent node
+          aiEdges.forEach((edge) => nodesWithIncoming.add(edge.target))
           const agentEdges: Edge[] = aiNodes
             .filter((node) => !nodesWithIncoming.has(node.id))
             .map((node) => ({
@@ -588,20 +502,10 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
               target: node.id,
               type: "custom" as const,
             }))
-          
           setNodes(allNodes)
           setEdges([...agentEdges, ...aiEdges])
-          
-          // Fit view to show all nodes
-          setTimeout(() => {
-            if (reactFlowInstance) {
-              reactFlowInstance.fitView({ padding: 0.2 })
-            }
-          }, 100)
-          toast({
-            title: "Workflow applied",
-            description: "AI-generated workflow has been applied to the canvas",
-          })
+          setTimeout(() => reactFlowInstance?.fitView({ padding: 0.2 }), 100)
+          toast({ title: "Workflow applied", description: "AI-generated workflow has been applied to the canvas" })
         }}
       />
 
@@ -615,10 +519,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmExit}
-              className="bg-foreground text-background hover:bg-foreground/90"
-            >
+            <AlertDialogAction onClick={handleConfirmExit} className="bg-foreground text-background hover:bg-foreground/90">
               Exit
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -630,7 +531,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
           <DialogHeader>
             <DialogTitle>{agentId ? "Update Agent" : "Create Agent"}</DialogTitle>
             <DialogDescription>
-              Enter the name and description for your agent. The workflow will be saved with all configured tools.
+              Enter the name and description for your agent. The workflow will be saved with all configured Casper tools.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -638,7 +539,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
               <Label htmlFor="agent-name">Agent Name *</Label>
               <Input
                 id="agent-name"
-                placeholder="My Agent"
+                placeholder="My Casper Agent"
                 value={agentName}
                 onChange={(e) => setAgentName(e.target.value)}
                 autoFocus
@@ -662,16 +563,12 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
                 </pre>
               </div>
               <p className="text-xs text-muted-foreground">
-                This is the tools array that will be saved to Supabase
+                This tools array is what the backend AI router will execute on Casper Testnet.
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowSaveDialog(false)}
-              disabled={saving}
-            >
+            <Button variant="outline" onClick={() => setShowSaveDialog(false)} disabled={saving}>
               Cancel
             </Button>
             <Button onClick={saveWorkflow} disabled={saving || !agentName.trim()}>
