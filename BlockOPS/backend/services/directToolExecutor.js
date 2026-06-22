@@ -11,8 +11,11 @@ const { PORT } = require('../config/constants');
 const { getChainMetadata, buildUnsupportedToolError, isToolSupportedOnChain } = require('../utils/chains');
 const { getClient, getKeysFromHex, getAccountBalance } = require('../utils/blockchain');
 const { deployCep18Token, deployCep78Collection } = require('./contractDeploymentService');
+const { logger } = require('../utils/logger');
 
 const BASE_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+
+const log = logger.child({ component: 'directToolExecutor' });
 
 /**
  * Tool-to-endpoint table for HTTP-routed tools.
@@ -121,8 +124,10 @@ async function wallet_readiness({ address }) {
     const publicKey = parseCasperPublicKey(address);
     const uref = await client.getAccountBalanceUrefByPublicKey(stateRootHash, publicKey);
     const balance = await client.getAccountBalance(stateRootHash, uref);
+    log.info({ tool: 'wallet_readiness', address, balanceMotes: balance.toString() }, 'wallet readiness check ok');
     return buildCasperWalletReadinessPayload({ address, balanceMotes: balance.toString() });
   } catch (err) {
+    log.warn({ tool: 'wallet_readiness', address, err: err.message }, 'wallet readiness check failed');
     return {
       success: false,
       address,
@@ -149,9 +154,11 @@ function parseCasperPublicKey(value) {
 async function register_agent({ agentAddress, secretKey }) {
   const sk = secretKey || process.env.CASPER_SECRET_KEY;
   if (!sk) {
+    log.warn({ tool: 'register_agent', reason: 'missing_secret' }, 'register_agent missing CASPER_SECRET_KEY');
     return { success: false, error: 'CASPER_SECRET_KEY is required for on-chain agent registration' };
   }
   if (!agentAddress) {
+    log.warn({ tool: 'register_agent', reason: 'missing_address' }, 'register_agent missing agentAddress');
     return { success: false, error: 'agentAddress is required' };
   }
   try {
@@ -159,6 +166,7 @@ async function register_agent({ agentAddress, secretKey }) {
     const agentKey = parseCasperPublicKey(agentAddress);
     const factoryHash = process.env.CASPER_AGENT_FACTORY_HASH;
     if (!factoryHash) {
+      log.warn({ tool: 'register_agent', reason: 'missing_factory_hash' }, 'register_agent missing CASPER_AGENT_FACTORY_HASH');
       return { success: false, error: 'CASPER_AGENT_FACTORY_HASH env var is not set' };
     }
 
@@ -177,6 +185,13 @@ async function register_agent({ agentAddress, secretKey }) {
     const signed = DeployUtil.signDeploy(deploy, keys);
     const client = getClient();
     const deployHash = await client.deploy(signed);
+    log.info({
+      tool: 'register_agent',
+      agentAddress,
+      deployer: keys.publicKey.toHex(),
+      factoryHash,
+      deployHash,
+    }, 'register_agent deploy submitted');
     return {
       success: true,
       standard: 'AgentFactory',
@@ -187,6 +202,7 @@ async function register_agent({ agentAddress, secretKey }) {
       explorerUrl: `https://testnet.cspr.live/deploy/${deployHash}`,
     };
   } catch (err) {
+    log.error({ tool: 'register_agent', agentAddress, err: err.message, stack: err.stack }, 'register_agent deploy failed');
     return { success: false, error: err.message };
   }
 }
@@ -196,15 +212,22 @@ async function register_agent({ agentAddress, secretKey }) {
  */
 async function attest_agent({ agentAddress, verified, metadataUri, secretKey }) {
   const sk = secretKey || process.env.CASPER_SECRET_KEY;
-  if (!sk) return { success: false, error: 'CASPER_SECRET_KEY is required' };
+  if (!sk) {
+    log.warn({ tool: 'attest_agent', reason: 'missing_secret' }, 'attest_agent missing CASPER_SECRET_KEY');
+    return { success: false, error: 'CASPER_SECRET_KEY is required' };
+  }
   if (!agentAddress || typeof verified !== 'boolean' || !metadataUri) {
+    log.warn({ tool: 'attest_agent', agentAddress, verified, hasUri: Boolean(metadataUri) }, 'attest_agent invalid args');
     return { success: false, error: 'agentAddress, verified (bool), metadataUri are required' };
   }
   try {
     const keys = getKeysFromHex(sk);
     const agentKey = parseCasperPublicKey(agentAddress);
     const contractHash = process.env.CASPER_COMPLIANCE_HASH;
-    if (!contractHash) return { success: false, error: 'CASPER_COMPLIANCE_HASH env var is not set' };
+    if (!contractHash) {
+      log.warn({ tool: 'attest_agent', reason: 'missing_compliance_hash' }, 'attest_agent missing CASPER_COMPLIANCE_HASH');
+      return { success: false, error: 'CASPER_COMPLIANCE_HASH env var is not set' };
+    }
 
     const args = RuntimeArgs.fromMap({
       agent: CLValueBuilder.key(agentKey),
@@ -222,6 +245,13 @@ async function attest_agent({ agentAddress, verified, metadataUri, secretKey }) 
     const deploy = DeployUtil.makeDeploy(params, session, payment);
     const signed = DeployUtil.signDeploy(deploy, keys);
     const deployHash = await getClient().deploy(signed);
+    log.info({
+      tool: 'attest_agent',
+      agentAddress,
+      verified,
+      contractHash,
+      deployHash,
+    }, 'attest_agent deploy submitted');
     return {
       success: true,
       contractHash,
@@ -232,6 +262,7 @@ async function attest_agent({ agentAddress, verified, metadataUri, secretKey }) 
       explorerUrl: `https://testnet.cspr.live/deploy/${deployHash}`,
     };
   } catch (err) {
+    log.error({ tool: 'attest_agent', agentAddress, err: err.message, stack: err.stack }, 'attest_agent deploy failed');
     return { success: false, error: err.message };
   }
 }
@@ -240,10 +271,16 @@ async function attest_agent({ agentAddress, verified, metadataUri, secretKey }) 
  * get_reputation — reads rating + success/failure stats from on-chain Reputation.
  */
 async function get_reputation({ agentAddress }) {
-  if (!agentAddress) return { success: false, error: 'agentAddress is required' };
+  if (!agentAddress) {
+    log.warn({ tool: 'get_reputation', reason: 'missing_address' }, 'get_reputation missing agentAddress');
+    return { success: false, error: 'agentAddress is required' };
+  }
   try {
     const contractHash = process.env.CASPER_REPUTATION_HASH;
-    if (!contractHash) return { success: false, error: 'CASPER_REPUTATION_HASH env var is not set' };
+    if (!contractHash) {
+      log.warn({ tool: 'get_reputation', reason: 'missing_reputation_hash' }, 'get_reputation missing CASPER_REPUTATION_HASH');
+      return { success: false, error: 'CASPER_REPUTATION_HASH env var is not set' };
+    }
 
     const client = getClient();
     const stateRootHash = await client.getStateRootHash();
@@ -261,7 +298,7 @@ async function get_reputation({ agentAddress }) {
       client.getBlockState(stateRootHash, cleanHash, [failureKey]).catch(() => null),
     ]);
 
-    return {
+    const result = {
       success: true,
       contractHash,
       agentAddress,
@@ -270,7 +307,10 @@ async function get_reputation({ agentAddress }) {
       failureCount: failureCount?.storedValue?.CLValue?.parsed?.[0] ?? 0,
       source: 'casper_rpc',
     };
+    log.info({ tool: 'get_reputation', agentAddress, ...result }, 'get_reputation read ok');
+    return result;
   } catch (err) {
+    log.error({ tool: 'get_reputation', agentAddress, err: err.message }, 'get_reputation read failed');
     return { success: false, error: err.message };
   }
 }
@@ -280,12 +320,16 @@ async function get_reputation({ agentAddress }) {
  * YieldVault / DEX contracts; for now we emit a deterministic recommendation.
  */
 async function yield_rebalance({ agentAddress, strategyId, riskTolerance = 'medium' }) {
-  if (!agentAddress) return { success: false, error: 'agentAddress is required' };
+  if (!agentAddress) {
+    log.warn({ tool: 'yield_rebalance', reason: 'missing_address' }, 'yield_rebalance missing agentAddress');
+    return { success: false, error: 'agentAddress is required' };
+  }
   const allowed = new Set(['low', 'medium', 'high']);
   if (!allowed.has(riskTolerance)) {
+    log.warn({ tool: 'yield_rebalance', agentAddress, riskTolerance }, 'yield_rebalance invalid riskTolerance');
     return { success: false, error: `riskTolerance must be one of: ${[...allowed].join(', ')}` };
   }
-  return {
+  const plan = {
     success: true,
     agentAddress,
     strategyId: strategyId || 'default-casper-dex',
@@ -297,6 +341,8 @@ async function yield_rebalance({ agentAddress, strategyId, riskTolerance = 'medi
     ],
     note: 'Recommendation emitted. Wire this to your on-chain DEX/vault contracts for live execution.',
   };
+  log.info({ tool: 'yield_rebalance', agentAddress, riskTolerance, strategyId: plan.strategyId }, 'yield_rebalance plan generated');
+  return plan;
 }
 
 /**
@@ -613,14 +659,17 @@ function replacePathParams(path, params) {
 async function executeToolStep(step, fallbackMessage = '', executionContext = {}) {
   const { tool, parameters } = step;
   const { mapped, missing } = mapToolParams(tool, parameters || {}, fallbackMessage, executionContext);
+  const stepLog = log.child({ tool });
 
   if (!isToolSupportedOnChain(tool)) {
+    stepLog.warn({ reason: 'unsupported_tool' }, 'tool step rejected');
     return {
       tool_call: { tool, parameters: mapped },
       result: { success: false, tool, error: buildUnsupportedToolError(tool) },
     };
   }
   if (missing.length > 0) {
+    stepLog.warn({ missing, reason: 'missing_params' }, 'tool step missing required params');
     return {
       tool_call: { tool, parameters: mapped },
       result: { success: false, tool, error: `Missing required parameters: ${missing.join(', ')}` },
@@ -630,21 +679,27 @@ async function executeToolStep(step, fallbackMessage = '', executionContext = {}
   if (LOCAL_TOOL_HANDLERS[tool]) {
     try {
       const payload = await LOCAL_TOOL_HANDLERS[tool](mapped, executionContext);
+      const ok = payload?.success !== false;
+      stepLog[ok ? 'info' : 'warn']({ ok, keys: Object.keys(payload || {}) }, 'local tool step finished');
       return {
         tool_call: { tool, parameters: mapped },
-        result: { success: payload?.success !== false, tool, result: payload },
+        result: { success: ok, tool, result: payload },
       };
     } catch (err) {
+      stepLog.error({ err: err.message, stack: err.stack }, 'local tool step threw');
       return { tool_call: { tool, parameters: mapped }, result: { success: false, tool, error: err.message } };
     }
   }
 
   if (tool === 'calculate') {
-    return { tool_call: { tool, parameters: mapped }, result: safeCalculate(mapped) };
+    const result = safeCalculate(mapped);
+    stepLog[result?.success ? 'info' : 'warn']({ ok: result?.success }, 'calculate step finished');
+    return { tool_call: { tool, parameters: mapped }, result };
   }
 
   const config = TOOL_ENDPOINTS[tool];
   if (!config) {
+    stepLog.error({ reason: 'no_endpoint' }, 'tool has no endpoint and no local handler');
     return { tool_call: { tool, parameters: mapped }, result: { success: false, tool, error: 'Tool not supported for direct execution' } };
   }
 
@@ -656,6 +711,7 @@ async function executeToolStep(step, fallbackMessage = '', executionContext = {}
     if (config.path.includes(`{${key}}`)) delete requestParams[key];
   });
 
+  stepLog.debug({ url, method: config.method }, 'dispatching tool step via HTTP');
   try {
     let response;
     if (config.method === 'POST') {
@@ -680,10 +736,12 @@ async function executeToolStep(step, fallbackMessage = '', executionContext = {}
     } else {
       throw new Error(`Unsupported method: ${config.method}`);
     }
+    stepLog.info({ status: response.status }, 'http tool step ok');
     return { tool_call: { tool, parameters: mapped }, result: { success: true, tool, result: response.data } };
   } catch (err) {
     const statusCode = err.response?.status;
     const detail = err.response?.data?.error || err.response?.data?.message || err.response?.data?.details || err.message;
+    stepLog.error({ statusCode, err: detail }, 'http tool step failed');
     return { tool_call: { tool, parameters: mapped }, result: { success: false, tool, error: statusCode ? `HTTP ${statusCode}: ${detail}` : detail } };
   }
 }
@@ -702,12 +760,15 @@ function interpolateStepParameters(step, previousResults, fallbackMessage = '', 
 
 async function executeToolsDirectly(routingPlan, fallbackMessage, executionContext = {}) {
   if (!routingPlan?.execution_plan?.steps?.length) {
+    log.debug({ reason: 'no_steps' }, 'executeToolsDirectly called with empty plan');
     return { tool_calls: [], results: [] };
   }
   const { steps, type } = routingPlan.execution_plan;
+  log.info({ stepCount: steps.length, type, tools: steps.map((s) => s.tool) }, 'executing tools directly');
 
   if (type === 'parallel') {
     const results = await Promise.all(steps.map((step) => executeToolStep(step, fallbackMessage, executionContext)));
+    log.info({ ok: results.filter((r) => r.result?.success).length, total: results.length }, 'parallel tool batch finished');
     return { tool_calls: results.map((r) => r.tool_call), results: results.map((r) => r.result) };
   }
 
@@ -722,6 +783,10 @@ async function executeToolsDirectly(routingPlan, fallbackMessage, executionConte
     toolCalls.push(tool_call);
     toolResults.push(result);
   }
+  log.info({
+    ok: toolResults.filter((r) => r?.success).length,
+    total: toolResults.length,
+  }, 'sequential tool batch finished');
   return { tool_calls: toolCalls, results: toolResults };
 }
 

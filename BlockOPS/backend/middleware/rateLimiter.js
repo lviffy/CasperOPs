@@ -11,6 +11,7 @@
  */
 
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 
 /** Shared JSON error response format */
 function rateLimitHandler(req, res) {
@@ -33,8 +34,11 @@ function makeLimiter({ windowMs, max, keyGenerator }) {
   });
 }
 
-const ipKey = (req) => req.ip;
-const userKey = (req) => req.user?.id || req.header('X-User-Id') || req.ip;
+// express-rate-limit v8 requires `ipKeyGenerator` for IPv6 compatibility;
+// wrapping `req.ip` directly triggers ERR_ERL_KEY_GEN_IPV6 at limiter
+// construction time. See https://express-rate-limit.github.io/ERR_ERL_KEY_GEN_IPV6/
+const ipKey = (req) => ipKeyGenerator(req.ip);
+const userKey = (req) => req.user?.id || req.header('X-User-Id') || ipKeyGenerator(req.ip);
 
 // 300 requests per 15 minutes — applies to every route
 const globalLimiter = makeLimiter({ windowMs: 15 * 60 * 1000, max: 300, keyGenerator: ipKey });

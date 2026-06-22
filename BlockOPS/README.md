@@ -65,21 +65,26 @@ To stop everything: `./scripts/dev.sh down`.
 ├── frontend/                 Next.js 15 visual builder + chat
 │   ├── app/                  App Router pages (agent chat, marketplace, my-agents, …)
 │   ├── components/           React components (workflow-builder, contract-interaction, agent-wallet, …)
-│   └── lib/                  Casper wallet (CSPR.click), supabase, x402-client, pricing, errors
-├── backend/                  Express API + tool router
-│   ├── controllers/          /v1/tools/:toolId + REST helpers
-│   ├── middleware/           x402, x402-verify, rateLimiter, requestContext, validate
-│   ├── services/             toolRouter, directToolExecutor, contractDeploymentService, …
-│   └── utils/                chains, logger, sentry
+│   └── lib/                  Casper wallet (CSPR.click), supabase, x402-client, pricing, errors, sentry
+├── backend/                  Express API + tool router (Casper-only)
+│   ├── controllers/          11 Casper controllers (agent, agentRegistry, contractChat, conversation, email, nft, price, reminder, token, transfer, webhook)
+│   ├── middleware/           x402, x402-verify, requestContext, validate, rateLimiter, apiKeyAuth
+│   ├── services/             toolRouter, directToolExecutor, contractDeploymentService, telegramService, …
+│   ├── routes/               12 Casper routes (one per controller + healthRoutes)
+│   ├── utils/                chains, logger, sentry, agentSchema, helpers
+│   └── __tests__/            x402, chains, contractDeploymentService, validate (61 tests)
 ├── n8n_agent_backend/        MCP server (stdio + HTTP/SSE)
 │   ├── mcp_server.py         stdio transport
 │   ├── mcp_server_sse.py     FastAPI HTTP/SSE transport
-│   ├── state.py              Redis + Postgres state layer
-│   ├── tools/schema.json     22-tool JSON Schema catalog
-│   └── examples/             LangGraph + CrewAI samples
+│   ├── dispatcher.py         Unified tool dispatcher (single source of truth)
+│   ├── state.py              Redis (1h TTL) + Postgres state layer
+│   ├── tools/schema.json     19-tool JSON Schema catalog
+│   ├── examples/             LangGraph + CrewAI samples
+│   └── __tests__/            stdio + HTTP/SSE smoke (17 tests)
 ├── scripts/                  Build / test / backfill helpers
-│   ├── e2e-testnet.sh        register → attest → reputation → escrow → payout
-│   ├── e2e-testnet.mjs       Casper RPC + CSPR.cloud runner
+│   ├── e2e-testnet.sh        Phase 7/16 lifecycle
+│   ├── e2e-testnet.mjs       Casper RPC + CSPR.cloud runner (Phase 7/16 + 22)
+│   ├── e2e-testnet-phase22.sh  Phase 22 helper (dryrun + --live modes)
 │   └── backfill-csprclick-users.js
 ├── supabase/migrations/      SQL schema migrations (20260622_casper_schema.sql)
 ├── docs/                     All human-readable documentation
@@ -87,11 +92,18 @@ To stop everything: `./scripts/dev.sh down`.
 │   ├── testnet-validation.md Testnet deploy + e2e log
 │   ├── security-audit.md     Per-contract security findings
 │   ├── ARCHITECTURE.md       System architecture
-│   ├── API.md                22 tool endpoints
+│   ├── API.md                19 tool endpoints
 │   ├── TROUBLESHOOTING.md    Common issues + fixes
 │   └── DEV_SETUP.md          Full developer setup
 └── .github/workflows/ci.yml  GitHub Actions: contract / backend / frontend / security
 ```
+
+> **Phase 23**: the backend is **Casper-only**. The 11 EVM-only controllers
+> (allowance, batch, bridge, chain, ens, gas, nlExecutor, portfolio,
+> schedule, swap, wallet), their routes, and `services/agentCoordinator.js` /
+> `services/agentRuntime.js` have been removed. `safeRequire` is gone;
+> all routes are eagerly loaded. No `ethers` references remain in
+> `backend/services/`, `backend/controllers/`, or `backend/routes/`.
 
 ## 🔧 Build the contracts
 
@@ -128,10 +140,11 @@ node scripts/deploy.js
 
 | Suite     | Command                  | What it covers                                |
 | --------- | ------------------------ | --------------------------------------------- |
-| Contract  | `cd contract && cargo test` | 24 Odra unit tests                        |
-| Frontend  | `cd frontend && npm test` | 25 vitest unit tests (wallet, error mapper) |
-| Backend   | `cd backend && npm run test:unit` | x402 middleware + TOOL_PRICING       |
-| E2E       | `./scripts/e2e-testnet.sh` | register → attest → reputation → escrow |
+| Contract  | `cd contract && cargo test` | 64 Odra unit tests (v1.0 hardening)     |
+| Frontend  | `cd frontend && npm test` | 39 vitest unit tests (wallet, error mapper, x402-client) |
+| Backend   | `cd backend && npm run test:unit` | x402 + chains + contractDeploymentService + validate (61 tests) |
+| MCP       | `cd n8n_agent_backend && .venv/bin/python -m unittest __tests__.test_smoke` | stdio + HTTP/SSE dispatcher (17 tests) |
+| E2E       | `./scripts/e2e-testnet-phase22.sh` | 18-step Phase 22 v1.0 surface (dryrun + --live) |
 
 ## 🏗️ Architecture
 

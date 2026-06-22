@@ -3,6 +3,7 @@
 import { Toaster } from '@/components/ui/toaster'
 import { useEffect, useState } from 'react'
 import { initCsprClick } from '@/lib/wallet'
+import { initSentryBrowser } from '@/lib/sentry'
 
 /**
  * Root providers for the BlockOps app.
@@ -13,6 +14,7 @@ import { initCsprClick } from '@/lib/wallet'
  *      that calls `initCsprClick()` doesn't pay the cost of bootstrapping
  *      iframe message listeners).
  *   2. Mount the UI toaster.
+ *   3. Boot Sentry (no-op unless NEXT_PUBLIC_SENTRY_DSN is set).
  *
  * No EVM wagmi/RainbowKit/Privy provider is needed.
  */
@@ -22,6 +24,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true)
     initCsprClick()
+    initSentryBrowser()
   }, [])
 
   if (!mounted) {

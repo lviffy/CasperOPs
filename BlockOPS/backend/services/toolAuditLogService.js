@@ -1,6 +1,9 @@
 const { randomUUID } = require('crypto');
 const supabase = require('../config/supabase');
 const { NETWORK_NAME } = require('../config/constants');
+const { logger } = require('../utils/logger');
+
+const log = logger.child({ component: 'toolAuditLogService' });
 
 const SENSITIVE_KEY_REGEX = /(private[_-]?key|mnemonic|seed|passphrase|password|secret|api[_-]?key|authorization|token|jwt|signature)/i;
 const SENSITIVE_VALUE_CONTEXT_REGEX = /(private[_-]?key|mnemonic|seed|passphrase|secret|wallet[_-]?key)/i;
@@ -285,6 +288,7 @@ async function archiveToolExecutionLogs({
   const total = Math.max(toolCalls.length, results.length);
 
   if (!total) {
+    log.debug({ agentId, userId }, 'archiveToolExecutionLogs: nothing to archive');
     return {
       totalCount: 0,
       successfulCount: 0,
@@ -292,6 +296,13 @@ async function archiveToolExecutionLogs({
       entries: []
     };
   }
+
+  log.info({
+    agentId,
+    userId,
+    conversationId,
+    totalCount: total,
+  }, 'archiving tool execution logs');
 
   const executionMode = toolResults?.execution_mode || 'agent_backend';
   const entries = [];
@@ -361,7 +372,7 @@ async function archiveToolExecutionLogs({
     }
     if (error) {
       dbError = error.message;
-      console.error('[AuditLog] Failed to persist log row:', error.message);
+      log.error({ err: error.message, tool: toolName, agentId, recordId }, 'audit log persist failed');
     }
 
     entries.push({

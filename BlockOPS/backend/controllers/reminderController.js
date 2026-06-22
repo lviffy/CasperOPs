@@ -3,7 +3,7 @@ const supabase = require('../config/supabase');
 const { successResponse, errorResponse } = require('../utils/helpers');
 const { executeToolsDirectly, formatToolResponse } = require('../services/directToolExecutor');
 const { fireToTelegram } = require('../services/telegramService');
-const { getChainFromRequest, getChainMetadata, normalizeChainId, isFlowChain } = require('../utils/chains');
+const { getChainFromRequest, getChainMetadata, normalizeChainId } = require('../utils/chains');
 const {
   isUuidLike,
   hasInMemoryConversation,
@@ -460,9 +460,11 @@ async function createReminder(req, res) {
       return res.status(400).json(errorResponse(validationErrors.join('. ')));
     }
 
-    if (taskType === 'portfolio' && isFlowChain(chain)) {
-      return res.status(400).json(errorResponse('Portfolio reminders are available on Arbitrum Sepolia only in the current build.'));
-    }
+    // Phase 23: the legacy `isFlowChain` portfolio reminder check is gone
+    // — BlockOps is now Casper-only and portfolio reminders are accepted
+    // on any supported chain. (The previous implementation rejected
+    // portfolio reminders on Casper because they were originally scoped
+    // to Arbitrum/Flow.)
 
     if (reminderRow.delivery_platform === 'web') {
       const canUsePersistentConversation = !!supabase && isUuidLike(reminderRow.conversation_id);

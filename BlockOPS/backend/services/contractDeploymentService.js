@@ -15,6 +15,9 @@ const path = require('path');
 const { DeployUtil, Keys, RuntimeArgs, CLValueBuilder } = require('casper-js-sdk');
 const { getClient, getKeysFromHex } = require('../utils/blockchain');
 const { getChainMetadata } = require('../utils/chains');
+const { logger } = require('../utils/logger');
+
+const log = logger.child({ component: 'contractDeploymentService' });
 
 // Expected WASM binary paths after `cargo odra build`
 const WASM_DIR = path.resolve(__dirname, '../../contract/wasm');
@@ -36,6 +39,7 @@ const CEP78_METADATA_IMMUTABLE = 0;
 
 function loadWasm(wasmPath) {
   if (!fs.existsSync(wasmPath)) {
+    log.error({ wasmPath }, 'WASM binary missing — run `cargo odra build`');
     throw new Error(
       `WASM binary not found at ${wasmPath}. ` +
       `Run: cd contract && cargo odra build`
@@ -79,7 +83,10 @@ function buildCep78InitArgs({ name, symbol, totalTokenSupply = 1000 }) {
  */
 async function deployCep18Token({ privateKey, name, symbol, decimals = 9, totalSupply }) {
   const keys = getKeysFromHex(privateKey);
-  if (!keys) throw new Error('Invalid private key format.');
+  if (!keys) {
+    log.warn({ standard: 'CEP-18', reason: 'invalid_key' }, 'deploy rejected: invalid private key');
+    throw new Error('Invalid private key format.');
+  }
 
   const wasm = loadWasm(CEP18_WASM);
   const client = getClient();
@@ -90,7 +97,17 @@ async function deployCep18Token({ privateKey, name, symbol, decimals = 9, totalS
   const session = DeployUtil.ExecutableDeployItem.newModuleBytes(wasm, args);
   const deploy = DeployUtil.makeDeploy(deployParams, session, payment);
   const signedDeploy = DeployUtil.signDeploy(deploy, keys);
+  log.info({
+    standard: 'CEP-18',
+    name,
+    symbol,
+    decimals,
+    totalSupply: String(totalSupply),
+    paymentMotes: CEP18_PAYMENT_MOTES,
+    deployer: keys.publicKey.toHex(),
+  }, 'submitting CEP-18 token deploy');
   const deployHash = await client.deploy(signedDeploy);
+  log.info({ standard: 'CEP-18', deployHash }, 'CEP-18 token deploy submitted');
 
   return {
     ...getChainMetadata(),
@@ -107,7 +124,10 @@ async function deployCep18Token({ privateKey, name, symbol, decimals = 9, totalS
  */
 async function deployCep78Collection({ privateKey, name, symbol, totalTokenSupply = 1000 }) {
   const keys = getKeysFromHex(privateKey);
-  if (!keys) throw new Error('Invalid private key format.');
+  if (!keys) {
+    log.warn({ standard: 'CEP-78', reason: 'invalid_key' }, 'deploy rejected: invalid private key');
+    throw new Error('Invalid private key format.');
+  }
 
   const wasm = loadWasm(CEP78_WASM);
   const client = getClient();
@@ -120,7 +140,16 @@ async function deployCep78Collection({ privateKey, name, symbol, totalTokenSuppl
   const session = DeployUtil.ExecutableDeployItem.newModuleBytes(wasm, args);
   const deploy = DeployUtil.makeDeploy(deployParams, session, payment);
   const signedDeploy = DeployUtil.signDeploy(deploy, keys);
+  log.info({
+    standard: 'CEP-78',
+    name,
+    symbol,
+    totalTokenSupply,
+    paymentMotes: CEP78_PAYMENT_MOTES,
+    deployer: keys.publicKey.toHex(),
+  }, 'submitting CEP-78 collection deploy');
   const deployHash = await client.deploy(signedDeploy);
+  log.info({ standard: 'CEP-78', deployHash }, 'CEP-78 collection deploy submitted');
 
   return {
     ...getChainMetadata(),

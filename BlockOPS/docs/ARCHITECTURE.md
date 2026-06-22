@@ -62,8 +62,52 @@ after the Casper migration.
                  │  HTTP/SSE ←      │
                  │  LangGraph /     │
                  │  CrewAI agents   │
-                 └──────────────────┘
+                  └──────────────────┘
 ```
+
+## Backend controllers & services
+
+The Express backend is **Casper-only** after Phase 23. The 11 EVM-only
+controllers (allowance, batch, bridge, chain, ens, gas, nlExecutor,
+portfolio, schedule, swap, wallet), their routes, and the
+`agentCoordinator` / `agentRuntime` services were deleted; the
+`safeRequire` shim that wrapped them is gone and all remaining routes
+are eagerly loaded.
+
+### Casper controllers (`backend/controllers/`)
+
+| Controller                  | Purpose                                                |
+| --------------------------- | ------------------------------------------------------ |
+| `agentController.js`        | Supabase agent CRUD (create, list, get, update, delete, regenerate API key) + Casper manifest |
+| `agentRegistryController.js`| Agent registry + audit-log lookups (Filecoin archival was removed in Phase 13) |
+| `contractChatController.js` | AI chat about a deployed contract                       |
+| `conversationController.js` | Casper chat — direct tool execution via the v1 router   |
+| `emailController.js`        | Plain-text / HTML email sending                         |
+| `nftController.js`          | CEP-78 NFT deploy + mint + info (Casper SDK)           |
+| `priceController.js`        | CSPR / token price fetcher via CSPR.cloud              |
+| `reminderController.js`     | Cron-like reminder jobs that call tools on a schedule  |
+| `tokenController.js`        | CEP-18 token deploy + balance / info lookups            |
+| `transferController.js`     | Native CSPR transfer helper                            |
+| `webhookController.js`      | Webhook registration + delivery for agent events       |
+
+### Casper services (`backend/services/`)
+
+| Service                          | Purpose                                                |
+| -------------------------------- | ------------------------------------------------------ |
+| `aiService.js`                   | Groq + Gemini LLM adapters                             |
+| `backendSigner.js`               | Production signer (CASPER_SECRET_KEY → signing key)    |
+| `contractDeploymentService.js`   | CEP-18 / CEP-78 deploy helpers (replaces the EVM Solidity compiler) |
+| `directToolExecutor.js`          | Sequential / parallel step execution for the tool router |
+| `emailService.js`                | Nodemailer wrapper                                      |
+| `reminderIntent.js`              | AI-assisted "remind me to …" intent detection          |
+| `telegramService.js`             | Long-polling / webhook Telegram bot                    |
+| `toolAuditLogService.js`         | Supabase + sanitized audit-log writer                  |
+| `toolRouter.js`                  | 19 Casper tools catalog + AI routing prompt            |
+| `webhookService.js`              | Webhook event delivery                                  |
+
+The Phase 22 e2e script (`scripts/e2e-testnet.mjs` with `--dryrun` /
+`--live` modes) exercises the full tool surface end-to-end.
+
 
 ## Casper transaction flow
 

@@ -16,6 +16,9 @@
 const { chatWithAI } = require('./aiService');
 const { detectReminderPlan } = require('./reminderIntent');
 const { isToolSupportedOnChain, getChainMetadata } = require('../utils/chains');
+const { logger } = require('../utils/logger');
+
+const log = logger.child({ component: 'toolRouter' });
 
 /**
  * Casper-native tools exposed by the BlockOps AI agent.
@@ -302,7 +305,7 @@ async function intelligentToolRouting(userMessage, conversationHistory = [], rou
       routingPlan.analysis = routingPlan.analysis
         ? `${routingPlan.analysis} [auto-corrected with fallback routing]`
         : 'Auto-corrected with fallback routing';
-      console.log('[Tool Router] AI returned non-actionable plan; applied regex fallback routing');
+      log.warn({ userMessage, reason: 'ai_plan_non_actionable' }, 'AI returned non-actionable plan; applied regex fallback routing');
     }
 
     const steps = routingPlan.execution_plan?.steps || [];
@@ -323,7 +326,7 @@ async function intelligentToolRouting(userMessage, conversationHistory = [], rou
         });
         routingPlan.execution_plan.steps = steps;
         routingPlan.execution_plan.type = 'sequential';
-        console.log('[Tool Router] Auto-injected get_balance step — cspr_balance needed for calculate');
+        log.info({ walletAddress, reason: 'calc_needs_balance' }, 'Auto-injected get_balance step — cspr_balance needed for calculate');
       }
     }
 
@@ -338,13 +341,19 @@ async function intelligentToolRouting(userMessage, conversationHistory = [], rou
       ];
       routingPlan.execution_plan.steps = ordered;
       routingPlan.execution_plan.type = 'sequential';
-      console.log('[Tool Router] Enforced sequential order for transfer/status/email flow');
+      log.info({ stepCount: ordered.length }, 'Enforced sequential order for transfer/status/email flow');
     }
 
-    console.log('[Tool Router] AI Routing Plan:', JSON.stringify(routingPlan, null, 2));
+    log.info({
+      isOffTopic: routingPlan.is_off_topic,
+      requiresTools: routingPlan.requires_tools,
+      stepCount: steps.length,
+      complexity: routingPlan.complexity,
+      routingType: routingPlan.execution_plan?.type,
+    }, 'AI routing plan resolved');
     return routingPlan;
   } catch (error) {
-    console.error('[Tool Router] Error:', error.message);
+    log.error({ err: error?.message, stack: error?.stack, userMessage }, 'AI routing failed; using regex fallback');
     const fallbackSteps = detectToolsWithRegex(userMessage);
     const isSequential = fallbackSteps.some((step) => Array.isArray(step.depends_on) && step.depends_on.length > 0);
     return {

@@ -25,13 +25,23 @@ Tables (Postgres):
         created_at    timestamptz DEFAULT now()
     )
 
-Redis keys:
-    mcp:session:{id}         hash with last_tool, last_call_at, calls_count
+Redis keys (1-hour TTL per Phase 21 spec):
+    mcp:session:{id}         hash with last_seen_at, calls_count, agent_id,
+                             plus an ephemeral queue of pending SSE results
+                             (sse:<session_id> below)
+    mcp:sse:{id}             list of pending SSE result payloads (capped)
     mcp:active_sessions      set of session ids currently connected
+
+The state layer is best-effort: if Redis or Postgres is unavailable the
+methods log + return safe defaults so the MCP server keeps responding to
+tool calls.
 """
 
-import os
+from __future__ import annotations
+
+import asyncio
 import json
+import os
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -50,18 +60,23 @@ except ImportError:  # pragma: no cover
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 PG_DSN = os.getenv("POSTGRES_DSN", os.getenv("DATABASE_URL", ""))
 
+# 1-hour TTL per Phase 21 spec.
+SESSION_TTL_SECONDS = 60 * 60
+# Cap pending SSE results per session so a runaway consumer doesn't OOM Redis.
+SSE_PENDING_CAP = 64
+
 
 class McpState:
-    """Combined Redis + Postgres state for the MCP server.
-
-    All methods are best-effort: if Redis or Postgres is unavailable, the
-    methods log and return safe defaults so the MCP server keeps responding
-    to tool calls.
-    """
+    """Combined Redis + Postgres state for the MCP server."""
 
     def __init__(self) -> None:
         self._redis: Optional["redis.Redis"] = None
         self._pg_pool: Optional["asyncpg.Pool"] = None
+        # Per-process in-memory SSE queue map. Redis is the durable store;
+        # this map lets a server process fan-out results to its own SSE
+        # consumers without an extra round-trip.
+        self._sse_queues: Dict[str, asyncio.Queue] = {}
+        self._sse_lock = asyncio.Lock()
         self._connect()
 
     # ------------------------------------------------------------------ setup
@@ -76,6 +91,8 @@ class McpState:
 
     async def connect_pg(self) -> None:
         if asyncpg is None or not PG_DSN:
+            return
+        if self._pg_pool is not None:
             return
         try:
             self._pg_pool = await asyncpg.create_pool(dsn=PG_DSN, min_size=1, max_size=5)
@@ -116,6 +133,9 @@ class McpState:
             await conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_mcp_tool_calls_session ON mcp_tool_calls(session_id)"
             )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_mcp_tool_calls_created ON mcp_tool_calls(created_at DESC)"
+            )
 
     # ----------------------------------------------------------------- redis
     def touch_session(self, session_id: str, agent_id: Optional[str] = None, **meta: Any) -> None:
@@ -123,11 +143,15 @@ class McpState:
             return
         try:
             key = f"mcp:session:{session_id}"
-            self._redis.hset(key, mapping={"last_seen_at": str(time.time()), **(meta or {})})
+            pipe = self._redis.pipeline()
+            pipe.hset(key, mapping={"last_seen_at": str(time.time()), **(meta or {})})
             if agent_id:
-                self._redis.hset(key, "agent_id", agent_id)
-            self._redis.expire(key, 60 * 60 * 24)
-            self._redis.sadd("mcp:active_sessions", session_id)
+                pipe.hset(key, "agent_id", agent_id)
+            pipe.expire(key, SESSION_TTL_SECONDS)
+            pipe.sadd("mcp:active_sessions", session_id)
+            # Garbage-collect the active set so it doesn't grow forever.
+            pipe.expire("mcp:active_sessions", SESSION_TTL_SECONDS * 2)
+            pipe.execute()
         except Exception as e:  # pragma: no cover
             print(f"[mcp-state] redis.touch_session failed: {e}")
 
@@ -138,7 +162,19 @@ class McpState:
             raw = self._redis.hgetall(f"mcp:session:{session_id}") or {}
         except Exception:  # pragma: no cover
             return {}
-        return {k: v for k, v in raw.items()}
+        out = {k: v for k, v in raw.items()}
+        try:
+            out["calls_count"] = int(out.get("calls_count", 0))
+        except (TypeError, ValueError):
+            out["calls_count"] = 0
+        # Translate unix ts → ISO for human consumption.
+        if "last_seen_at" in out:
+            try:
+                ts = float(out["last_seen_at"])
+                out["last_seen_at_iso"] = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+            except (TypeError, ValueError):
+                pass
+        return out
 
     def list_active_sessions(self) -> List[str]:
         if not self._redis:
@@ -147,6 +183,46 @@ class McpState:
             return list(self._redis.smembers("mcp:active_sessions") or [])
         except Exception:  # pragma: no cover
             return []
+
+    def increment_calls(self, session_id: str, n: int = 1) -> None:
+        if not self._redis or not session_id:
+            return
+        try:
+            pipe = self._redis.pipeline()
+            pipe.hincrby(f"mcp:session:{session_id}", "calls_count", n)
+            pipe.expire(f"mcp:session:{session_id}", SESSION_TTL_SECONDS)
+            pipe.execute()
+        except Exception as e:  # pragma: no cover
+            print(f"[mcp-state] redis.increment_calls failed: {e}")
+
+    # --------------------------------------------------------------- sse queue
+    async def set_sse_queue(self, session_id: str, queue: asyncio.Queue) -> None:
+        async with self._sse_lock:
+            self._sse_queues[session_id] = queue
+
+    async def clear_sse_queue(self, session_id: str) -> None:
+        async with self._sse_lock:
+            self._sse_queues.pop(session_id, None)
+
+    def push_sse(self, session_id: str, payload: Any) -> None:
+        """Fan out a result to the in-memory SSE queue (if a stream is open)
+        and to a Redis list (so a different server process can replay)."""
+        q = self._sse_queues.get(session_id)
+        if q is not None:
+            try:
+                q.put_nowait(payload)
+            except asyncio.QueueFull:  # pragma: no cover
+                pass
+        if self._redis:
+            try:
+                key = f"mcp:sse:{session_id}"
+                pipe = self._redis.pipeline()
+                pipe.lpush(key, json.dumps(payload, default=str))
+                pipe.ltrim(key, 0, SSE_PENDING_CAP - 1)
+                pipe.expire(key, SESSION_TTL_SECONDS)
+                pipe.execute()
+            except Exception as e:  # pragma: no cover
+                print(f"[mcp-state] redis.push_sse failed: {e}")
 
     # ------------------------------------------------------------------ pg
     async def record_call(
@@ -162,30 +238,36 @@ class McpState:
             return
         try:
             async with self._pg_pool.acquire() as conn:
-                await conn.execute(
-                    """
-                    INSERT INTO mcp_tool_calls
-                        (session_id, tool_name, params, result, status, x402_hash)
-                    VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6)
-                    """,
-                    session_id,
-                    tool_name,
-                    json.dumps(params or {}),
-                    json.dumps(result or {}, default=str),
-                    status,
-                    x402_hash,
-                )
-                if session_id:
+                async with conn.transaction():
                     await conn.execute(
                         """
-                        INSERT INTO mcp_sessions (session_id, last_seen_at)
-                        VALUES ($1, now())
-                        ON CONFLICT (session_id) DO UPDATE SET last_seen_at = now()
+                        INSERT INTO mcp_tool_calls
+                            (session_id, tool_name, params, result, status, x402_hash)
+                        VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6)
                         """,
                         session_id,
+                        tool_name,
+                        json.dumps(params or {}),
+                        json.dumps(result or {}, default=str),
+                        status,
+                        x402_hash,
                     )
+                    if session_id:
+                        await conn.execute(
+                            """
+                            INSERT INTO mcp_sessions (session_id, last_seen_at)
+                            VALUES ($1, now())
+                            ON CONFLICT (session_id) DO UPDATE SET last_seen_at = now()
+                            """,
+                            session_id,
+                        )
         except Exception as e:  # pragma: no cover
             print(f"[mcp-state] pg.record_call failed: {e}")
+            return
+
+        # Mirror the call count to Redis (best-effort).
+        if session_id:
+            self.increment_calls(session_id, 1)
 
     async def recent_calls(self, session_id: str, limit: int = 25) -> List[Dict[str, Any]]:
         if not self._pg_pool or not session_id:

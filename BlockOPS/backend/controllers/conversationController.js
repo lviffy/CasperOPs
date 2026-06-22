@@ -9,7 +9,6 @@ const {
   sanitizeToolResultsForResponse
 } = require('../services/toolAuditLogService');
 const { fireEvent } = require('../services/webhookService');
-const { BlockOpsAgentRuntime } = require('../services/agentRuntime');
 const { DEFAULT_CHAIN, getChainConfig } = require('../config/constants');
 const { buildUnsupportedToolError, isToolSupportedOnChain, normalizeChainId } = require('../utils/chains');
 
@@ -682,228 +681,50 @@ async function chat(req, res) {
       }
 
       // Convert routing plan to agent format
-      const tools = convertToAgentFormat(routingPlan);
-      
-      console.log('[Chat] Executing tools:', tools.map(t => `${t.tool}${t.next_tool ? ` → ${t.next_tool}` : ''}`).join(', '));
-      
-      // Use the new BlockOps Agent Runtime (ERC-8004 PEVD Loop)
-      const runtime = new BlockOpsAgentRuntime(agentId, { privateKey });
-      let primaryRuntimeResult = null;
-      
+      // Phase 23: removed BlockOpsAgentRuntime (ERC-8004 PEVD loop). The
+      // Casper tool router + direct execution are the only supported paths
+      // now. The legacy runtime used to call an external `localhost:8000`
+      // agent backend over HTTP, which has been retired. We always execute
+      // directly here — there is no separate primary runtime to fall back
+      // from.
       try {
-        const preferDirectExecution =
-          requestedChain !== 'arbitrum-sepolia' ||
-          (walletType === 'pkp' &&
-            routingPlan.execution_plan?.steps?.some(step => step.tool === 'transfer')) ||
-          routingPlan.execution_plan?.steps?.some(step =>
-            [
-              'schedule_reminder',
-              'list_reminders',
-              'cancel_reminder',
-              'create_savings_plan',
-              'schedule_payout',
-              'create_payroll_plan',
-              'create_grant_payout',
-              'get_flow_network_overview',
-              'get_flow_wallet_readiness'
-            ].includes(step.tool)
-          );
-
-        if (preferDirectExecution) {
-          throw new Error('Direct execution selected for this request');
-        }
-
-        // Build context summary from recent messages for the agent
-        const recentMessages = messages.slice(-10);
-        
-        // Extract key data points from conversation history
-        const extractedData = [];
-        for (const msg of recentMessages) {
-          const content = msg.content || '';
-          // Extract wallet addresses
-          const addresses = content.match(/0x[a-fA-F0-9]{40}/g);
-          if (addresses) extractedData.push(`Wallet address: ${addresses[0]}`);
-          // Extract balances
-          const balanceMatch = content.match(/Balance.*?:\s*([\d.]+)\s*ETH/i) || content.match(/([\d.]+)\s*ETH/i);
-          if (balanceMatch) extractedData.push(`ETH Balance: ${balanceMatch[1]} ETH`);
-          // Extract prices
-          const priceMatch = content.match(/Current prices?:?\s*(.*)/i);
-          if (priceMatch) extractedData.push(`Previous price data: ${priceMatch[1]}`);
-        }
-        
-        const contextSummary = recentMessages
-          .map(m => `${m.role}: ${m.content}`)
-          .join('\n');
-        
-        const dataContext = extractedData.length > 0
-          ? `\n\nEXTRACTED DATA FROM CONVERSATION (use these values, do NOT ask user):\n${[...new Set(extractedData)].join('\n')}`
-          : '';
-        
-        // Enhance user message with conversation context and routing analysis
-        const enhancedMessage = `${routingPlan.analysis}\n\nConversation history:\n${contextSummary}${dataContext}\n\nCurrent user query: ${truncatedMessage}\n\nExecution plan: ${routingPlan.execution_plan.type} with ${routingPlan.execution_plan.steps.length} steps: ${routingPlan.execution_plan.steps.map(s => s.tool).join(' → ')}`;
-        
-        // Execute through the runtime PEVD loop
-        const runtimeResult = await runtime.run(
-          truncatedMessage, 
-          routingPlan, 
-          async () => {
-            
-        const agentResponse = await fetch('http://localhost:8000/agent/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tools: tools,
-            user_message: enhancedMessage,
-            private_key: privateKey || null,
-            wallet_address: walletAddress || null,
-            chain: requestedChain
-          })
-        });
-
-            if (!agentResponse.ok) {
-              const errorText = await agentResponse.text();
-              throw new Error(`Agent backend error: ${agentResponse.status} - ${errorText}`);
-            }
-
-            const agentData = await agentResponse.json();
-            return agentData;
+        const directExecResult = await executeToolsDirectlyService(
+          routingPlan,
+          truncatedMessage,
+          {
+            walletAddress: walletAddress || null,
+            walletType: walletType || null,
+            pkpPublicKey: pkpPublicKey || null,
+            pkpTokenId: pkpTokenId || null,
+            privateKey: privateKey || null,
+            conversationId: convId,
+            agentId,
+            userId,
+            deliveryPlatform: deliveryPlatform || 'web',
+            telegramChatId: telegramChatId || null,
+            defaultEmailTo: defaultEmailTo || userEmail || null,
+            userEmail: userEmail || null,
+            chain: requestedChain,
+            apiKey: req.headers['x-api-key'] || process.env.MASTER_API_KEY || null
           }
         );
-        primaryRuntimeResult = runtimeResult;
 
-        aiResponse = runtimeResult.agent_response;
+        const successCount = (directExecResult.results || []).filter((r) => r.success).length;
+        const totalCount = (directExecResult.results || []).length;
+        console.log(`[Chat] Direct tool execution completed: ${successCount}/${totalCount} successful`);
+
+        aiResponse = formatToolResponse(directExecResult);
         toolResults = {
-          tool_calls: runtimeResult.tool_calls || [],
-          results: runtimeResult.results || [],
+          tool_calls: directExecResult.tool_calls,
+          results: directExecResult.results,
           routing_plan: routingPlan,
-          runtime: {
-            onChainId: runtimeResult.onChainId,
-            decision: runtimeResult.decision,
-            verification: runtimeResult.verification,
-            agent_log: runtime.exportLogs() // Added standard agent_log.json
-          }
+          execution_mode: 'direct',
         };
-
-        // Treat sentinel rate-limit strings from the agent backend as real errors
-        // so the direct-execution fallback can handle them properly
-        const RATE_LIMIT_SENTINELS = [
-          'rate limit exceeded',
-          'all ai providers',
-          'maximum iterations reached'
-        ];
-        if (RATE_LIMIT_SENTINELS.some(s => aiResponse?.toLowerCase().includes(s))) {
-          throw new Error(`AI provider rate limited: ${aiResponse}`);
-        }
-        
-        // Clean up AI thinking/reasoning that leaks into responses
-        aiResponse = aiResponse
-          .replace(/^The user wants to[\s\S]*?(?:\n\n)/m, '')
-          .replace(/^I need to use the \w+ tool[\s\S]*?(?:\n\n)/m, '')
-          .replace(/^I'?ll compose[\s\S]*?(?:\n\n)/m, '')
-          .replace(/^\{\n\s+"to":[\s\S]*?^\}$/gm, '')
-          .replace(/^\{"to":\s*"[^"]+",\s*"subject":\s*"[^"]+",\s*"(?:body|text)":\s*"[^"]*"\}$/gm, '')
-          .replace(/\n{3,}/g, '\n\n')
-          .trim();
-        
-        // Format JSON data in the response for better display
-        aiResponse = aiResponse.replace(/```json\n([\s\S]*?)```/g, (match, json) => {
-          try {
-            const parsed = JSON.parse(json);
-            return '```json\n' + JSON.stringify(parsed, null, 2) + '\n```';
-          } catch {
-            return match;
-          }
-        });
-        
-        console.log('[Chat] Agent backend response received via runtime PEVD loop');
-      } catch (agentError) {
-        console.error('[Chat] Agent backend failed:', agentError.message);
-
-        // If the primary runtime already executed tools and updated on-chain state,
-        // do not run the full PEVD loop a second time via fallback.
-        if (primaryRuntimeResult?.results?.length) {
-          console.warn('[Chat] Skipping direct fallback because the primary runtime already produced results.');
-
-          aiResponse = primaryRuntimeResult.agent_response ||
-            'The agent completed execution, but the final response formatting failed. Please check the tool results below.';
-          toolResults = {
-            tool_calls: primaryRuntimeResult.tool_calls || [],
-            results: primaryRuntimeResult.results || [],
-            routing_plan: routingPlan,
-            execution_mode: 'primary_runtime_only',
-            runtime: {
-              onChainId: primaryRuntimeResult.onChainId,
-              decision: primaryRuntimeResult.decision,
-              verification: primaryRuntimeResult.verification,
-              agent_log: runtime.exportLogs()
-            }
-          };
-        } else {
-
-          // For tool-required requests, always try direct execution fallback.
-          // Never degrade to plain chat, which can hallucinate execution status.
-          console.log('[Chat] Attempting direct tool execution fallback after agent backend failure...');
-
-          try {
-            const runtimeResult = await runtime.run(
-              truncatedMessage,
-              routingPlan,
-              async () => {
-                const directExecResult = await executeToolsDirectlyService(
-                  routingPlan,
-                  truncatedMessage,
-                  {
-                    walletAddress: walletAddress || null,
-                    walletType: walletType || null,
-                    pkpPublicKey: pkpPublicKey || null,
-                    pkpTokenId: pkpTokenId || null,
-                    privateKey: privateKey || null,
-                    conversationId: convId,
-                    agentId,
-                    userId,
-                    deliveryPlatform: deliveryPlatform || 'web',
-                    telegramChatId: telegramChatId || null,
-                    defaultEmailTo: defaultEmailTo || userEmail || null,
-                    userEmail: userEmail || null,
-                    chain: requestedChain,
-                    apiKey: req.headers['x-api-key'] || process.env.MASTER_API_KEY || null
-                  }
-                );
-                
-                // Map directExecResult to runtime format
-                return {
-                  agent_response: formatToolResponse(directExecResult),
-                  tool_calls: directExecResult.tool_calls,
-                  results: directExecResult.results
-                };
-              }
-            );
-
-            if (runtimeResult && runtimeResult.results && runtimeResult.results.length > 0) {
-              const successCount = runtimeResult.results.filter(r => r.success).length;
-              console.log('[Chat] Direct tool execution fallback completed:', `${successCount}/${runtimeResult.results.length} successful`);
-              aiResponse = runtimeResult.agent_response;
-              toolResults = {
-                tool_calls: runtimeResult.tool_calls,
-                results: runtimeResult.results,
-                routing_plan: routingPlan,
-                execution_mode: 'direct_fallback',
-                runtime: {
-                  onChainId: runtimeResult.onChainId,
-                  decision: runtimeResult.decision,
-                  verification: runtimeResult.verification,
-                  agent_log: runtime.exportLogs() // Added standard agent_log.json
-                }
-              };
-            } else {
-              aiResponse = `I could not execute the requested blockchain actions because the execution backend is unavailable right now. No transfer or email was sent. Please retry in a moment.`;
-            }
-          } catch (directError) {
-            console.error('[Chat] Direct tool execution failed:', directError.message);
-            aiResponse = `I could not execute the requested blockchain actions because the execution backend is unavailable right now. No transfer or email was sent. Please retry in a moment.`;
-          }
-        }
+      } catch (directError) {
+        console.error('[Chat] Direct tool execution failed:', directError.message);
+        aiResponse = 'I could not execute the requested blockchain actions because the execution backend is unavailable right now. No transfer or email was sent. Please retry in a moment.';
       }
+
     } else {
       // Simple conversational response (no tools needed)
       console.log('[Chat] Simple conversation, using direct AI');

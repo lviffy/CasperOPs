@@ -90,6 +90,21 @@ function getChainMetadata() {
   };
 }
 
+// Phase 23: there is now exactly one supported chain. The legacy
+// multi-chain constant is preserved as a single-element array so any
+// external surface (health endpoint, MCP server) that introspects the
+// list continues to work.
+function getSupportedChains() {
+  return [{
+    id: CASPER_CHAIN_ID,
+    chainId: CASPER_NETWORK_CONFIG.chain,
+    name: CASPER_NETWORK_CONFIG.chainName,
+    rpcUrl: CASPER_NETWORK_CONFIG.rpcUrl,
+    explorerBaseUrl: CASPER_NETWORK_CONFIG.explorerBaseUrl,
+    nativeCurrency: CASPER_NETWORK_CONFIG.nativeCurrency,
+  }];
+}
+
 function isToolSupportedOnChain(tool) {
   const normalizedTool = String(tool || '').trim();
   return CASPER_SUPPORTED_TOOLS.has(normalizedTool);
@@ -158,6 +173,7 @@ module.exports = {
   csprToMotes,
   getChainFromRequest,
   getChainMetadata,
+  getSupportedChains,
   getToolPrice,
   isCasperChain,
   isFreeTool,

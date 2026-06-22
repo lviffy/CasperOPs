@@ -42,10 +42,11 @@ function makeFallbackLogger() {
         console[level === 'warn' ? 'warn' : level](JSON.stringify({ level, msg: obj }))
         return
       }
-      const { msg, ...rest } = obj || {}
+      const { msg: extractedMsg, ...rest } = obj || {}
+      const finalMsg = extractedMsg ?? msg
       // eslint-disable-next-line no-console
       console[level === 'warn' ? 'warn' : level](
-        JSON.stringify({ level, msg, ...rest }, null, 2),
+        JSON.stringify({ level, msg: finalMsg, ...rest }, null, 2),
       )
     }
   }
@@ -57,15 +58,16 @@ function makeFallbackLogger() {
     fatal: emit('fatal'),
     trace: emit('trace'),
     child(bindings) {
-      return makeFallbackLogger().info
-        ? {
-            info: emit('info'),
-            warn: emit('warn'),
-            error: emit('error'),
-            debug: emit('debug'),
-            child: () => this,
-          }
-        : this
+      const parent = {
+        info: emit('info'),
+        warn: emit('warn'),
+        error: emit('error'),
+        debug: emit('debug'),
+        fatal: emit('fatal'),
+        trace: emit('trace'),
+      }
+      parent.child = () => parent
+      return parent
     },
   }
 }

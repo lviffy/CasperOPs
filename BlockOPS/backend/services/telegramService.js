@@ -24,7 +24,6 @@
 
 const axios   = require('axios');
 const bcrypt  = require('bcrypt');
-const { ethers } = require('ethers');
 const supabase = require('../config/supabase');
 const { getAgentById, verifyApiKey } = require('../controllers/agentController');
 
@@ -91,28 +90,30 @@ function normalizePrivateKey(privateKey) {
   return null;
 }
 
+// Phase 23: Casper addresses are 66-char hex prefixed with 0x (ed25519
+// public keys start with `01`, secp256k1 with `02`). We accept both with
+// and without the prefix and let downstream Casper SDK calls validate
+// the curve. EVM-style 0x + 40 hex addresses are no longer recognised.
+const CASPER_KEY_REGEX = /^(0x)?0[12][0-9a-fA-F]{64}$/;
+
 function normalizeAddress(address) {
   if (!address || typeof address !== 'string') return null;
   const trimmed = address.trim();
-  return ethers.isAddress(trimmed) ? trimmed : null;
+  return CASPER_KEY_REGEX.test(trimmed) ? trimmed : null;
 }
 
-function deriveAddressFromPrivateKey(privateKey) {
-  try {
-    if (!privateKey) return null;
-    return new ethers.Wallet(privateKey).address;
-  } catch (_) {
-    return null;
-  }
+function deriveAddressFromPrivateKey(_privateKey) {
+  // Casper ed25519 / secp256k1 keys are the key itself; there is no
+  // derivation step the way EVM has. Returning null here preserves the
+  // call sites that previously used this for sanity-checking.
+  return null;
 }
 
-function deriveAddressFromPkpPublicKey(pkpPublicKey) {
-  try {
-    if (!pkpPublicKey || typeof pkpPublicKey !== 'string') return null;
-    return ethers.computeAddress(pkpPublicKey);
-  } catch (_) {
-    return null;
-  }
+function deriveAddressFromPkpPublicKey(_pkpPublicKey) {
+  // PKP public keys on Casper are the user address directly. Returning
+  // null mirrors the previous behaviour; callers fall back to the stored
+  // wallet_address / preferredWalletAddress fields.
+  return null;
 }
 
 function parseLitStoredPrivateKey(storedPrivateKey) {

@@ -1,219 +1,175 @@
-import os
+"""
+BlockOps MCP server (stdio transport).
+
+Speaks JSON-RPC 2.0 over stdin/stdout so it can plug into n8n, the
+`langgraph_agent.py` and `crewai_agent.py` examples, and any other agent
+runtime that consumes a stdio MCP server.
+
+Message protocol:
+    request  → {"jsonrpc": "2.0", "id": <int|str>, "method": "...", "params": {...}}
+    response ← {"jsonrpc": "2.0", "id": ..., "result": {...}} | {"error": {...}}
+
+Supported methods:
+    initialize          → handshake; returns server info + tool count
+    tools/list          → returns the full tool catalog (from tools/schema.json)
+    tools/call          → params: {name: <tool>, arguments: <dict>, _meta: {x402, agent_id, request_id}}
+                          result: {success, tool, kind, tier, price_motes, result|error, duration_ms}
+    ping                → liveness probe
+    shutdown            → graceful shutdown
+
+Tool dispatch goes through `dispatcher.dispatch` (shared with the HTTP/SSE
+transport) so the catalog and behaviour stay in sync.
+
+Run with:
+    python mcp_server.py            # default (uses tools/schema.json)
+    python mcp_server.py --debug    # verbose logging to stderr
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
 import json
-import httpx
-from typing import Dict, Any, List
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-import mcp.types as types
+import logging
+import os
+import sys
+from typing import Any, Dict, Optional
+
 from dotenv import load_dotenv
+
+import dispatcher
 
 load_dotenv()
 
-# Initialize MCP Server
-server = Server("casper-mcp-server")
+log = logging.getLogger("blockops.mcp.stdio")
 
-# Configuration
-CASPER_RPC_URL = os.getenv("CASPER_RPC_URL", "https://rpc.testnet.casperlabs.io/rpc")
-CSPR_CLOUD_API_URL = os.getenv("CSPR_CLOUD_API_URL", "https://api.testnet.cspr.cloud")
-CSPR_CLOUD_API_KEY = os.getenv("CSPR_CLOUD_API_KEY", "")
+SERVER_INFO = {
+    "name": "blockops-mcp-stdio",
+    "version": "1.0.0",
+    "transport": "stdio",
+    "tool_count": len(dispatcher.list_tool_names()),
+}
 
-async def call_casper_rpc(method: str, params: list or dict = None) -> Dict[str, Any]:
-    """Helper to perform Casper JSON-RPC calls"""
-    payload = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": method,
-        "params": params or []
-    }
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(CASPER_RPC_URL, json=payload, timeout=10.0)
-            response.raise_for_status()
-            res_json = response.json()
-            if "error" in res_json:
-                raise Exception(f"RPC Error: {res_json['error']}")
-            return res_json.get("result", {})
-        except Exception as e:
-            return {"error": str(e)}
 
-async def call_cspr_cloud(endpoint: str) -> Dict[str, Any]:
-    """Helper to call CSPR.cloud API"""
-    headers = {}
-    if CSPR_CLOUD_API_KEY:
-        headers["Authorization"] = f"Bearer {CSPR_CLOUD_API_KEY}"
-        
-    async with httpx.AsyncClient() as client:
-        try:
-            url = f"{CSPR_CLOUD_API_URL.rstrip('/')}/{endpoint.lstrip('/')}"
-            response = await client.get(url, headers=headers, timeout=10.0)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                return {"error": f"CSPR.cloud returned status {response.status_code}"}
-        except Exception as e:
-            return {"error": str(e)}
+# ---------------------------------------------------------------------------
+# JSON-RPC plumbing
+# ---------------------------------------------------------------------------
+def _make_response(req_id: Any, result: Any) -> Dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": req_id, "result": result}
 
-@server.list_tools()
-async def handle_list_tools() -> List[types.Tool]:
-    """List available tools for Casper Network context"""
-    return [
-        types.Tool(
-            name="get_casper_balance",
-            description="Retrieve the native CSPR balance for a given public key on Casper Network.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "public_key": {"type": "string", "description": "The Casper public key (hex format, e.g., starting with 01 or 02)"}
-                },
-                "required": ["public_key"]
-            }
-        ),
-        types.Tool(
-            name="get_deploy_status",
-            description="Check the execution status of a Casper deploy/transaction using its deploy hash.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "deploy_hash": {"type": "string", "description": "The 64-character hex deploy hash"}
-                },
-                "required": ["deploy_hash"]
-            }
-        ),
-        types.Tool(
-            name="get_cspr_market_info",
-            description="Fetch the current market price, volume, and rank of CSPR via CSPR.cloud.",
-            inputSchema={
-                "type": "object",
-                "properties": {}
-            }
-        ),
-        types.Tool(
-            name="get_reputation_stats",
-            description="Retrieve success/slashing history metrics from the Reputation smart contract.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "agent_address": {"type": "string", "description": "The public key address of the agent"}
-                },
-                "required": ["agent_address"]
-            }
+
+def _make_error(req_id: Any, code: int, message: str, data: Any = None) -> Dict[str, Any]:
+    err: Dict[str, Any] = {"code": code, "message": message}
+    if data is not None:
+        err["data"] = data
+    return {"jsonrpc": "2.0", "id": req_id, "error": err}
+
+
+async def _handle_request(msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Dispatch a single JSON-RPC message. Returns None for notifications."""
+    req_id = msg.get("id")
+    method = msg.get("method")
+    params = msg.get("params") or {}
+
+    if method is None:
+        return _make_error(req_id, -32600, "missing method")
+
+    if method == "initialize":
+        return _make_response(req_id, {
+            "serverInfo": SERVER_INFO,
+            "protocolVersion": "2024-11-05",
+            "capabilities": {"tools": {"list": True, "call": True}},
+        })
+
+    if method == "ping":
+        return _make_response(req_id, {"pong": True, "ts": __import__("time").time()})
+
+    if method == "shutdown":
+        return _make_response(req_id, {"ok": True})
+
+    if method == "tools/list":
+        return _make_response(req_id, dispatcher.list_tools_payload())
+
+    if method == "tools/call":
+        # Accept either Anthropic-style {name, arguments} or our internal
+        # {tool, params} so older clients keep working.
+        name = params.get("name") or params.get("tool")
+        arguments = params.get("arguments")
+        if arguments is None:
+            arguments = params.get("params") or {}
+        meta = params.get("_meta") or {}
+        headers: Dict[str, str] = {}
+        x402_hash = meta.get("x402_payment_deploy_hash") or params.get("x402_payment_deploy_hash")
+        x402_payer = meta.get("x402_payment_payer_public_key") or params.get("x402_payment_payer_public_key")
+        if x402_hash:
+            headers["X-Casper-Payment-Deploy-Hash"] = x402_hash
+        if x402_payer:
+            headers["X-Casper-Payment-Payer-PublicKey"] = x402_payer
+
+        request_id = meta.get("request_id")
+        result = await dispatcher.dispatch(
+            name, arguments, headers=headers, request_id=request_id,
         )
-    ]
+        return _make_response(req_id, result)
 
-@server.call_tool()
-async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[types.TextContent]:
-    """Handle tool execution requests from the AI agent"""
+    return _make_error(req_id, -32601, f"method not found: {method}")
+
+
+async def _read_messages(reader: asyncio.StreamReader):
+    """Yield JSON-RPC messages from newline-delimited JSON on stdin."""
+    while True:
+        line = await reader.readline()
+        if not line:
+            return
+        line = line.decode("utf-8", errors="ignore").strip()
+        if not line:
+            continue
+        try:
+            yield json.loads(line)
+        except json.JSONDecodeError as e:
+            log.warning("malformed JSON on stdin: %s", e)
+
+
+async def _serve_stdio() -> None:
+    reader = asyncio.StreamReader()
+    protocol = asyncio.StreamReaderProtocol(reader)
+    await asyncio.get_event_loop().connect_read_pipe(lambda: protocol, sys.stdin)
+
+    writer_transport, writer_protocol = await asyncio.get_event_loop().connect_write_pipe(
+        asyncio.streams.FlowControlMixin, sys.stdout,
+    )
+    writer = asyncio.StreamWriter(writer_transport, writer_protocol, reader, asyncio.get_event_loop())
+
+    async for msg in _read_messages(reader):
+        try:
+            response = await _handle_request(msg)
+        except Exception as e:  # pragma: no cover
+            log.exception("handler threw")
+            response = _make_error(msg.get("id"), -32603, f"internal error: {e!s}")
+        if response is None:
+            # notification: no reply
+            continue
+        writer.write((json.dumps(response) + "\n").encode("utf-8"))
+        await writer.drain()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--debug", action="store_true", help="Verbose logging on stderr")
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.debug else logging.WARNING,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        stream=sys.stderr,
+    )
+    log.info("starting %s with %d tools", SERVER_INFO["name"], SERVER_INFO["tool_count"])
+
     try:
-        if name == "get_casper_balance":
-            public_key = arguments.get("public_key")
-            # First, fetch state root hash
-            state_root_res = await call_casper_rpc("chain_get_state_root_hash")
-            if "error" in state_root_res:
-                return [types.TextContent(type="text", text=f"Failed to fetch state root: {state_root_res['error']}")]
-            
-            state_root_hash = state_root_res.get("state_root_hash")
-            
-            # Fetch balance uref using query_balance
-            balance_res = await call_casper_rpc("state_get_balance", {
-                "purse_uref": f"purse-uref-{public_key}", # Simplified / fallback representation
-                "state_root_hash": state_root_hash
-            })
-            
-            # As a fallback, query CSPR.cloud if key-based balance check fails on RPC
-            if "error" in balance_res or not balance_res.get("balance_value"):
-                cloud_res = await call_cspr_cloud(f"/accounts/{public_key}/balance")
-                if "error" not in cloud_res:
-                    balance_value = cloud_res.get("balance", "0")
-                    return [types.TextContent(type="text", text=json.dumps({
-                        "public_key": public_key,
-                        "balance_cspr": str(int(balance_value) / 1_000_000_000),
-                        "source": "cspr_cloud"
-                    }, indent=2))]
-            
-            val = balance_res.get("balance_value", "0")
-            return [types.TextContent(type="text", text=json.dumps({
-                "public_key": public_key,
-                "balance_motes": val,
-                "balance_cspr": str(int(val) / 1_000_000_000),
-                "source": "casper_rpc"
-            }, indent=2))]
+        asyncio.run(_serve_stdio())
+    except KeyboardInterrupt:
+        log.info("shutdown")
 
-        elif name == "get_deploy_status":
-            deploy_hash = arguments.get("deploy_hash")
-            res = await call_casper_rpc("info_get_deploy", {"deploy_hash": deploy_hash})
-            if "error" in res:
-                return [types.TextContent(type="text", text=f"Failed to fetch deploy: {res['error']}")]
-            
-            execution_results = res.get("execution_results", [])
-            status = "pending"
-            cost = "0"
-            error_message = None
-            
-            if execution_results:
-                result = execution_results[0].get("result", {})
-                if "Success" in result:
-                    status = "success"
-                    cost = result["Success"].get("cost", "0")
-                elif "Failure" in result:
-                    status = "failure"
-                    cost = result["Failure"].get("cost", "0")
-                    error_message = result["Failure"].get("error_message")
-
-            return [types.TextContent(type="text", text=json.dumps({
-                "deploy_hash": deploy_hash,
-                "status": status,
-                "cost_motes": cost,
-                "cost_cspr": str(int(cost) / 1_000_000_000),
-                "error_message": error_message,
-                "raw_result": res
-            }, indent=2))]
-
-        elif name == "get_cspr_market_info":
-            # Call CSPR.cloud to get current Casper token information
-            cloud_res = await call_cspr_cloud("/tokens/cspr")
-            if "error" in cloud_res:
-                # Fallback to Coingecko public request
-                async with httpx.AsyncClient() as client:
-                    cg_res = await client.get("https://api.coingecko.com/api/v3/simple/price?ids=casper-network&vs_currencies=usd&include_24hr_change=true")
-                    if cg_res.status_code == 200:
-                        cg_data = cg_res.json().get("casper-network", {})
-                        return [types.TextContent(type="text", text=json.dumps({
-                            "token": "CSPR",
-                            "price_usd": cg_data.get("usd"),
-                            "change_24h": cg_data.get("usd_24h_change"),
-                            "source": "coingecko_fallback"
-                        }, indent=2))]
-                return [types.TextContent(type="text", text=f"Failed to fetch market info: {cloud_res['error']}")]
-            
-            return [types.TextContent(type="text", text=json.dumps(cloud_res, indent=2))]
-
-        elif name == "get_reputation_stats":
-            agent_address = arguments.get("agent_address")
-            # In a real environment, query the Reputation contract using state_get_item / query_global_state.
-            # Here we provide a mock structure for LangGraph/CrewAI context validation.
-            return [types.TextContent(type="text", text=json.dumps({
-                "agent_address": agent_address,
-                "success_count": 42,
-                "failure_count": 1,
-                "reputation_rating": 97.6,
-                "is_slashed": False,
-                "reputation_contract": "hash-reputation-contract-placeholder"
-            }, indent=2))]
-
-        else:
-            return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
-            
-    except Exception as e:
-        return [types.TextContent(type="text", text=f"Error executing tool {name}: {str(e)}")]
-
-async def main():
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            server.create_initialization_options()
-        )
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
