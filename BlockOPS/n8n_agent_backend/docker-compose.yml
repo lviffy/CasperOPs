@@ -1,0 +1,23 @@
+services:
+  n8n-agent-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: n8n-agent-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GROQ_API_KEY1=${GROQ_API_KEY1}
+      - GROQ_API_KEY2=${GROQ_API_KEY2}
+      - GROQ_API_KEY3=${GROQ_API_KEY3}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - BACKEND_URL=${BACKEND_URL:-http://localhost:3000}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
