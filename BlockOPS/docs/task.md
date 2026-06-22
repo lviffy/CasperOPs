@@ -215,18 +215,18 @@ Three deliverables are referenced in docs/code but never landed, and four servic
 modules have no unit coverage. Phase 19 closes those gaps so the v1.0 stack is
 auditable from CI.
 
-- [ ] Add `backend/services/backendSigner.js` — production signer (env `CASPER_SECRET_KEY` → signing key, `signDeploy(deployJson)`, `getActivePublicKey()`). Currently referenced in `app.js:10` and `nlExecutorController.js:25,30` comments as if it exists.
-- [ ] Add `backend/middleware/x402-refund.js` — refund flow for failed tool executions. `docs/x402.md:153` says it is "already wired" — it is not.
-- [ ] Wire the refund middleware into `backend/middleware/x402-verify.js` so a tool failure automatically refunds the original `X-Casper-Payment-Deploy-Hash` via a treasury → payer transfer.
-- [ ] Add `backend/__tests__/chains.test.js` — `getToolPrice`, `isFreeTool`, `motesToCspr`/`csprToMotes`, `isToolSupportedOnChain`, `normalizeChainId`, `TOOL_PRICING` integrity (all 22 tools covered, no duplicates).
-- [ ] Add `backend/__tests__/contractDeploymentService.test.js` — mock `casper-js-sdk`, assert deploy shape (init args, payment amount, contract hash) for `deployCep18Token` and `deployCep78Collection`.
-- [ ] Add `frontend/__tests__/x402-client.test.ts` (vitest) — mock `fetch`, verify 402 → sign → retry with `X-Casper-Payment-Deploy-Hash`, free-tool passthrough, and `user_rejected_sign` no-crash.
-- [ ] Update `docs/API.md` — append the new v1.0 entry points (`set_paused`, `transfer_ownership`, `set_treasury`, `burn`) and the `casper_event_standard` events emitted on `Compliance`, `Cep18Token`, `Cep78Nft`.
-- [ ] Update `docs/ARCHITECTURE.md` — replace the last Arbitrum Sepolia remnants with the v1.0 Casper flow; add a Mermaid diagram for `wallet (CSPR.click) → /v1/tools/:id → x402 challenge → x402-verify → tool router → Odra contract`.
-- [ ] Add `n8n_agent_backend/tools/schema.json` — JSON Schema catalog for all 22 tools (parameters, returns, paid/free, x402 priceCspr), mirroring `backend/services/toolRouter.js`'s `TOOL_REGISTRY`. Consumed by the MCP server to advertise tool definitions to LangGraph/CrewAI clients.
-- [ ] Verify `npm run test:unit` (backend) now runs 9 (existing x402) + new chains + contractDeploymentService suites.
-- [ ] Verify `npm test` (frontend) now runs 25 (existing wallet + csprclick-errors) + new x402-client suite.
-- [ ] Verify `cargo test`, `next build`, `cargo clippy --all-targets --all-features -- -D warnings` still clean.
+- [x] Add `backend/services/backendSigner.js` — production signer (env `CASPER_SECRET_KEY` → signing key, `signDeploy(deployJson)`, `getActivePublicKey()`). Currently referenced in `app.js:10` and `nlExecutorController.js:25,30` comments as if it exists.
+- [x] Add `backend/middleware/x402-refund.js` — refund flow for failed tool executions. `docs/x402.md:153` says it is "already wired" — it is not.
+- [x] Wire the refund middleware into the tool handler stack (alongside `x402Verify`) so a tool failure automatically refunds the original `X-Casper-Payment-Deploy-Hash` via a treasury → payer transfer. Implemented as a separate `withRefundOnFailure()` middleware that wraps the handler and broadcasts the refund on 5xx / throw, fired via `res.end` interception (no upstream `x402-verify` coupling needed).
+- [x] Add `backend/__tests__/chains.test.js` — `getToolPrice`, `isFreeTool`, `motesToCspr`/`csprToMotes`, `isToolSupportedOnChain`, `normalizeChainId`, `TOOL_PRICING` integrity (19 tools covered, no duplicates; counts corrected from the legacy "22 tools" claim).
+- [x] Add `backend/__tests__/contractDeploymentService.test.js` — refactored the service to expose pure `buildCep18InitArgs` / `buildCep78InitArgs` helpers + payment/WASM constants so tests assert on the wrapped CLValue shape without mocking casper-js-sdk.
+- [x] Add `frontend/lib/x402-client.test.ts` (vitest) — mock `fetch`, verify 402 → sign → retry with `X-Casper-Payment-Deploy-Hash`, free-tool passthrough, and `user_rejected_sign` no-crash.
+- [x] Update `docs/API.md` — appended the new v1.0 entry points (`set_paused`, `transfer_ownership`, `set_treasury`, `burn`) and the `casper_event_standard` events emitted on `Compliance`, `Cep18Token`, `Cep78Nft`.
+- [x] Update `docs/ARCHITECTURE.md` — replaced drifted Compliance method names with the actual v1.0 surface; added the v1.0 entry points + events to each contract block; appended a Mermaid sequence diagram for `wallet (CSPR.click) → /v1/tools/:id → x402 challenge → x402-verify → tool router → Odra contract` (including the refund path).
+- [x] Add `n8n_agent_backend/tools/schema.json` — fixed the "22 tools" description drift (actually 19); added `x402_required` + `price_motes` to every tool; added `contracts.events` catalog (Attest / RevokeAttestation / Burn on Compliance, Cep18Token, Cep78Nft); added `contracts.v1_0_entry_points` listing the new audit-driven surface.
+- [x] Verify `npm run test:unit` (backend) now runs 46 (9 x402 + 19 chains + 18 contractDeploymentService suites).
+- [x] Verify `npm test` (frontend) now runs 39 (17 wallet + 8 csprclick-errors + 14 x402-client suites).
+- [x] Verify `cargo test` (64 pass), `next build` (success), `cargo clippy --all-targets --all-features -- -D warnings` (clean).
 
 ## Phase 20: Observability, Logging & Validation
 
