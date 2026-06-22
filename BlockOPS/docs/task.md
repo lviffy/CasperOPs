@@ -206,3 +206,82 @@ already gone from `frontend/lib/`), so the shims are now safe to remove.
 - [x] Verify `npm run test:unit`, `next build`, and `cargo test` still pass after the deletions
 - [x] Update `docs/security-audit.md` "Recommended v1.0 additions" section to reflect which items shipped in Phase 17
 - [x] Update `README.md` repo layout / stack section to drop the deprecated services
+
+---
+
+## Phase 19: Production Hardening & Test Coverage
+
+Three deliverables are referenced in docs/code but never landed, and four service
+modules have no unit coverage. Phase 19 closes those gaps so the v1.0 stack is
+auditable from CI.
+
+- [ ] Add `backend/services/backendSigner.js` — production signer (env `CASPER_SECRET_KEY` → signing key, `signDeploy(deployJson)`, `getActivePublicKey()`). Currently referenced in `app.js:10` and `nlExecutorController.js:25,30` comments as if it exists.
+- [ ] Add `backend/middleware/x402-refund.js` — refund flow for failed tool executions. `docs/x402.md:153` says it is "already wired" — it is not.
+- [ ] Wire the refund middleware into `backend/middleware/x402-verify.js` so a tool failure automatically refunds the original `X-Casper-Payment-Deploy-Hash` via a treasury → payer transfer.
+- [ ] Add `backend/__tests__/chains.test.js` — `getToolPrice`, `isFreeTool`, `motesToCspr`/`csprToMotes`, `isToolSupportedOnChain`, `normalizeChainId`, `TOOL_PRICING` integrity (all 22 tools covered, no duplicates).
+- [ ] Add `backend/__tests__/contractDeploymentService.test.js` — mock `casper-js-sdk`, assert deploy shape (init args, payment amount, contract hash) for `deployCep18Token` and `deployCep78Collection`.
+- [ ] Add `frontend/__tests__/x402-client.test.ts` (vitest) — mock `fetch`, verify 402 → sign → retry with `X-Casper-Payment-Deploy-Hash`, free-tool passthrough, and `user_rejected_sign` no-crash.
+- [ ] Update `docs/API.md` — append the new v1.0 entry points (`set_paused`, `transfer_ownership`, `set_treasury`, `burn`) and the `casper_event_standard` events emitted on `Compliance`, `Cep18Token`, `Cep78Nft`.
+- [ ] Update `docs/ARCHITECTURE.md` — replace the last Arbitrum Sepolia remnants with the v1.0 Casper flow; add a Mermaid diagram for `wallet (CSPR.click) → /v1/tools/:id → x402 challenge → x402-verify → tool router → Odra contract`.
+- [ ] Add `n8n_agent_backend/tools/schema.json` — JSON Schema catalog for all 22 tools (parameters, returns, paid/free, x402 priceCspr), mirroring `backend/services/toolRouter.js`'s `TOOL_REGISTRY`. Consumed by the MCP server to advertise tool definitions to LangGraph/CrewAI clients.
+- [ ] Verify `npm run test:unit` (backend) now runs 9 (existing x402) + new chains + contractDeploymentService suites.
+- [ ] Verify `npm test` (frontend) now runs 25 (existing wallet + csprclick-errors) + new x402-client suite.
+- [ ] Verify `cargo test`, `next build`, `cargo clippy --all-targets --all-features -- -D warnings` still clean.
+
+## Phase 20: Observability, Logging & Validation
+
+Phase 12 listed observability items that were marked complete but were never
+actually wired. Phase 20 closes the gap so production failures are debuggable.
+
+- [ ] Migrate `backend/services/toolRouter.js`, `directToolExecutor.js`, `contractDeploymentService.js`, `toolAuditLogService.js` to the existing `backend/utils/logger.js` (pino-style structured logs with `request_id`).
+- [ ] Add a `requestContext` middleware that assigns a UUID per request and threads it through to logger calls + response headers (`x-request-id`).
+- [ ] Add a zod-based `validateToolParams` middleware in `backend/middleware/validate.js` covering all 22 tools' parameter schemas. Reject unknown fields, coerce primitives, return 400 with field-level errors.
+- [ ] Wire `backend/middleware/validate.js` into the `/v1/tools/:toolId` route before `x402-verify`.
+- [ ] Add optional Sentry initialization gated on `SENTRY_DSN` (backend via `@sentry/node`, frontend via `@sentry/nextjs`). Log-only mode when DSN is absent.
+- [ ] Add `backend/__tests__/validate.test.js` — covers at least one paid tool (`transfer`) and one free tool (`get_balance`); expects 400 on unknown fields and successful pass-through on valid input.
+
+## Phase 21: MCP Server HTTP/SSE Transport + Sample Agents
+
+Phase 10 marked MCP HTTP/SSE + sample LangGraph/CrewAI agents as complete, but
+only stdio + skeleton samples exist. Phase 21 delivers the production MCP
+surface.
+
+- [ ] Implement `n8n_agent_backend/mcp_server_sse.py` — FastAPI app exposing `GET /mcp/sse` (Server-Sent Events) and `POST /mcp/message`, backed by the same `mcp_server.py` tool handlers.
+- [ ] Add `mcp_server.py` JSON-RPC dispatcher that registers the 22 tools from `tools/schema.json` and dispatches to the existing handler functions.
+- [ ] Add `n8n_agent_backend/state.py` — Postgres-backed `mcp_sessions` + `mcp_tool_calls` tables (already partially defined in `20260622_casper_schema.sql`; expose via SQLAlchemy or asyncpg).
+- [ ] Add Redis-backed short-term session store (`mcp_session:{id} → {tool_calls_count, last_seen}`) with 1-hour TTL.
+- [ ] Complete `n8n_agent_backend/examples/langgraph_agent.py` — a working agent that connects via MCP and runs `register_agent → attest_agent → get_reputation`.
+- [ ] Complete `n8n_agent_backend/examples/crewai_agent.py` — same flow via CrewAI.
+- [ ] Add `n8n_agent_backend/README.md` covering setup, stdio vs HTTP/SSE transport selection, env vars, and example run commands.
+- [ ] Add `n8n_agent_backend/__tests__/` — at minimum a smoke test that boots the HTTP/SSE server, lists the 22 tools via `tools/list`, and invokes one paid tool (`register_agent`) and one free tool (`get_reputation`) end-to-end.
+
+## Phase 22: Live Testnet Re-Deployment & v1.0 Validation
+
+The Phase 17 hardening changes (`set_paused`, `transfer_ownership`, `set_treasury`,
+burn, on-chain events) are not yet on testnet. Phase 22 deploys them and proves
+the new surface on real chain.
+
+- [ ] Re-run `node scripts/deploy.js` with the same testnet keypair from Phase 7 to deploy the v1.0 WASM binaries; record the six new contract hashes.
+- [ ] Update `backend/.env` and `frontend/lib/contracts.ts` with the new hashes.
+- [ ] Extend `scripts/e2e-testnet.mjs` with a Phase 22 section that exercises the new entry points: `set_paused(true) → register_agent reverts`, `set_paused(false) → register_agent succeeds`, `transfer_ownership(new_owner) → owner-gated entries fail under the old owner`, `Cep18Token::burn(100)` from the deployer, `Cep78Nft::burn(token_id)` from the minter.
+- [ ] Append a timestamped Phase 22 entry to `docs/testnet-validation.md` covering deploy costs, deploy times, deployer balance delta, and gotchas observed during the run.
+- [ ] Verify the on-chain events (`Attest`, `RevokeAttestation`, `Burn`) show up in CSPR.cloud for the contracts we deployed.
+- [ ] Commit the populated `testnet-validation.md` and any new env defaults.
+
+---
+
+## Phase 23: EVM Controller Removal & Repo Final Cleanup
+
+Phase 18 wrapped the EVM-only controllers in `safeRequire` so the server boots,
+but the controllers still exist and add ~1,400 lines of unreachable code. Phase
+23 deletes them, removes the `safeRequire` workaround, and tightens
+`frontend/tsconfig.json`.
+
+- [ ] Audit each `backend/controllers/*.js` and `backend/services/*.js` for actual Casper-tooling usage (remove EVM paths that are dead).
+- [ ] Delete the controllers that are purely legacy EVM: `walletController.js`, `allowanceController.js`, `swapController.js`, `bridgeController.js`, `portfolioController.js`, `ensController.js`, `gasController.js`, `batchRoutes.js` (batchController.js), `chainController.js`, `scheduleController.js`, `reminderController.js` (if no Casper use), and `nlExecutorController.js`.
+- [ ] Delete `backend/services/agentCoordinator.js` and `backend/services/agentRuntime.js` (EVM-only, unused after Phase 6).
+- [ ] Remove the `safeRequire` wrapper from `backend/app.js` once all EVM-only routes are gone; restore eager `require` statements.
+- [ ] Remove `ethers` references from any surviving `backend/services/*.js` (none should remain after the deletions above; verify via grep).
+- [ ] Restore `frontend/tsconfig.json` exclusions list to empty (was needed for legacy EVM files; they should already be migrated per Phase 6 — verify and remove if no longer needed).
+- [ ] Run `npm run test:unit`, `next build`, `cargo test` to confirm no regressions after the deletions.
+- [ ] Update `README.md` and `docs/ARCHITECTURE.md` to reflect the final controller list.
