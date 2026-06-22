@@ -2,26 +2,35 @@ const { ethers } = require('ethers');
 const axios = require('axios');
 const Groq = require('groq-sdk');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { 
-  ETHERSCAN_V2_BASE_URL, 
-  ARBITRUM_SEPOLIA_CHAIN_ID, 
+const {
+  ETHERSCAN_V2_BASE_URL,
+  ARBITRUM_SEPOLIA_CHAIN_ID,
   ETHERSCAN_API_KEY,
   GROQ_API_KEY,
   GEMINI_API_KEY,
-  OPENAI_API_KEY 
+  OPENAI_API_KEY
 } = require('../config/constants');
 const { getProvider, getWallet, getContract } = require('../utils/blockchain');
-const { 
-  successResponse, 
-  errorResponse, 
+const {
+  successResponse,
+  errorResponse,
   validateRequiredFields,
   getTxExplorerUrl,
-  logTransaction 
+  logTransaction
 } = require('../utils/helpers');
-const {
-  deriveWalletAddressFromPkpPublicKey,
-  signAndBroadcastTransactionWithPkp
-} = require('../services/litPkpService');
+
+// PKP (Lit Protocol) was removed in the Casper migration (Phase 13). The PKP
+// path is preserved here as a clear 410 Gone so legacy callers can see why
+// their request was rejected. Casper deploys are signed via CSPR.click
+// (frontend/lib/wallet.ts) or backendSigner.js (CASPER_SECRET_KEY).
+function pkpPathRemovedResponse(res, context) {
+  return res.status(410).json(
+    errorResponse(
+      'Lit PKP signing was removed in the Casper migration',
+      `${context}: Casper deploys are signed via CSPR.click or backendSigner.js, not via Lit Protocol.`
+    )
+  );
+}
 
 // Initialize AI clients
 let groqClient = null;
@@ -407,6 +416,9 @@ async function executeCommand(req, res) {
     // Step 4: Execute the transaction
     const provider = getProvider();
     const isPkpWallet = walletType === 'pkp' && !!pkpPublicKey;
+    if (isPkpWallet) {
+      return pkpPathRemovedResponse(res, 'PKP wallet signing was removed in the Casper migration');
+    }
     const hasTraditionalSigner = !!privateKey;
     let wallet = null;
     let signerAddress = walletAddress || null;
@@ -414,15 +426,13 @@ async function executeCommand(req, res) {
     if (hasTraditionalSigner) {
       wallet = getWallet(privateKey, provider);
       signerAddress = signerAddress || wallet.address;
-    } else if (isPkpWallet) {
-      signerAddress = signerAddress || deriveWalletAddressFromPkpPublicKey(pkpPublicKey);
     }
 
     if (!executionPlan.isReadOnly && !wallet && !isPkpWallet) {
       return res.status(400).json(
         errorResponse(
           'Missing signer context',
-          'Provide a traditional privateKey or a PKP wallet context (walletType="pkp" with pkpPublicKey).'
+          'Provide a traditional privateKey to sign the Arbitrum Sepolia transaction.'
         )
       );
     }
@@ -550,33 +560,13 @@ async function executeCommand(req, res) {
         );
       }
 
-      populatedTransaction = populatedTransaction || await contractMethod.populateTransaction(...formattedParams);
-      const pkpTransaction = await signAndBroadcastTransactionWithPkp({
-        pkpPublicKey,
-        transaction: {
-          to: populatedTransaction.to || contractAddress,
-          data: populatedTransaction.data || null,
-          value: populatedTransaction.value ? populatedTransaction.value.toString() : '0',
-          gas: gasLimit ? gasLimit.toString() : null,
-          maxFeePerGas: feeData?.maxFeePerGas ? feeData.maxFeePerGas.toString() : feeData?.gasPrice ? feeData.gasPrice.toString() : null,
-          maxPriorityFeePerGas: feeData?.maxPriorityFeePerGas ? feeData.maxPriorityFeePerGas.toString() : null,
-          nonce: await provider.getTransactionCount(signerAddress, 'pending')
-        }
-      });
-
-      return res.json(
-        successResponse({
-          executionPlan,
-          transaction: {
-            hash: pkpTransaction.hash,
-            blockNumber: pkpTransaction.blockNumber,
-            gasUsed: pkpTransaction.gasUsed,
-            status: pkpTransaction.status,
-            explorerUrl: pkpTransaction.explorerUrl,
-            walletType: 'pkp',
-            pkpTokenId: pkpTokenId || null
-          }
-        }, 'Transaction executed successfully')
+      // No traditional wallet was constructed and the PKP path was rejected
+      // above. The caller did not supply a valid signer.
+      return res.status(400).json(
+        errorResponse(
+          'Unable to sign transaction',
+          'Provide a privateKey on the request to sign the Arbitrum Sepolia transaction.'
+        )
       );
     }
 

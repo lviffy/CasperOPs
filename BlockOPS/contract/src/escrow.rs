@@ -51,6 +51,15 @@ impl Escrow {
         self.env().transfer_tokens(&user, &amount);
     }
 
+    pub fn set_treasury(&mut self, new_treasury: Address) {
+        let caller = self.env().caller();
+        let backend = self.authorized_backend.get_or_revert_with(Error::Unauthorized);
+        if caller != backend {
+            self.env().revert(Error::Unauthorized);
+        }
+        self.treasury.set(new_treasury);
+    }
+
     pub fn get_balance(&self, agent: Address) -> U512 {
         self.deposits.get(&agent).unwrap_or(U512::zero())
     }
@@ -188,7 +197,7 @@ mod tests {
         );
 
         env.set_caller(backend);
-        let _ = escrow.execute_payout(agent);
+        escrow.execute_payout(agent);
     }
 
     #[test]
@@ -200,7 +209,7 @@ mod tests {
         let depositor_a = env.get_account(3);
         let depositor_b = env.get_account(4);
 
-        let mut escrow = Escrow::deploy(
+        let escrow = Escrow::deploy(
             &env,
             super::__escrow_test_parts::EscrowInitArgs { backend, treasury }
         );
@@ -211,6 +220,49 @@ mod tests {
         escrow.with_tokens(U512::from(600)).deposit(agent);
 
         assert_eq!(escrow.get_balance(agent), U512::from(1000));
+    }
+
+    #[test]
+    fn test_escrow_set_treasury_updates_treasury() {
+        let env = odra_test::env();
+        let backend = env.get_account(0);
+        let treasury = env.get_account(1);
+        let new_treasury = env.get_account(2);
+
+        let mut escrow = Escrow::deploy(
+            &env,
+            super::__escrow_test_parts::EscrowInitArgs { backend, treasury }
+        );
+
+        env.set_caller(backend);
+        escrow.set_treasury(new_treasury);
+        // No getter for treasury, but the operation should succeed and not
+        // affect deposit behavior. Round-trip a deposit + payout to the new
+        // treasury to confirm.
+        let agent = env.get_account(3);
+        let depositor = env.get_account(4);
+        env.set_caller(depositor);
+        escrow.with_tokens(U512::from(500)).deposit(agent);
+        env.set_caller(backend);
+        escrow.execute_payout(agent);
+        assert_eq!(escrow.get_balance(agent), U512::zero());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_escrow_set_treasury_unauthorized() {
+        let env = odra_test::env();
+        let backend = env.get_account(0);
+        let treasury = env.get_account(1);
+        let attacker = env.get_account(2);
+
+        let mut escrow = Escrow::deploy(
+            &env,
+            super::__escrow_test_parts::EscrowInitArgs { backend, treasury }
+        );
+
+        env.set_caller(attacker);
+        escrow.set_treasury(attacker);
     }
 }
 

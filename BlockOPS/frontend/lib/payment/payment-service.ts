@@ -87,21 +87,28 @@ async function verifyCasperDeploy(deployHash: string, expectedRecipient: string,
 }
 
 export class PaymentService {
-  private supabase;
+  private _supabase: ReturnType<typeof createClient> | null = null
   private jwtSecret: string;
   private paymentRecipient: string;
 
   constructor() {
-    this.supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
     this.jwtSecret = process.env.JWT_SECRET || 'change-me-in-production';
     this.paymentRecipient =
       process.env.PAYMENT_RECIPIENT_PUBLIC_KEY ||
       process.env.NEXT_PUBLIC_PAYMENT_RECIPIENT_PUBLIC_KEY ||
       '';
+  }
+
+  private get supabase() {
+    if (!this._supabase) {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) {
+        throw new Error('Missing Supabase environment variables');
+      }
+      this._supabase = createClient(url, key);
+    }
+    return this._supabase;
   }
 
   /**

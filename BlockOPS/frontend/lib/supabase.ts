@@ -1,19 +1,32 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase environment variables:', {
-    hasUrl: !!supabaseUrl,
-    hasKey: !!supabaseKey
-  })
-  throw new Error('Missing Supabase environment variables')
+function readEnv() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  return { url, key }
 }
 
-console.log('Supabase initialized with URL:', supabaseUrl)
+let _client: SupabaseClient | null = null
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+function ensureClient(): SupabaseClient {
+  if (_client) return _client
+  const { url, key } = readEnv()
+  if (!url || !key) {
+    throw new Error(
+      'Missing Supabase environment variables (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY)',
+    )
+  }
+  _client = createClient(url, key)
+  return _client
+}
+
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = ensureClient()
+    const value = (client as unknown as Record<string | symbol, unknown>)[prop]
+    return typeof value === 'function' ? (value as (...a: unknown[]) => unknown).bind(client) : value
+  },
+})
 
 /**
  * The only supported wallet type after the Casper migration.

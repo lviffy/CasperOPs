@@ -16,7 +16,6 @@
  *   CASPER_PAYMENT_RECIPIENT_PUBLIC_KEY  defaults to all-zeros test key
  */
 
-const { DeployUtil } = require('casper-js-sdk');
 const { getToolPrice, motesToCspr } = require('../utils/chains');
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -151,24 +150,20 @@ function x402Verify() {
         });
       }
 
-      // Optional: parse the deploy and confirm recipient + amount match.
-      // We keep this opt-in (best-effort) because DeployUtil.deployFromJson
-      // requires the full session module.
+      // Best-effort amount check: extract {recipient, amount} from the raw
+      // deploy shape returned by the RPC. We do NOT round-trip through
+      // DeployUtil.deployFromJson because it requires a fully-formed deploy
+      // (header, approvals, payment, body_hash, valid TTL unit, ...) and
+      // would throw on the lightweight shape returned by info_get_deploy.
       try {
-        const deploy = DeployUtil.deployFromJson(result.deploy);
-        const session = deploy?.session?.getStoredContractByHashFields?.() || null;
-        if (session) {
-          const args = session.args || [];
-          const payment = extractPaymentFromDeploy({ deploy: { session: { StoredContractByHash: { args } } } });
-          if (payment?.amount && BigInt(payment.amount) < BigInt(price.priceMotes)) {
-            return res.status(402).json({
-              ...challengeFor(toolId),
-              error: `Payment amount ${payment.amount} below required ${price.priceMotes} motes.`,
-            });
-          }
+        const payment = extractPaymentFromDeploy({ deploy: result.deploy });
+        if (payment?.amount && BigInt(payment.amount) < BigInt(price.priceMotes)) {
+          return res.status(402).json({
+            ...challengeFor(toolId),
+            error: `Payment amount ${payment.amount} below required ${price.priceMotes} motes.`,
+          });
         }
       } catch (parseErr) {
-        // Best-effort: log but don't reject.
         console.warn('[x402] deploy parse failed (best-effort):', parseErr?.message);
       }
 

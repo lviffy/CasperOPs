@@ -1,9 +1,41 @@
 const supabase = require('../config/supabase');
-const {
-  archiveJsonToFilecoin,
-  parsePieceCidFromUri,
-  retrieveJsonFromFilecoin
-} = require('../services/filecoinStorageService');
+
+// Filecoin archival was removed in the Casper migration (Phase 13). Registry
+// payloads are now persisted in the `metadata` JSONB column on agent_registry
+// and in `tool_executions` (see supabase/migrations/20260622_casper_schema.sql).
+// The functions below preserve the previous call sites so the controller keeps
+// working — they just return a no-op shape.
+function archiveJsonToFilecoin() {
+  return Promise.resolve({
+    status: 'disabled',
+    cid: null,
+    pieceCid: null,
+    uri: null,
+    provider: null,
+    prepareTxHash: null,
+    error: 'filecoin archival removed in Casper migration; payload is stored in agent_registry.metadata'
+  });
+}
+
+function retrieveJsonFromFilecoin() {
+  return Promise.resolve({
+    status: 'disabled',
+    data: null,
+    parsed: null,
+    payload: null,
+    metadata: null,
+    rawText: null,
+    pieceCid: null,
+    uri: null,
+    contentType: null,
+    parseError: null,
+    error: 'filecoin retrieval removed in Casper migration; payload is stored in tool_executions.result'
+  });
+}
+
+function parsePieceCidFromUri(_uri) {
+  return null;
+}
 
 function toArray(value, fallback = []) {
   if (Array.isArray(value)) {
@@ -155,7 +187,7 @@ async function upsertAgentRegistry(req, res) {
     const normalizedCapabilities = toArray(capabilities, agent.enabled_tools || []);
     const normalizedChains = toArray(
       supportedChains || chains,
-      ['arbitrum-sepolia', 'filecoin-mainnet']
+      ['casper-testnet']
     );
 
     const metadataObject =
@@ -476,54 +508,33 @@ async function getAgentAuditLogContent(req, res) {
       return res.status(404).json({ success: false, error: 'Audit log entry not found' });
     }
 
-    const pieceCid = logRow.filecoin_cid || parsePieceCidFromUri(logRow.filecoin_uri) || null;
-    if (!pieceCid) {
-      return res.status(409).json({
-        success: false,
-        error: 'No Filecoin piece CID available for this log entry',
-        log: {
-          id: logRow.id,
-          storageStatus: logRow.storage_status,
-          filecoinUri: logRow.filecoin_uri
-        }
-      });
-    }
-
-    const retrieval = await retrieveJsonFromFilecoin({
-      pieceCid,
-      uri: logRow.filecoin_uri || null
-    });
-
-    if (retrieval.status !== 'stored') {
-      return res.status(502).json({
-        success: false,
-        error: retrieval.error || 'Failed to retrieve Filecoin payload',
-        filecoin: {
-          status: retrieval.status,
-          provider: retrieval.provider,
-          pieceCid: retrieval.pieceCid || pieceCid,
-          uri: retrieval.uri || logRow.filecoin_uri || null
-        }
-      });
-    }
+    // Filecoin archival was removed in Phase 13; payload is read straight from
+    // the `raw_result` JSONB column populated when the tool executed.
+    const envelope = logRow.raw_result && typeof logRow.raw_result === 'object'
+      ? logRow.raw_result
+      : {
+          params: logRow.params_sanitized || {},
+          result: logRow.result_summary || {},
+          success: logRow.success,
+          tx_hash: logRow.tx_hash,
+          amount: logRow.amount
+        };
 
     return res.json({
       success: true,
       logId: logRow.id,
       filecoin: {
-        status: retrieval.status,
-        provider: retrieval.provider,
-        pieceCid: retrieval.pieceCid || pieceCid,
-        uri: retrieval.uri || logRow.filecoin_uri || null,
-        contentType: retrieval.contentType,
-        parseError: retrieval.parseError || null
+        status: 'disabled',
+        provider: null,
+        pieceCid: null,
+        uri: null,
+        contentType: 'application/json',
+        parseError: null
       },
-      // This is the exact JSON envelope uploaded through archiveJsonToFilecoin.
-      envelope: retrieval.parsed,
-      // Convenience field for quickly seeing the application payload body.
-      payload: retrieval.payload,
-      metadata: retrieval.metadata,
-      rawText: retrieval.rawText
+      envelope,
+      payload: envelope,
+      metadata: envelope.metadata || {},
+      rawText: null
     });
   } catch (error) {
     console.error('[AgentRegistry] Audit content retrieval error:', error);

@@ -1,4 +1,19 @@
+use casper_event_standard::Event;
 use odra::prelude::*;
+
+#[derive(Event, Debug, PartialEq, Eq)]
+pub struct Attest {
+    pub agent: Address,
+    pub verified: bool,
+    pub uri: String,
+    pub attester: Address,
+}
+
+#[derive(Event, Debug, PartialEq, Eq)]
+pub struct RevokeAttestation {
+    pub agent: Address,
+    pub attester: Address,
+}
 
 #[odra::module]
 pub struct Compliance {
@@ -19,8 +34,21 @@ impl Compliance {
         if caller != authority {
             self.env().revert(Error::Unauthorized);
         }
+        let previously_verified = self.verified_status.get(&agent).unwrap_or(false);
         self.verified_status.set(&agent, verified);
-        self.attestation_uris.set(&agent, uri);
+        self.attestation_uris.set(&agent, uri.clone());
+        self.env().emit_event(Attest {
+            agent,
+            verified,
+            uri,
+            attester: caller,
+        });
+        if previously_verified && !verified {
+            self.env().emit_event(RevokeAttestation {
+                agent,
+                attester: caller,
+            });
+        }
     }
 
     pub fn is_compliant(&self, agent: Address) -> bool {
@@ -39,7 +67,8 @@ pub enum Error {
 
 #[cfg(test)]
 mod tests {
-    use super::Compliance;
+    use super::{Attest, Compliance, RevokeAttestation};
+    use casper_event_standard::EventInstance;
     use odra::host::Deployer;
 
     #[test]
@@ -51,8 +80,8 @@ mod tests {
             &env,
             super::__compliance_test_parts::ComplianceInitArgs { authority }
         );
-        
-        assert_eq!(compliance.is_compliant(agent), false);
+
+        assert!(!compliance.is_compliant(agent));
         assert_eq!(compliance.get_attestation_uri(agent), String::new());
     }
 
@@ -61,16 +90,16 @@ mod tests {
         let env = odra_test::env();
         let authority = env.get_account(0);
         let agent = env.get_account(1);
-        
+
         let mut compliance = Compliance::deploy(
             &env,
             super::__compliance_test_parts::ComplianceInitArgs { authority }
         );
-        
+
         env.set_caller(authority);
         compliance.attest_agent(agent, true, "ipfs://some_hash".to_string());
 
-        assert_eq!(compliance.is_compliant(agent), true);
+        assert!(compliance.is_compliant(agent));
         assert_eq!(compliance.get_attestation_uri(agent), "ipfs://some_hash".to_string());
     }
 
@@ -81,12 +110,12 @@ mod tests {
         let authority = env.get_account(0);
         let non_authority = env.get_account(2);
         let agent = env.get_account(1);
-        
+
         let mut compliance = Compliance::deploy(
             &env,
             super::__compliance_test_parts::ComplianceInitArgs { authority }
         );
-        
+
         env.set_caller(non_authority);
         compliance.attest_agent(agent, true, "ipfs://unauthorized".to_string());
     }
@@ -104,10 +133,10 @@ mod tests {
 
         env.set_caller(authority);
         compliance.attest_agent(agent, true, "ipfs://approve".to_string());
-        assert_eq!(compliance.is_compliant(agent), true);
+        assert!(compliance.is_compliant(agent));
 
         compliance.attest_agent(agent, false, "ipfs://revoke".to_string());
-        assert_eq!(compliance.is_compliant(agent), false);
+        assert!(!compliance.is_compliant(agent));
         assert_eq!(
             compliance.get_attestation_uri(agent),
             "ipfs://revoke".to_string()
@@ -125,8 +154,100 @@ mod tests {
             super::__compliance_test_parts::ComplianceInitArgs { authority }
         );
 
-        assert_eq!(compliance.is_compliant(agent), false);
+        assert!(!compliance.is_compliant(agent));
         assert_eq!(compliance.get_attestation_uri(agent), String::new());
     }
-}
 
+    #[test]
+    fn test_compliance_attest_emits_event() {
+        let env = odra_test::env();
+        let authority = env.get_account(0);
+        let agent = env.get_account(1);
+
+        let mut compliance = Compliance::deploy(
+            &env,
+            super::__compliance_test_parts::ComplianceInitArgs { authority }
+        );
+
+        env.set_caller(authority);
+        compliance.attest_agent(agent, true, "ipfs://approved".to_string());
+
+        assert!(
+            env.emitted(&compliance, Attest::name().as_str()),
+            "expected an Attest event to be emitted"
+        );
+    }
+
+    #[test]
+    fn test_compliance_revoke_emits_revoke_event() {
+        let env = odra_test::env();
+        let authority = env.get_account(0);
+        let agent = env.get_account(1);
+
+        let mut compliance = Compliance::deploy(
+            &env,
+            super::__compliance_test_parts::ComplianceInitArgs { authority }
+        );
+
+        env.set_caller(authority);
+        compliance.attest_agent(agent, true, "ipfs://approved".to_string());
+        compliance.attest_agent(agent, false, "ipfs://revoked".to_string());
+
+        assert!(
+            env.emitted(&compliance, RevokeAttestation::name().as_str()),
+            "expected RevokeAttestation to be emitted after verified: true -> false"
+        );
+        // The second attest_agent emits both Attest + RevokeAttestation,
+        // so we should see at least 3 events total: initial Attest,
+        // second Attest, and the RevokeAttestation.
+        let total_events = env.events_count(&compliance);
+        assert!(
+            total_events >= 3,
+            "expected at least 3 events (2 Attest + 1 Revoke), got {}",
+            total_events
+        );
+    }
+
+    #[test]
+    fn test_compliance_re_attest_does_not_emit_revoke_event() {
+        let env = odra_test::env();
+        let authority = env.get_account(0);
+        let agent = env.get_account(1);
+
+        let mut compliance = Compliance::deploy(
+            &env,
+            super::__compliance_test_parts::ComplianceInitArgs { authority }
+        );
+
+        env.set_caller(authority);
+        // verified stays true -> no revoke event expected.
+        compliance.attest_agent(agent, true, "ipfs://first".to_string());
+        compliance.attest_agent(agent, true, "ipfs://second".to_string());
+
+        assert!(
+            !env.emitted(&compliance, RevokeAttestation::name().as_str()),
+            "no revoke event should be emitted when verified stays true"
+        );
+    }
+
+    #[test]
+    fn test_compliance_initial_attest_does_not_emit_revoke_event() {
+        let env = odra_test::env();
+        let authority = env.get_account(0);
+        let agent = env.get_account(1);
+
+        let mut compliance = Compliance::deploy(
+            &env,
+            super::__compliance_test_parts::ComplianceInitArgs { authority }
+        );
+
+        env.set_caller(authority);
+        // First attest from default-unverified -> only Attest, no Revoke.
+        compliance.attest_agent(agent, true, "ipfs://first".to_string());
+
+        assert!(
+            !env.emitted(&compliance, RevokeAttestation::name().as_str()),
+            "no revoke event should be emitted on initial attestation"
+        );
+    }
+}

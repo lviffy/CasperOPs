@@ -3,35 +3,86 @@ const { PORT, NETWORK_NAME, FACTORY_ADDRESS, NFT_FACTORY_ADDRESS } = require('./
 const apiKeyAuth = require('./middleware/apiKeyAuth');
 const { globalLimiter, chatLimiter, priceLimiter, txLimiter } = require('./middleware/rateLimiter');
 
-// Import routes
-const tokenRoutes = require('./routes/tokenRoutes');
-const nftRoutes = require('./routes/nftRoutes');
-const transferRoutes = require('./routes/transferRoutes');
-const healthRoutes = require('./routes/healthRoutes');
-const priceRoutes = require('./routes/priceRoutes');
-const nlExecutorRoutes = require('./routes/nlExecutorRoutes');
-const conversationRoutes = require('./routes/conversationRoutes');
-const walletRoutes = require('./routes/walletRoutes');
-const allowanceRoutes = require('./routes/allowanceRoutes');
-const contractChatRoutes = require('./routes/contractChatRoutes');
-const emailRoutes = require('./routes/emailRoutes');
-const webhookRoutes   = require('./routes/webhookRoutes');
-const batchRoutes     = require('./routes/batchRoutes');
-const chainRoutes     = require('./routes/chainRoutes');
-const portfolioRoutes = require('./routes/portfolioRoutes');
-const ensRoutes       = require('./routes/ensRoutes');
-const gasRoutes       = require('./routes/gasRoutes');
-const swapRoutes      = require('./routes/swapRoutes');
-const bridgeRoutes    = require('./routes/bridgeRoutes');
-const scheduleRoutes  = require('./routes/scheduleRoutes');
-const { reloadJobsFromDB } = require('./controllers/scheduleController');
-const reminderRoutes  = require('./routes/reminderRoutes');
-const { reloadReminderJobsFromDB } = require('./controllers/reminderController');
-const telegramRoutes  = require('./routes/telegramRoutes');
-const agentRoutes     = require('./routes/agentRoutes');
-const { prepareTransfer } = require('./controllers/transferController');
-const { getTransactionStatus, getWalletHistory } = require('./controllers/walletController');
-const { startLongPolling, stopLongPolling } = require('./services/telegramService');
+// BlockOps migrated off EVM (Arbitrum / Flow / Filecoin) onto Casper in Phase 2.
+// The legacy controllers still reference `ethers` and other EVM-only deps which
+// were removed in Phase 18. Loading any of them should fail gracefully so the
+// server still starts — the affected routes just return a clear "deprecated"
+// response. Real signing happens in CSPR.click (frontend) and backendSigner.js.
+const { Router } = express;
+function deprecatedRouter(label) {
+  const router = Router();
+  const handler = (req, res) => res.status(410).json({
+    success: false,
+    error: `Route ${req.method} ${req.originalUrl} is no longer available`,
+    context: `${label} was removed in the Casper migration (Phase 18). Use CSPR.click + the Casper tool router instead.`
+  });
+  router.use(handler);
+  return router;
+}
+function safeRequire(modulePath, label) {
+  try {
+    return require(modulePath);
+  } catch (error) {
+    console.warn(`[boot] EVM-only module ${modulePath} failed to load (${error.message}); serving deprecated fallback for ${label}`);
+    return deprecatedRouter(label);
+  }
+}
+
+// Casper-native routes (required eagerly) — but conversation/agent routes
+// transitively depend on agentRuntime/agentCoordinator (EVM-only), so wrap them.
+const tokenRoutes         = safeRequire('./routes/tokenRoutes',         'token routes');
+const nftRoutes           = safeRequire('./routes/nftRoutes',           'nft routes');
+const transferRoutes      = safeRequire('./routes/transferRoutes',      'transfer routes');
+const healthRoutes        = require('./routes/healthRoutes');
+const priceRoutes         = require('./routes/priceRoutes');
+const conversationRoutes  = safeRequire('./routes/conversationRoutes',  'conversation (Casper chat — uses EVM agent runtime internally)');
+const contractChatRoutes  = safeRequire('./routes/contractChatRoutes',  'contract chat (Casper contract AI)');
+const emailRoutes         = require('./routes/emailRoutes');
+const webhookRoutes       = require('./routes/webhookRoutes');
+const reminderRoutes      = safeRequire('./routes/reminderRoutes',      'reminders (uses telegramService internally)');
+const telegramRoutes      = safeRequire('./routes/telegramRoutes',      'telegram (long-polls Casper / Arbitrum — EVM bits missing)');
+const agentRoutes         = safeRequire('./routes/agentRoutes',         'agents (Casper agent registry + EVM controller)');
+
+// EVM-only routes — wrapped so the server can start even if ethers is missing.
+const nlExecutorRoutes    = safeRequire('./routes/nlExecutorRoutes',    'nl-executor (Arbitrum Sepolia NL executor)');
+const walletRoutes        = safeRequire('./routes/walletRoutes',        'wallet (Arbitrum EVM wallet)');
+const allowanceRoutes     = safeRequire('./routes/allowanceRoutes',     'allowance (Arbitrum ERC-20 approvals)');
+const batchRoutes         = safeRequire('./routes/batchRoutes',         'batch (Arbitrum batch calls)');
+const chainRoutes         = safeRequire('./routes/chainRoutes',         'chain (Arbitrum chain info)');
+const portfolioRoutes     = safeRequire('./routes/portfolioRoutes',     'portfolio (Arbitrum portfolio)');
+const ensRoutes           = safeRequire('./routes/ensRoutes',           'ens (Arbitrum ENS)');
+const gasRoutes           = safeRequire('./routes/gasRoutes',           'gas (Arbitrum gas oracle)');
+const swapRoutes          = safeRequire('./routes/swapRoutes',          'swap (Arbitrum DEX router)');
+const bridgeRoutes        = safeRequire('./routes/bridgeRoutes',        'bridge (Arbitrum bridge)');
+const scheduleRoutes      = safeRequire('./routes/scheduleRoutes',      'schedule (Arbitrum scheduled jobs)');
+const { reloadJobsFromDB } = safeRequire('./controllers/scheduleController', 'schedule controller');
+const { reloadReminderJobsFromDB } = safeRequire('./controllers/reminderController', 'reminder controller');
+const { prepareTransfer } = safeRequire('./controllers/transferController', 'transfer controller');
+const walletControllerModule = safeRequire('./controllers/walletController', 'wallet controller');
+const telegramServiceModule = safeRequire('./services/telegramService', 'telegram service');
+
+// safeRequire returns a fallback Router when the underlying module failed to
+// load (EVM-only deps missing). Wrap each function so we never pass undefined
+// to `app.listen` / `app.use` callbacks.
+const safeStartLongPolling = typeof telegramServiceModule.startLongPolling === 'function'
+  ? telegramServiceModule.startLongPolling
+  : () => {};
+const safeStopLongPolling = typeof telegramServiceModule.stopLongPolling === 'function'
+  ? telegramServiceModule.stopLongPolling
+  : () => {};
+const safeReloadJobsFromDB = typeof reloadJobsFromDB === 'function'
+  ? reloadJobsFromDB
+  : async () => {};
+const safeReloadReminderJobsFromDB = typeof reloadReminderJobsFromDB === 'function'
+  ? reloadReminderJobsFromDB
+  : async () => {};
+const safePrepareTransfer = typeof prepareTransfer === 'function'
+  ? prepareTransfer
+  : (req, res) => res.status(410).json({
+      success: false,
+      error: `${req.method} ${req.originalUrl} is no longer available`,
+      context: 'prepareTransfer removed in the Casper migration (Phase 18). Use CSPR.click + the Casper tool router.'
+    });
 
 // Initialize Express app
 const app = express();
@@ -80,11 +131,11 @@ app.use('/portfolio', chatLimiter, apiKeyAuth({ optional: true }), portfolioRout
 app.use('/api', chatLimiter, apiKeyAuth({ optional: true }), conversationRoutes);
 
 // Public prepare-only transfer route for wallet/Lit signing flows (no server-side signing)
-app.post('/transfer/prepare', chatLimiter, prepareTransfer);
+app.post('/transfer/prepare', chatLimiter, safePrepareTransfer);
 
 // Public read-only wallet routes for status/history in direct fallback mode
-app.get('/wallet/tx/:hash', chatLimiter, getTransactionStatus);
-app.get('/wallet/history/:address', chatLimiter, getWalletHistory);
+app.get('/wallet/tx/:hash', chatLimiter, legacyHandler(walletControllerModule, 'getTransactionStatus'));
+app.get('/wallet/history/:address', chatLimiter, legacyHandler(walletControllerModule, 'getWalletHistory'));
 
 // ── Protected routes (API key required + transaction rate limit) ─────────────
 const authGuard = [txLimiter, apiKeyAuth()];
@@ -111,13 +162,31 @@ app.use('/reminders',     chatLimiter, apiKeyAuth({ optional: true }), reminderR
 app.use('/telegram', telegramRoutes);
 
 // ── Legacy routes (protected) ────────────────────────────────────────────────
-app.post('/deploy-token',          ...authGuard, require('./controllers/tokenController').deployToken);
-app.post('/deploy-nft-collection', ...authGuard, require('./controllers/nftController').deployNFTCollection);
-app.post('/mint-nft',              ...authGuard, require('./controllers/nftController').mintNFT);
-app.get('/balance/:address',     require('./controllers/transferController').getBalance);
-app.get('/token-info/:tokenAddress', require('./controllers/tokenController').getTokenInfo);
-app.get('/token-balance/:tokenAddress/:ownerAddress', require('./controllers/tokenController').getTokenBalance);
-app.get('/nft-info/:collectionAddress/:tokenId', require('./controllers/nftController').getNFTInfo);
+// EVM-only controllers wrapped in safeRequire so the server still boots.
+// If the legacy module failed to load, `safeRequire` returns a Router and the
+// `.getBalance` / `.deployToken` etc. properties will be undefined — in that
+// case we mount a router that returns 410 Gone so the legacy path is still
+// covered without crashing the server.
+function legacyHandler(controller, methodName) {
+  if (controller && typeof controller[methodName] === 'function') {
+    return controller[methodName];
+  }
+  return (req, res) => res.status(410).json({
+    success: false,
+    error: `${req.method} ${req.originalUrl} is no longer available`,
+    context: 'legacy EVM-only endpoint removed in the Casper migration (Phase 18). Use CSPR.click + the Casper tool router.'
+  });
+}
+const legacyTokenController = safeRequire('./controllers/tokenController', 'legacy token controller');
+const legacyNftController   = safeRequire('./controllers/nftController',   'legacy nft controller');
+const legacyTransferController = safeRequire('./controllers/transferController', 'legacy transfer controller');
+app.post('/deploy-token',          ...authGuard, legacyHandler(legacyTokenController, 'deployToken'));
+app.post('/deploy-nft-collection', ...authGuard, legacyHandler(legacyNftController, 'deployNFTCollection'));
+app.post('/mint-nft',              ...authGuard, legacyHandler(legacyNftController, 'mintNFT'));
+app.get('/balance/:address',     legacyHandler(legacyTransferController, 'getBalance'));
+app.get('/token-info/:tokenAddress', legacyHandler(legacyTokenController, 'getTokenInfo'));
+app.get('/token-balance/:tokenAddress/:ownerAddress', legacyHandler(legacyTokenController, 'getTokenBalance'));
+app.get('/nft-info/:collectionAddress/:tokenId', legacyHandler(legacyNftController, 'getNFTInfo'));
 
 // 404 handler
 app.use((req, res) => {
@@ -142,11 +211,11 @@ app.use((error, req, res, next) => {
 // Start server
 const server = app.listen(PORT, async () => {
   // Reload scheduled jobs from DB on startup
-  await reloadJobsFromDB();
-  await reloadReminderJobsFromDB();
+  await safeReloadJobsFromDB();
+  await safeReloadReminderJobsFromDB();
 
   // Start Telegram bot (long-poll in dev, no-op if WEBHOOK_URL or no token)
-  startLongPolling();
+  safeStartLongPolling();
 
   console.log('\n' + '='.repeat(50));
   console.log('🚀 n8nrollup Backend Server');
@@ -185,7 +254,7 @@ const server = app.listen(PORT, async () => {
 // Graceful shutdown — handles both kill and Ctrl+C
 function gracefulShutdown(signal) {
   console.log(`${signal} received: shutting down…`);
-  stopLongPolling();               // Stop Telegram poller immediately
+  safeStopLongPolling();               // Stop Telegram poller immediately
   server.close(() => {
     console.log('HTTP server closed');
     process.exit(0);

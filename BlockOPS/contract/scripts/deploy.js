@@ -110,6 +110,7 @@ const CONTRACTS = [
       collection_name: 'BlockOps Sample Collection',
       collection_symbol: 'BOSC',
       total_token_supply: '1000',
+      minter: 'self',
     },
     envKey: 'CASPER_CEP78_HASH',
   },
