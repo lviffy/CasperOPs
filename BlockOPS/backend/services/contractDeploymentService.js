@@ -21,6 +21,19 @@ const WASM_DIR = path.resolve(__dirname, '../../contract/wasm');
 const CEP18_WASM = path.join(WASM_DIR, 'Cep18Token.wasm');
 const CEP78_WASM = path.join(WASM_DIR, 'Cep78Nft.wasm');
 
+// CEP-18 deploy payment (200 CSPR in motes)
+const CEP18_PAYMENT_MOTES = 200_000_000_000;
+// CEP-78 deploy payment (500 CSPR — higher because the contract stores more
+// state at init)
+const CEP78_PAYMENT_MOTES = 500_000_000_000;
+
+// CEP-78 mode flags — exported so tests can assert stability across edits.
+const CEP78_OWNERSHIP_MODE_TRANSFERABLE = 2;
+const CEP78_NFT_KIND_DIGITAL = 1;
+const CEP78_METADATA_KIND_CEP78 = 0;
+const CEP78_IDENTIFIER_MODE_ORDINAL = 0;
+const CEP78_METADATA_IMMUTABLE = 0;
+
 function loadWasm(wasmPath) {
   if (!fs.existsSync(wasmPath)) {
     throw new Error(
@@ -29,6 +42,36 @@ function loadWasm(wasmPath) {
     );
   }
   return new Uint8Array(fs.readFileSync(wasmPath));
+}
+
+/**
+ * Pure helper: build the CEP-18 init-args map for `RuntimeArgs.fromMap`.
+ * Exported so tests can assert on the arg shape without mocking the SDK.
+ */
+function buildCep18InitArgs({ name, symbol, decimals = 9, totalSupply }) {
+  return {
+    name: CLValueBuilder.string(name),
+    symbol: CLValueBuilder.string(symbol),
+    decimals: CLValueBuilder.u8(decimals),
+    total_supply: CLValueBuilder.u256(String(totalSupply)),
+  };
+}
+
+/**
+ * Pure helper: build the CEP-78 init-args map for `RuntimeArgs.fromMap`.
+ * Exported so tests can assert on the arg shape without mocking the SDK.
+ */
+function buildCep78InitArgs({ name, symbol, totalTokenSupply = 1000 }) {
+  return {
+    collection_name: CLValueBuilder.string(name),
+    collection_symbol: CLValueBuilder.string(symbol),
+    total_token_supply: CLValueBuilder.u64(totalTokenSupply),
+    ownership_mode: CLValueBuilder.u8(CEP78_OWNERSHIP_MODE_TRANSFERABLE),
+    nft_kind: CLValueBuilder.u8(CEP78_NFT_KIND_DIGITAL),
+    nft_metadata_kind: CLValueBuilder.u8(CEP78_METADATA_KIND_CEP78),
+    identifier_mode: CLValueBuilder.u8(CEP78_IDENTIFIER_MODE_ORDINAL),
+    metadata_mutability: CLValueBuilder.u8(CEP78_METADATA_IMMUTABLE),
+  };
 }
 
 /**
@@ -42,15 +85,8 @@ async function deployCep18Token({ privateKey, name, symbol, decimals = 9, totalS
   const client = getClient();
 
   const deployParams = new DeployUtil.DeployParams(keys.publicKey, 'casper-test');
-
-  const args = RuntimeArgs.fromMap({
-    name: CLValueBuilder.string(name),
-    symbol: CLValueBuilder.string(symbol),
-    decimals: CLValueBuilder.u8(decimals),
-    total_supply: CLValueBuilder.u256(String(totalSupply)),
-  });
-
-  const payment = DeployUtil.standardPayment(200_000_000_000); // 200 CSPR
+  const args = RuntimeArgs.fromMap(buildCep18InitArgs({ name, symbol, decimals, totalSupply }));
+  const payment = DeployUtil.standardPayment(CEP18_PAYMENT_MOTES);
   const session = DeployUtil.ExecutableDeployItem.newModuleBytes(wasm, args);
   const deploy = DeployUtil.makeDeploy(deployParams, session, payment);
   const signedDeploy = DeployUtil.signDeploy(deploy, keys);
@@ -62,7 +98,7 @@ async function deployCep18Token({ privateKey, name, symbol, decimals = 9, totalS
     standard: 'CEP-18',
     transactionHash: deployHash,
     tokenInfo: { name, symbol, decimals, totalSupply },
-    explorerUrl: `https://testnet.casper.live/deploy/${deployHash}`,
+    explorerUrl: `https://testnet.cspr.live/deploy/${deployHash}`,
   };
 }
 
@@ -77,19 +113,10 @@ async function deployCep78Collection({ privateKey, name, symbol, totalTokenSuppl
   const client = getClient();
 
   const deployParams = new DeployUtil.DeployParams(keys.publicKey, 'casper-test');
-
-  const args = RuntimeArgs.fromMap({
-    collection_name: CLValueBuilder.string(name),
-    collection_symbol: CLValueBuilder.string(symbol),
-    total_token_supply: CLValueBuilder.u64(totalTokenSupply),
-    ownership_mode: CLValueBuilder.u8(2), // Transferable
-    nft_kind: CLValueBuilder.u8(1),       // Digital
-    nft_metadata_kind: CLValueBuilder.u8(0), // CEP-78 standard metadata
-    identifier_mode: CLValueBuilder.u8(0),   // Ordinal (numeric)
-    metadata_mutability: CLValueBuilder.u8(0), // Immutable
-  });
-
-  const payment = DeployUtil.standardPayment(500_000_000_000); // 500 CSPR
+  const args = RuntimeArgs.fromMap(
+    buildCep78InitArgs({ name, symbol, totalTokenSupply })
+  );
+  const payment = DeployUtil.standardPayment(CEP78_PAYMENT_MOTES);
   const session = DeployUtil.ExecutableDeployItem.newModuleBytes(wasm, args);
   const deploy = DeployUtil.makeDeploy(deployParams, session, payment);
   const signedDeploy = DeployUtil.signDeploy(deploy, keys);
@@ -101,11 +128,27 @@ async function deployCep78Collection({ privateKey, name, symbol, totalTokenSuppl
     standard: 'CEP-78',
     transactionHash: deployHash,
     collectionInfo: { name, symbol, totalTokenSupply },
-    explorerUrl: `https://testnet.casper.live/deploy/${deployHash}`,
+    explorerUrl: `https://testnet.cspr.live/deploy/${deployHash}`,
   };
 }
 
 module.exports = {
   deployCep18Token,
   deployCep78Collection,
+  // Pure helpers exposed for unit tests; the deploy helpers above delegate
+  // here so test coverage is one-to-one with production.
+  buildCep18InitArgs,
+  buildCep78InitArgs,
+  // Constants exposed for tests + downstream callers that want to know the
+  // payment amount without reading source.
+  CEP18_PAYMENT_MOTES,
+  CEP78_PAYMENT_MOTES,
+  CEP18_WASM,
+  CEP78_WASM,
+  // Re-exported so tests can introspect the mode flags.
+  CEP78_OWNERSHIP_MODE_TRANSFERABLE,
+  CEP78_NFT_KIND_DIGITAL,
+  CEP78_METADATA_KIND_CEP78,
+  CEP78_IDENTIFIER_MODE_ORDINAL,
+  CEP78_METADATA_IMMUTABLE,
 };

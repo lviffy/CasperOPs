@@ -330,3 +330,54 @@ All endpoints return JSON in the shape:
 | 502    | Upstream (Casper RPC / CSPR.cloud) failure           |
 
 See [`docs/x402.md`](./x402.md) for the full 402 challenge shape.
+
+---
+
+## Odra contract surface (v1.0)
+
+The 19 BlockOps tool endpoints above call into the six Odra contracts deployed
+via `cd contract && cargo odra build` (see `contract/scripts/deploy.js`). The
+tool router keeps these as constants in
+[`frontend/lib/contracts.ts`](../frontend/lib/contracts.ts); the entry-point
+mapping lives in `ENTRY_POINTS` inside that file.
+
+### Entry points added in Phase 17 (v1.0 hardening)
+
+The contracts shipped the following entry points after the audit TODOs in
+`docs/security-audit.md` were closed:
+
+| Contract     | New entry point          | Caller               | Effect                                             |
+| ------------ | ------------------------ | -------------------- | -------------------------------------------------- |
+| AgentFactory | `transfer_ownership`    | owner only            | Rotates the `owner` field (controls `set_paused`). |
+| AgentFactory | `set_paused`             | owner only            | Emergency pause — `register_agent` reverts while `paused = true`. |
+| Escrow       | `set_treasury`           | `authorized_backend`  | Rotates the recipient of `execute_payout` transfers. |
+| Cep18Token   | `burn`                   | holder (self)         | Decreases the caller's balance and `total_supply`. Emits `Burn`. |
+| Cep78Nft     | `burn`                   | token owner / operator | Marks `token_id` burned, decrements owner balance. Emits `Burn`. |
+| Reputation   | (no new entry point)     | —                    | Cooldown enforced in `log_success` / `log_failure` (1h per attester). |
+
+The pre-existing entry points are unchanged from Phase 6 — see
+`contract/src/*` for the authoritative ABI.
+
+### On-chain events (`casper_event_standard`)
+
+Off-chain indexers can subscribe to the events below via CSPR.cloud or by
+running their own Casper node. Every event name is prefixed with `event_` in the
+CES dictionary; the `name()` field returns the unprefixed form used here.
+
+| Contract     | Event name         | Emitted by                          | Payload (field order)                                                          |
+| ------------ | ------------------ | ----------------------------------- | ------------------------------------------------------------------------------ |
+| Compliance   | `Attest`           | `attest_agent`                      | `agent: Address, verified: bool, uri: String, attester: Address`               |
+| Compliance   | `RevokeAttestation` | `attest_agent` (when `verified` flips true → false) | `agent: Address, attester: Address`                |
+| Cep18Token   | `Burn`             | `burn`                              | `holder: Address, amount: U256`                                                  |
+| Cep78Nft     | `Burn`             | `burn`                              | `token_id: U256, owner: Address`                                                |
+
+The `event_` prefix is added by the `casper_event_standard` macro when the
+event is serialized on-chain; consumers that pull the raw deploy can read the
+prefixed form. CSPR.cloud surfaces the unprefixed name.
+
+### Local-only Odra calls (backend service, no x402)
+
+The tool router wraps the Odra entry points above in the 19 paid/free tools.
+There is no separate "contract API" — the tool router is the only supported
+entry path. Direct contract calls (bypassing the router) are not part of the
+public surface and may be removed without notice.

@@ -129,56 +129,73 @@ after the Casper migration.
 ## Smart contract architecture
 
 ```
-              ┌──────────────────────┐
-              │   AgentFactory       │
-              │                      │
-              │ register_agent(id,   │
-              │   metadata_uri,      │
-              │   owner)             │
-              └──────────┬───────────┘
-                         │
-              ┌──────────▼───────────┐         ┌──────────────────┐
-              │   Reputation         │         │   Escrow         │
-              │                      │         │                  │
-              │ attest_agent(id,     │         │ deposit(agent,   │
-              │   score, evidence)   │         │   amount)        │
-              │ log_success/failure  │         │ execute_payout(  │
-              │ revoke_attestation   │         │   agent)         │
-              │ get_reputation(id)   │         │ refund(agent)    │
-              └──────────┬───────────┘         └──────────────────┘
-                         │
-              ┌──────────▼───────────┐
-              │   Compliance         │
-              │                      │
-              │ attest_compliance(   │
-              │   agent, evidence)   │
-              │ revoke_attestation   │
-              │ is_authorized(agent) │
-              └──────────────────────┘
+               ┌──────────────────────┐
+               │   AgentFactory       │
+               │                      │
+               │ register_agent(id,   │
+               │   metadata_uri,      │
+               │   owner)             │
+               │                      │  v1.0
+               │ set_paused(bool) ◄───┤  emergency pause
+               │ transfer_ownership() │  rotate owner
+               └──────────┬───────────┘
+                          │
+               ┌──────────▼───────────┐         ┌──────────────────┐
+               │   Reputation         │         │   Escrow         │
+               │                      │         │                  │
+               │ attest_agent(id,     │         │ deposit(agent,   │
+               │   score, evidence)   │         │   amount)        │
+               │ log_success/failure  │         │ execute_payout(  │
+               │ set_rating(id, val)  │         │   agent)         │
+               │ get_rating(id)       │         │ refund(agent)    │
+               │ get_stats(id)        │         │                  │
+               │                      │  v1.0   │ set_treasury() ◄─┤  v1.0
+               │ 1h cooldown per      │         └──────────────────┘
+               │  attester (built-in) │
+               └──────────┬───────────┘
+                          │
+               ┌──────────▼───────────┐
+               │   Compliance         │
+               │                      │  v1.0 emits
+               │ attest_agent(agent,  │  ┌──────────────────┐
+               │   verified, uri)     │  │ event_Attest     │
+               │ is_compliant(agent)  │  │ event_RevokeAtt.  │
+               │ get_attestation_uri  │  └──────────────────┘
+               └──────────────────────┘
 ```
 
 ```
-              ┌──────────────────────┐
-              │   Cep18Token         │
-              │                      │
-              │ transfer(recipient,  │
-              │   amount)            │
-              │ approve(spender,     │
-              │   amount)            │
-              │ transfer_from(owner, │
-              │   recipient, amount) │
-              └──────────────────────┘
+               ┌──────────────────────┐
+               │   Cep18Token         │  v1.0 emits
+               │                      │  ┌──────────────────┐
+               │ transfer(recipient,  │  │ event_Burn       │
+               │   amount)            │  └──────────────────┘
+               │ approve(spender,     │
+               │   amount)            │
+               │ transfer_from(owner, │
+               │   recipient, amount) │
+               │ balance_of(owner)    │
+               │                      │  v1.0
+               │ burn(amount) ◄───────┤  holder burns own balance
+               └──────────────────────┘
 
-              ┌──────────────────────┐
-              │   Cep78Nft           │
-              │                      │
-              │ mint(recipient)      │
-              │ transfer(from, to,   │
-              │   token_id)          │
-              │ approve(spender,     │
-              │   token_id)          │
-              └──────────────────────┘
+               ┌──────────────────────┐
+               │   Cep78Nft           │  v1.0 emits
+               │                      │  ┌──────────────────┐
+               │ mint(recipient)      │  │ event_Burn       │
+               │ transfer(from, to,   │  └──────────────────┘
+               │   token_id)          │
+               │ approve(spender,     │
+               │   token_id)          │
+               │                      │  v1.0
+               │ burn(token_id) ◄─────┤  owner / operator burns
+               └──────────────────────┘
 ```
+
+All event names use the `casper_event_standard` format: the on-chain dictionary
+key is prefixed with `event_` (e.g. `event_Attest`); CSPR.cloud surfaces the
+unprefixed name. See [`docs/API.md` § Odra contract surface](./API.md#odra-contract-surface-v10)
+for the full event payload shapes and the v1.0 entry-point authorization rules.
 
 ## MCP integration
 
@@ -205,3 +222,44 @@ and tool-call history in Postgres (`mcp_sessions`, `mcp_tool_calls`).
   immediately.
 - **Casper-native**: no EVM leftovers, no Arbitrum RPC calls, no
   ethers/viem in the build.
+
+## x402 happy path (sequence diagram)
+
+```mermaid
+sequenceDiagram
+    participant U as User (browser)
+    participant CSPR as CSPR.click wallet
+    participant FE as Next.js + x402Fetch
+    participant BE as Express backend
+    participant RPC as Casper RPC
+    participant ODRA as Odra contracts
+
+    U->>FE: click "Run" on workflow
+    FE->>BE: POST /v1/tools/register_agent (no payment header)
+    BE->>BE: x402 middleware: paid tool, no header → 402 challenge
+    BE-->>FE: 402 { toolId, priceCspr, payToPublicKey, deployTemplate }
+
+    FE->>CSPR: signDeploy(deployTemplate, publicKey)
+    CSPR->>CSPR: sign transfer(to=treasury, amount=0.5 CSPR)
+    CSPR-->>FE: signed deploy
+    FE->>RPC: sendDeploy via CSPR.click relay
+    RPC-->>FE: deploy_hash
+
+    FE->>BE: POST /v1/tools/register_agent (with X-Casper-Payment-* headers)
+    BE->>RPC: info_get_deploy(deploy_hash) — verify executed + amount ≥ price
+    RPC-->>BE: execution result (no error_message)
+    BE->>BE: x402-verify cache hit (5 min TTL)
+
+    BE->>BE: toolRouter → directToolExecutor.register_agent
+    BE->>ODRA: register_agent deploy via backendSigner (CASPER_SECRET_KEY)
+    ODRA-->>BE: deploy_hash
+    BE->>BE: Supabase deploy_history + tool_executions
+    BE-->>FE: 200 { deploy_hash, explorer_url }
+    FE->>U: DeployStatusIndicator toast with CSPR.live link
+```
+
+When the tool returns a 5xx error or throws, the `withRefundOnFailure()`
+middleware (`backend/middleware/x402-refund.js`) broadcasts a native CSPR
+refund from the treasury (signed by `backendSigner`) back to the payer, and
+sets `x-casper-refund-deploy-hash` on the response. See [`docs/x402.md`](./x402.md)
+for the full challenge shape and refund flow.
