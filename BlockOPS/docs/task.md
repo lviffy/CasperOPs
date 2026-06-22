@@ -160,7 +160,7 @@ work.
 - [x] Run `cd frontend && npm run build` and confirm next build still passes (16 pages, including `/contract-explorer`)
 - [x] Run `cd contract && cargo clippy --all-targets --all-features -- -D warnings` and fix any new lints (7 fixed in compliance.rs + escrow.rs)
 - [x] Land the parked commits: `backend/__tests__/x402.test.js` (chai→node:test), `backend/package.json` + `package-lock.json` (chai/sinon devDeps), `frontend/lib/payment/payment-service.ts` (lazy supabase init). Also fixed `backend/middleware/x402-verify.js` real bug (`DeployUtil.deployFromJson` returns a Result type, not a Deploy — switched to direct `extractPaymentFromDeploy`). Also deferred `frontend/lib/supabase.ts` client init via a Proxy so `next build` prerender of `/contract-explorer` no longer throws on missing env vars.
-- [ ] **Commit the Phase 15 + 17.1 changes** (10 files staged, awaiting `git add` + commit)
+- [x] **Commit the Phase 15 + 17.1 changes** (10 files staged, awaiting `git add` + commit)
 
 ## Phase 16: Live Testnet Deployment & End-to-End Validation
 
@@ -186,12 +186,12 @@ mainnet-ready.
 
 - [x] AgentFactory: add `transfer_ownership(new_owner)` (owner-only) and `set_paused(bool)` (operator-only)
 - [x] Reputation: add per-attester cooldown (1 hour between attestations from the same attester)
-- [ ] Escrow: add `set_treasury(new_treasury)` (admin-only)
-- [ ] Compliance: emit on-chain events via `casper_event_standard` for `attest`, `revoke_attestation`
-- [ ] Cep18Token: add `burn(amount)` entry point (holder burns own balance)
-- [ ] Cep78Nft: add `burn(token_id)` entry point (token owner burns own token)
-- [ ] Add unit tests for each new entry point under `contract/src/*::tests::*` (2/6 done — AgentFactory, Reputation)
-- [ ] Re-run `cargo test` (should grow past 24 tests) and `cargo odra build` (still 6 WASM) — currently 31/31; re-check after remaining items
+- [x] Escrow: add `set_treasury(new_treasury)` (admin-only)
+- [x] Compliance: emit on-chain events via `casper_event_standard` for `attest`, `revoke_attestation`
+- [x] Cep18Token: add `burn(amount)` entry point (holder burns own balance)
+- [x] Cep78Nft: add `burn(token_id)` entry point (token owner burns own token)
+- [x] Add unit tests for each new entry point under `contract/src/*::tests::*`
+- [x] Re-run `cargo test` (now 64 tests, all passing) and `cargo odra build` (6 WASM)
 - [ ] Re-deploy the hardened contracts to testnet and re-run `scripts/e2e-testnet.sh`
 
 ## Phase 18: Deprecation Cleanup (Phase 13 Completion)
@@ -200,9 +200,9 @@ Phase 13 marked the EVM shims as deprecated but never deleted them. The Phase 6
 frontend migration is also fully landed (`lib/auth.ts`, `lib/lit-*`, etc. are
 already gone from `frontend/lib/`), so the shims are now safe to remove.
 
-- [ ] Delete `backend/services/litPkpService.js`
-- [ ] Delete `backend/services/filecoinStorageService.js`
-- [ ] Grep the repo for any remaining `@lit-protocol/*`, `@privy-io/*`, `ethers`, `viem` references and delete or replace them
-- [ ] Verify `npm run test:unit`, `next build`, and `cargo test` still pass after the deletions
-- [ ] Update `docs/security-audit.md` "Recommended v1.0 additions" section to reflect which items shipped in Phase 17
-- [ ] Update `README.md` repo layout / stack section to drop the deprecated services
+- [x] Delete `backend/services/litPkpService.js`
+- [x] Delete `backend/services/filecoinStorageService.js`
+- [x] Grep the repo for any remaining `@lit-protocol/*`, `@privy-io/*`, `ethers`, `viem` references and replace them with deprecated-routes (server boots via `safeRequire` wrapper in `app.js`; affected routes return 410 Gone)
+- [x] Verify `npm run test:unit`, `next build`, and `cargo test` still pass after the deletions
+- [x] Update `docs/security-audit.md` "Recommended v1.0 additions" section to reflect which items shipped in Phase 17
+- [x] Update `README.md` repo layout / stack section to drop the deprecated services
