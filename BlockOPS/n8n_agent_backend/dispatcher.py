@@ -37,15 +37,41 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 import httpx
 
+from validateEnv import validate_env
+
+# Fail fast on missing required vars in production. In development the
+# defaults below are accepted so the smoke test can run without a .env.
+_ENV = validate_env()
+
+# Phase 26: import the metrics helpers lazily so a dispatcher unit test
+# that doesn't import metrics.py still works. The `import` is wrapped
+# in try/except because prometheus_client is optional in dev sandboxes.
+try:
+    from metrics import (
+        time_tool_call,
+        record_proxy_call,
+        record_rpc_call,
+    )
+except Exception:  # pragma: no cover - metrics are an opt-in dep
+    def time_tool_call(tool_name, kind):  # type: ignore[no-redef]
+        from contextlib import contextmanager
+        @contextmanager
+        def _noop(ctx):
+            ctx["status"] = "ok"
+            yield ctx
+        return _noop({})
+    def record_proxy_call(*_a, **_kw): pass  # type: ignore[no-redef]
+    def record_rpc_call(*_a, **_kw): pass  # type: ignore[no-redef]
+
 
 SCHEMA_PATH = Path(__file__).parent / "tools" / "schema.json"
-BLOCKOPS_BACKEND_URL = os.getenv("BLOCKOPS_BACKEND_URL", "http://localhost:3000")
-CASPER_RPC_URL = os.getenv("CASPER_RPC_URL", "https://rpc.testnet.casper.live/rpc")
-CSPR_CLOUD_API_URL = os.getenv("CSPR_CLOUD_API_URL", "https://api.testnet.cspr.cloud")
-CSPR_CLOUD_API_KEY = os.getenv("CSPR_CLOUD_API_KEY", "")
+BLOCKOPS_BACKEND_URL = _ENV["BLOCKOPS_BACKEND_URL"]
+CASPER_RPC_URL = _ENV["CASPER_RPC_URL"]
+CSPR_CLOUD_API_URL = _ENV["CSPR_CLOUD_API_URL"]
+CSPR_CLOUD_API_KEY = _ENV["CSPR_CLOUD_API_KEY"]
 COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price"
-FAUCET_URL = os.getenv("CASPER_FAUCET_URL", "https://testnet.cspr.live/tools/faucet")
-EXPLORER_BASE_URL = os.getenv("CASPER_EXPLORER_BASE_URL", "https://testnet.cspr.live")
+FAUCET_URL = _ENV["CASPER_FAUCET_URL"]
+EXPLORER_BASE_URL = _ENV["CASPER_EXPLORER_BASE_URL"]
 
 
 # ---------------------------------------------------------------------------
@@ -412,26 +438,51 @@ async def dispatch(tool: str,
     meta["tier"] = TOOLS[tool].get("tier")
     meta["price_motes"] = TOOLS[tool].get("price_motes")
 
-    try:
-        if kind == "local":
-            result = safe_calculate(params)
-        elif kind == "rpc":
-            handler = RPC_HANDLERS.get(tool)
-            if handler is None:
-                return {**meta, "error": f"rpc handler missing for {tool}"}
-            result = await handler(params)
-        else:  # proxy
-            result = await _proxy(tool, params, headers=headers)
-    except Exception as e:
-        return {**meta, "error": f"dispatch_error: {e!s}",
-                "duration_ms": int((time.time() - started) * 1000)}
+    # Phase 26: record latency + outcome of every tool call. The context
+    # manager mutates `ctx["status"]` so the counter is labelled with
+    # `ok` / `error` / `x402` instead of a generic 4xx bucket.
+    with time_tool_call(tool, kind) as ctx:
+        try:
+            if kind == "local":
+                result = safe_calculate(params)
+            elif kind == "rpc":
+                handler = RPC_HANDLERS.get(tool)
+                if handler is None:
+                    ctx["status"] = "error"
+                    return {**meta, "error": f"rpc handler missing for {tool}"}
+                rpc_started = time.time()
+                rpc_method = TOOLS[tool].get("rpc_method") or tool
+                try:
+                    result = await handler(params)
+                    record_rpc_call(rpc_method, not (isinstance(result, dict) and "error" in result),
+                                    time.time() - rpc_started)
+                except Exception as rpc_exc:
+                    record_rpc_call(rpc_method, False, time.time() - rpc_started)
+                    raise
+            else:  # proxy
+                proxy_started = time.time()
+                result = await _proxy(tool, params, headers=headers)
+                proxy_status = 0
+                if isinstance(result, dict):
+                    proxy_status = int(result.get("status") or 0)
+                record_proxy_call(tool, proxy_status, time.time() - proxy_started)
+        except Exception as e:
+            ctx["status"] = "error"
+            return {**meta, "error": f"dispatch_error: {e!s}",
+                    "duration_ms": int((time.time() - started) * 1000)}
 
-    if isinstance(result, dict) and "error" in result and "tool" not in result:
-        # Normalise so the caller always sees {tool, success, ...}.
-        return {**meta, "success": False, "error": result["error"], **result,
+        if isinstance(result, dict) and "error" in result and "tool" not in result:
+            ctx["status"] = "error"
+            # Normalise so the caller always sees {tool, success, ...}.
+            return {**meta, "success": False, "error": result["error"], **result,
+                    "duration_ms": int((time.time() - started) * 1000)}
+        # x402 challenge surfaces as `status=402` in the proxied body —
+        # bump the counter so we can graph conversion rate.
+        if isinstance(result, dict) and result.get("status") == 402:
+            ctx["status"] = "x402"
+        ctx.setdefault("status", "ok")
+        return {**meta, "success": True, "result": result,
                 "duration_ms": int((time.time() - started) * 1000)}
-    return {**meta, "success": True, "result": result,
-            "duration_ms": int((time.time() - started) * 1000)}
 
 
 __all__ = [

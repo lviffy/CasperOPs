@@ -16,6 +16,7 @@
  */
 
 const { getToolPrice, motesToCspr, CASPER_NETWORK_CONFIG } = require('../utils/chains');
+const { x402ChallengesTotal } = require('../utils/metrics');
 
 function x402Challenge({
   recipientPublicKey = process.env.CASPER_PAYMENT_RECIPIENT_PUBLIC_KEY ||
@@ -49,6 +50,11 @@ function x402Challenge({
       tokenContractHash,
       chainName,
     });
+
+    // Phase 26: count every challenge we emit. `tier` is always "paid"
+    // here because free tools short-circuit above — kept as a label so
+    // future tiers (e.g. "subscription") can be distinguished.
+    try { x402ChallengesTotal.inc({ tool_id: toolId, tier: price.tier }); } catch (_) {}
 
     res.set('X-Casper-Tool-Id', toolId);
     res.set('X-Casper-Price-Cspr', motesToCspr(price.priceMotes));

@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Standalone output is required for the production Dockerfile to produce
+  // a minimal server bundle (`frontend/.next/standalone/`).
+  output: 'standalone',
+
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,

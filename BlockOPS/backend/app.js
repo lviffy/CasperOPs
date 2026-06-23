@@ -10,11 +10,29 @@
  *   - The remaining routes are all Casper-native: token, nft, transfer,
  *     conversation, contract chat, email, webhooks, agents, reminders,
  *     telegram, price, health, plus the Phase 20 v1 tool surface.
+ *
+ * Phase 24:
+ *   - Validates `process.env` via Zod before requiring any module that
+ *     touches config. Fails fast on missing required vars in production.
+ *   - Adds `/health/live`, `/health/ready`, `/health/startup` to the
+ *     health router (see `routes/healthRoutes.js`).
  */
+const { validateEnv } = require('./middleware/validateEnv');
+
+// First thing on boot — fail fast on bad env. In production this prints
+// every missing / malformed variable and exits non-zero so the host
+// (Docker, Fly, Render, k8s) marks the deploy as failed.
+validateEnv();
+
+// Touch the metrics registry once at boot so default Node process / GC
+// metrics start collecting before the first request lands. The actual
+// `/metrics` endpoint is wired in `routes/metricsRoutes.js`.
+require('./utils/metrics');
+
 const express = require('express');
 const { PORT, NETWORK_NAME, FACTORY_ADDRESS, NFT_FACTORY_ADDRESS } = require('./config/constants');
 const apiKeyAuth = require('./middleware/apiKeyAuth');
-const { globalLimiter, chatLimiter, priceLimiter, txLimiter } = require('./middleware/rateLimiter');
+const { globalLimiter, chatLimiter, priceLimiter, txLimiter, perToolLimiter } = require('./middleware/rateLimiter');
 const { requestContext } = require('./middleware/requestContext');
 const { validateToolRequest } = require('./middleware/validate');
 const { x402Verify } = require('./middleware/x402-verify');
@@ -23,6 +41,7 @@ const { withRefundOnFailure } = require('./middleware/x402-refund');
 const { initSentry, captureException } = require('./utils/sentry');
 const { logger } = require('./utils/logger');
 const { executeToolsDirectly } = require('./services/directToolExecutor');
+const { toolExecutionsTotal, toolDuration } = require('./utils/metrics');
 
 // Casper-native routes + controllers (eagerly required — none of them
 // transitively import EVM-only modules after the Phase 23 cleanup).
@@ -30,6 +49,7 @@ const tokenRoutes         = require('./routes/tokenRoutes');
 const nftRoutes           = require('./routes/nftRoutes');
 const transferRoutes      = require('./routes/transferRoutes');
 const healthRoutes        = require('./routes/healthRoutes');
+const metricsRoutes       = require('./routes/metricsRoutes');
 const priceRoutes         = require('./routes/priceRoutes');
 const conversationRoutes  = require('./routes/conversationRoutes');
 const contractChatRoutes  = require('./routes/contractChatRoutes');
@@ -76,6 +96,10 @@ app.use(requestContext());
 
 // ── Public routes (rate limited, no key required) ──────────────────────────
 app.use('/health', healthRoutes);
+// /metrics is intentionally OUTSIDE the global rate limiter — a 15s scrape
+// interval × N label combinations × every IP would blow past 300 req/15min
+// the first time Prometheus started polling from a new subnet.
+app.use('/metrics', metricsRoutes);
 app.use('/price', priceLimiter, priceRoutes);
 
 // Conversation chat: rate limited; api key optional (attaches context if present)
@@ -108,6 +132,8 @@ async function v1ToolHandler(req, res) {
   const { toolId, params } = req.validated || {};
   const stepLog = (req.log || logger).child({ toolId });
   const startedAt = Date.now();
+  const endTimer = toolDuration.startTimer({ tool_id: toolId || 'unknown', kind: 'proxy' });
+  let metricStatus = 'ok';
   try {
     stepLog.info({ params: req.validated?.params }, 'v1 tool handler starting');
     const result = await executeToolsDirectly(
@@ -120,6 +146,8 @@ async function v1ToolHandler(req, res) {
     );
     const inner = result?.results?.[0] || { success: false, error: 'no result' };
     const ok = inner?.success !== false;
+    if (!ok) metricStatus = 'error';
+    if (inner?.result?.x402_required || inner?.result?.x402) metricStatus = 'x402';
     stepLog[ok ? 'info' : 'warn']({
       ok,
       durationMs: Date.now() - startedAt,
@@ -133,6 +161,7 @@ async function v1ToolHandler(req, res) {
       requestId: req.id,
     });
   } catch (err) {
+    metricStatus = 'error';
     captureException(err, { toolId, requestId: req.id });
     stepLog.error({ err: err.message, stack: err.stack, durationMs: Date.now() - startedAt }, 'v1 tool handler threw');
     return res.status(500).json({
@@ -141,11 +170,18 @@ async function v1ToolHandler(req, res) {
       error: err.message || 'internal error',
       requestId: req.id,
     });
+  } finally {
+    try {
+      toolExecutionsTotal.inc({ tool_id: toolId || 'unknown', kind: 'proxy', status: metricStatus });
+      endTimer();
+    } catch (_) { /* don't let metrics errors mask the response */ }
   }
 }
 
 app.post(
   '/v1/tools/:toolId',
+  txLimiter,
+  perToolLimiter(),
   validateToolRequest(),
   x402Challenge(),
   x402Verify(),
@@ -196,84 +232,91 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Start server
-const server = app.listen(PORT, async () => {
-  // Reload reminder jobs from DB on startup (Casper-side state).
-  if (typeof reloadReminderJobsFromDB === 'function') {
-    try {
-      await reloadReminderJobsFromDB();
-    } catch (err) {
-      console.warn(`[boot] reloadReminderJobsFromDB failed: ${err.message}`);
+// Start server. Skipped automatically when the file is required as a
+// library (e.g. by the test suite) so tests can attach their own
+// listener on a random port without conflicting.
+if (require.main === module) {
+  const server = app.listen(PORT, async () => {
+    // Reload reminder jobs from DB on startup (Casper-side state).
+    if (typeof reloadReminderJobsFromDB === 'function') {
+      try {
+        await reloadReminderJobsFromDB();
+      } catch (err) {
+        console.warn(`[boot] reloadReminderJobsFromDB failed: ${err.message}`);
+      }
     }
-  }
 
-  // Start Telegram bot (long-poll in dev, no-op if WEBHOOK_URL or no token)
-  if (typeof telegramService.startLongPolling === 'function') {
-    telegramService.startLongPolling();
-  }
+    // Start Telegram bot (long-poll in dev, no-op if WEBHOOK_URL or no token)
+    if (typeof telegramService.startLongPolling === 'function') {
+      telegramService.startLongPolling();
+    }
 
-  console.log('\n' + '='.repeat(50));
-  console.log('🚀 BlockOps Casper Backend');
-  console.log('='.repeat(50));
-  console.log(`📡 Server running on port ${PORT}`);
-  console.log(`🌐 Network: ${NETWORK_NAME}`);
-  console.log(`🏭 TokenFactory: ${FACTORY_ADDRESS}`);
-  console.log(`🎨 NFTFactory: ${NFT_FACTORY_ADDRESS}`);
-  console.log('\n📍 API Endpoints:');
-  console.log('  Health:');
-  console.log('    GET  /health');
-  console.log('\n  v1 Tool Surface (Phase 20):');
-  console.log('    GET  /v1/tools');
-  console.log('    POST /v1/tools/:toolId            (validate → x402 challenge/verify → refund → dispatch)');
-  console.log('\n  Token Operations:');
-  console.log('    POST /token/deploy');
-  console.log('    GET  /token/info/:tokenAddress');
-  console.log('    GET  /token/balance/:tokenAddress/:ownerAddress');
-  console.log('\n  NFT Operations:');
-  console.log('    POST /nft/deploy-collection');
-  console.log('    POST /nft/mint');
-  console.log('    GET  /nft/info/:collectionAddress/:tokenId');
-  console.log('\n  Transfer Operations:');
-  console.log('    POST /transfer');
-  console.log('\n  Contract Chat:');
-  console.log('    POST /contract-chat/ask             - Ask AI about a contract');
-  console.log('\n  Email:');
-  console.log('    POST /email/send                   - Send email (text/HTML/attachments)');
-  console.log('    POST /email/send-html              - Send HTML email');
-  console.log('    GET  /email/verify                 - Verify email connection');
-  console.log('\n  Webhooks:');
-  console.log('    POST /webhooks                     - Register a webhook');
-  console.log('    GET  /webhooks                     - List webhooks');
-  console.log('\n  Agents:');
-  console.log('    GET  /agents                       - List agents');
-  console.log('    POST /agents                       - Create agent');
-  console.log('    PATCH /agents/:id                  - Update agent');
-  console.log('    DELETE /agents/:id                 - Delete agent');
-  console.log('    GET  /agents/:id/manifest          - Casper manifest');
-  console.log('\n  Reminders:');
-  console.log('    GET  /reminders / POST /reminders / DELETE /reminders/:id');
-  console.log('\n  Telegram:');
-  console.log('    POST /telegram/webhook             - public Telegram webhook');
-  console.log('\n  Conversation:');
-  console.log('    POST /api/chat                     - Casper-native chat (x402 + tool router)');
-  console.log('\n' + '='.repeat(50) + '\n');
-});
-
-// Graceful shutdown — handles both kill and Ctrl+C
-function gracefulShutdown(signal) {
-  console.log(`${signal} received: shutting down…`);
-  if (typeof telegramService.stopLongPolling === 'function') {
-    telegramService.stopLongPolling();
-  }
-  server.close(() => {
-    console.log('HTTP server closed');
-    process.exit(0);
+    console.log('\n' + '='.repeat(50));
+    console.log('🚀 BlockOps Casper Backend');
+    console.log('='.repeat(50));
+    console.log(`📡 Server running on port ${PORT}`);
+    console.log(`🌐 Network: ${NETWORK_NAME}`);
+    console.log(`🏭 TokenFactory: ${FACTORY_ADDRESS}`);
+    console.log(`🎨 NFTFactory: ${NFT_FACTORY_ADDRESS}`);
+    console.log('\n📍 API Endpoints:');
+    console.log('  Health:');
+    console.log('    GET  /health');
+    console.log('    GET  /health/live');
+    console.log('    GET  /health/ready');
+    console.log('    GET  /health/startup');
+    console.log('\n  v1 Tool Surface (Phase 20):');
+    console.log('    GET  /v1/tools');
+    console.log('    POST /v1/tools/:toolId            (validate → x402 challenge/verify → refund → dispatch)');
+    console.log('\n  Token Operations:');
+    console.log('    POST /token/deploy');
+    console.log('    GET  /token/info/:tokenAddress');
+    console.log('    GET  /token/balance/:tokenAddress/:ownerAddress');
+    console.log('\n  NFT Operations:');
+    console.log('    POST /nft/deploy-collection');
+    console.log('    POST /nft/mint');
+    console.log('    GET  /nft/info/:collectionAddress/:tokenId');
+    console.log('\n  Transfer Operations:');
+    console.log('    POST /transfer');
+    console.log('\n  Contract Chat:');
+    console.log('    POST /contract-chat/ask             - Ask AI about a contract');
+    console.log('\n  Email:');
+    console.log('    POST /email/send                   - Send email (text/HTML/attachments)');
+    console.log('    POST /email/send-html              - Send HTML email');
+    console.log('    GET  /email/verify                 - Verify email connection');
+    console.log('\n  Webhooks:');
+    console.log('    POST /webhooks                     - Register a webhook');
+    console.log('    GET  /webhooks                     - List webhooks');
+    console.log('\n  Agents:');
+    console.log('    GET  /agents                       - List agents');
+    console.log('    POST /agents                       - Create agent');
+    console.log('    PATCH /agents/:id                  - Update agent');
+    console.log('    DELETE /agents/:id                 - Delete agent');
+    console.log('    GET  /agents/:id/manifest          - Casper manifest');
+    console.log('\n  Reminders:');
+    console.log('    GET  /reminders / POST /reminders / DELETE /reminders/:id');
+    console.log('\n  Telegram:');
+    console.log('    POST /telegram/webhook             - public Telegram webhook');
+    console.log('\n  Conversation:');
+    console.log('    POST /api/chat                     - Casper-native chat (x402 + tool router)');
+    console.log('\n' + '='.repeat(50) + '\n');
   });
-  // Force exit if server.close hangs beyond 5 s
-  setTimeout(() => process.exit(1), 5000);
-}
 
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+  // Graceful shutdown — handles both kill and Ctrl+C
+  function gracefulShutdown(signal) {
+    console.log(`${signal} received: shutting down…`);
+    if (typeof telegramService.stopLongPolling === 'function') {
+      telegramService.stopLongPolling();
+    }
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
+    // Force exit if server.close hangs beyond 5 s
+    setTimeout(() => process.exit(1), 5000);
+  }
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+}
 
 module.exports = app;

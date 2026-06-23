@@ -78,8 +78,15 @@ const baseConfig = {
   base: { service: 'blockops-backend' },
 }
 
+// Use a synchronous destination so the logger doesn't keep a worker
+// thread alive on shutdown. Sync writes are fine for the modest log
+// volume this service produces; if profiling later shows the sync
+// writes are a bottleneck we can swap in an async destination and a
+// flush-on-exit hook. Writing directly to fd 1 (stdout) avoids the
+// pino transport that would otherwise spawn a thread that holds the
+// process open past the test boundary.
 const logger = pinoLib
-  ? pinoLib(baseConfig)
+  ? pinoLib(baseConfig, pinoLib.destination(1))
   : makeFallbackLogger()
 
 module.exports = {

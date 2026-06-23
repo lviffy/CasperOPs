@@ -9,6 +9,11 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:chromium": "playwright test --project=chromium",
+    "test:e2e:webkit": "playwright test --project=webkit",
+    "test:e2e:install": "playwright install --with-deps chromium webkit",
     "coverage": "vitest run --coverage",
     "postinstall": "echo 'Dependencies installed'"
   },
@@ -76,11 +81,14 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
     "@eslint/eslintrc": "^3.3.1",
+    "@playwright/test": "^1.61.0",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "axe-core": "^4.10.3",
     "eslint": "^9.28.0",
     "eslint-config-next": "15.3.6",
     "happy-dom": "^15.11.0",

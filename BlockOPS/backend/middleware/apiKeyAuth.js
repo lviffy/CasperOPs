@@ -82,12 +82,17 @@ function apiKeyAuth(options = {}) {
         });
       }
 
+      // Phase 29: per-tier rate limiting uses `req.apiKey.tier`.
+      // Defaults to "free" if the key row didn't include a tier column.
+      const tier = data.tier || 'free';
+
       // Attach info to request
       req.apiKey = {
         keyId: data.id,
         agentId: data.agent_id,
         userId: data.user_id,
-        role: 'agent'
+        role: 'agent',
+        tier,
       };
 
       // Fire-and-forget: update last_used_at

@@ -10,3 +10,4 @@ mcp
 redis
 asyncpg
 sse-starlette
+prometheus-client

@@ -38,6 +38,7 @@
 
 const { DeployUtil, RuntimeArgs, CLValueBuilder, CLPublicKey } = require('casper-js-sdk');
 const { getToolPrice, motesToCspr } = require('../utils/chains');
+const { x402RefundsTotal } = require('../utils/metrics');
 const backendSigner = require('../services/backendSigner');
 
 const REFUND_DEPLOY_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -91,6 +92,7 @@ function buildRefundDeploy({ payerPublicKey, amountMotes }) {
  */
 async function broadcastRefund({ toolId, payerPublicKey, amountMotes, originalPaymentHash, reason }) {
   if (!isRefundEnabled()) {
+    try { x402RefundsTotal.inc({ tool_id: toolId || 'unknown', status: 'skipped' }); } catch (_) {}
     return { skipped: true, reason: 'REFUND_ENABLED=false' };
   }
   if (!payerPublicKey) throw new Error('broadcastRefund: payerPublicKey required');
@@ -101,6 +103,7 @@ async function broadcastRefund({ toolId, payerPublicKey, amountMotes, originalPa
   const signed = backendSigner.signDeploy(deploy);
   const deployJson = DeployUtil.deployToJson(signed);
   const result = await rpc('account_put_deploy', deployJson);
+  try { x402RefundsTotal.inc({ tool_id: toolId || 'unknown', status: 'broadcast' }); } catch (_) {}
   return {
     skipped: false,
     refundDeployHash: result?.deploy_hash,
@@ -184,12 +187,13 @@ async function refundOnFailure(req, res, challenge) {
       skipped: result.skipped,
       originalPayment: challenge.deployHash,
     });
-  } catch (err) {
-    // Best-effort: do not throw — the original tool error is what matters.
-    res.setHeader('x-casper-refund-error', String(err?.message || 'unknown'));
-    console.error('[x402-refund] broadcast failed:', err?.message);
+} catch (err) {
+      // Best-effort: do not throw — the original tool error is what matters.
+      res.setHeader('x-casper-refund-error', String(err?.message || 'unknown'));
+      console.error('[x402-refund] broadcast failed:', err?.message);
+      try { x402RefundsTotal.inc({ tool_id: challenge?.toolId || 'unknown', status: 'failed' }); } catch (_) {}
+    }
   }
-}
 
 module.exports = {
   withRefundOnFailure,

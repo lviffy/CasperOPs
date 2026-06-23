@@ -43,6 +43,13 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 import dispatcher
 from state import get_state
+from metrics import (
+    render as metrics_render,
+    content_type as metrics_content_type,
+    record_session_opened,
+    record_session_closed,
+    record_message,
+)
 
 
 @asynccontextmanager
@@ -120,6 +127,42 @@ async def health() -> Dict[str, Any]:
     return {"status": "ok", "ts": time.time()}
 
 
+# ---------------------------------------------------------------------------
+# Prometheus metrics endpoint. Mirrors the backend's `/metrics` so the
+# operator can chart the whole stack from one Grafana panel. Gated by
+# METRICS_TOKEN when set; otherwise left open (suitable for private
+# network deployments like Render internal services / Fly 6PN / VPC).
+# ---------------------------------------------------------------------------
+import os as _os
+from fastapi import Response as _Response
+from fastapi import Header as _Header
+
+# METRICS_TOKEN is read per-request inside the metrics() handler so it can
+# be rotated without restarting the uvicorn process.
+
+
+@app.get("/metrics")
+async def metrics(
+    authorization: str | None = _Header(default=None),
+    x_metrics_token: str | None = _Header(default=None, alias="X-Metrics-Token"),
+) -> _Response:
+    # Read at call time so env-var rotation works without a restart.
+    token = _os.getenv("METRICS_TOKEN", "")
+    if token:
+        ok = (
+            authorization == f"Bearer {token}"
+            or x_metrics_token == token
+        )
+        if not ok:
+            return _Response(
+                content=b'{"ok":false,"error":"unauthorized"}',
+                media_type="application/json",
+                status_code=401,
+            )
+    body = metrics_render()
+    return _Response(content=body, media_type=metrics_content_type())
+
+
 @app.get("/")
 async def root() -> Dict[str, Any]:
     return {
@@ -167,6 +210,7 @@ async def mcp_sse(request: Request) -> StreamingResponse:
     # consumer can read them in order.
     queue: asyncio.Queue = asyncio.Queue()
     await state.set_sse_queue(session_id, queue)
+    record_session_opened()
 
     async def event_generator() -> AsyncGenerator[Dict[str, Any], None]:
         try:
@@ -187,9 +231,11 @@ async def mcp_sse(request: Request) -> StreamingResponse:
                     yield {"event": "ping", "data": json.dumps({"ts": time.time()})}
                     state.touch_session(session_id)
                     continue
+                record_message("outbound")
                 yield {"event": "tool_result", "data": json.dumps(payload, default=str)}
         finally:
             await state.clear_sse_queue(session_id)
+            record_session_closed()
 
     headers = {"X-MCP-Session-Id": session_id}
     return StreamingResponse(
@@ -212,6 +258,7 @@ async def _format_sse(gen):
 @app.post("/mcp/message")
 async def mcp_message(request: Request) -> JSONResponse:
     body = await request.json()
+    record_message("inbound")
     response = await _handle_rpc(body)
 
     if response is not None:

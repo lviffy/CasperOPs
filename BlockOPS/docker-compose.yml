@@ -1,0 +1,162 @@
+# BlockOps local development stack.
+#
+# One command brings up Postgres + Redis + backend + frontend + MCP server
+# with health checks, named volumes for DB data, and a shared bridge network.
+# Wired so the frontend can reach the backend at `http://backend:3000` and
+# the backend can reach Postgres + Redis at `postgres:5432` / `redis:6379`.
+#
+# Usage:
+#   docker compose up -d --build   # build + start everything
+#   docker compose logs -f backend # tail backend logs
+#   docker compose down -v         # stop + delete volumes
+#
+# The MCP `__tests__` smoke suite can be run against the running stack:
+#   docker compose exec mcp python -m unittest __tests__.test_smoke
+
+name: blockops
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: blockops-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-blockops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blockops}
+      POSTGRES_DB: ${POSTGRES_DB:-blockops}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-blockops} -d ${POSTGRES_DB:-blockops}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: blockops-redis
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: blockops-backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      CASPER_RPC_URL: ${CASPER_RPC_URL:-https://rpc.testnet.casper.live/rpc}
+      CSPR_CLOUD_API_URL: ${CSPR_CLOUD_API_URL:-https://api.testnet.cspr.cloud}
+      CSPR_CLOUD_API_KEY: ${CSPR_CLOUD_API_KEY:-}
+      CASPER_CHAIN_NAME: ${CASPER_CHAIN_NAME:-casper-test}
+      CASPER_SECRET_KEY: ${CASPER_SECRET_KEY:-}
+      CASPER_AGENT_FACTORY_HASH: ${CASPER_AGENT_FACTORY_HASH:-}
+      CASPER_REPUTATION_HASH: ${CASPER_REPUTATION_HASH:-}
+      CASPER_ESCROW_HASH: ${CASPER_ESCROW_HASH:-}
+      CASPER_COMPLIANCE_HASH: ${CASPER_COMPLIANCE_HASH:-}
+      GROQ_API_KEY1: ${GROQ_API_KEY1:-}
+      GROQ_API_KEY2: ${GROQ_API_KEY2:-}
+      GROQ_API_KEY3: ${GROQ_API_KEY3:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      SUPABASE_URL: ${SUPABASE_URL:-http://supabase-placeholder.supabase.co}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-placeholder-service-key-for-local-dev}
+      ADMIN_SECRET: ${ADMIN_SECRET:-local-dev-admin-secret-change-me}
+      MASTER_API_KEY: ${MASTER_API_KEY:-local-dev-master-key-change-me}
+      AGENT_BACKEND_URL: http://mcp:8080
+      REDIS_URL: redis://redis:6379
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mcp:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://supabase-placeholder.supabase.co}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-placeholder-anon-key}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_CASPER_RPC_URL: ${NEXT_PUBLIC_CASPER_RPC_URL:-https://rpc.testnet.casper.live/rpc}
+        NEXT_PUBLIC_AGENT_FACTORY_HASH: ${NEXT_PUBLIC_AGENT_FACTORY_HASH:-}
+        NEXT_PUBLIC_REPUTATION_HASH: ${NEXT_PUBLIC_REPUTATION_HASH:-}
+        NEXT_PUBLIC_ESCROW_HASH: ${NEXT_PUBLIC_ESCROW_HASH:-}
+        NEXT_PUBLIC_COMPLIANCE_HASH: ${NEXT_PUBLIC_COMPLIANCE_HASH:-}
+        NEXT_PUBLIC_AGENT_BACKEND_URL: ${NEXT_PUBLIC_AGENT_BACKEND_URL:-http://localhost:8000}
+    container_name: blockops-frontend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_BACKEND_URL: http://localhost:3000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3001:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  mcp:
+    build:
+      context: ./n8n_agent_backend
+      dockerfile: Dockerfile
+    container_name: blockops-mcp
+    environment:
+      GROQ_API_KEY1: ${GROQ_API_KEY1:-}
+      GROQ_API_KEY2: ${GROQ_API_KEY2:-}
+      GROQ_API_KEY3: ${GROQ_API_KEY3:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      BACKEND_URL: http://backend:3000
+      BLOCKOPS_BACKEND_URL: http://backend:3000
+      REDIS_URL: redis://redis:6379
+      POSTGRES_DSN: postgres://${POSTGRES_USER:-blockops}:${POSTGRES_PASSWORD:-blockops}@postgres:5432/${POSTGRES_DB:-blockops}
+      CASPER_RPC_URL: ${CASPER_RPC_URL:-https://rpc.testnet.casper.live/rpc}
+      CSPR_CLOUD_API_URL: ${CSPR_CLOUD_API_URL:-https://api.testnet.cspr.cloud}
+      CSPR_CLOUD_API_KEY: ${CSPR_CLOUD_API_KEY:-}
+      CASPER_REPUTATION_HASH: ${CASPER_REPUTATION_HASH:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:

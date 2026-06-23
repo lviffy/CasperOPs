@@ -1508,3 +1508,74 @@ row below so the audit trail is complete.
 2026-06-22T20:02:00.011Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T20:02:00.011Z  
 2026-06-22T20:02:00.011Z  Run finished.
+2026-06-22T23:26:54.121Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T23:26:54.121Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
+2026-06-22T23:26:54.121Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
+2026-06-22T23:26:54.121Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2026-06-22T23:26:54.121Z  Reputation: hash-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+2026-06-22T23:26:54.121Z  Escrow:    hash-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+2026-06-22T23:26:54.121Z  Compliance: hash-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+2026-06-22T23:26:54.121Z  Cep18:     hash-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+2026-06-22T23:26:54.121Z  Cep78:     hash-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+2026-06-22T23:26:54.121Z  
+2026-06-22T23:26:54.121Z  ## 1. register_agent (AgentFactory::deploy_agent)
+2026-06-22T23:26:54.122Z    📤  register_agent(agent-1782170814121) submitted: mock-138220e9744c
+2026-06-22T23:26:54.122Z  
+2026-06-22T23:26:54.122Z  ## 2. attest_agent (Reputation)
+2026-06-22T23:26:54.122Z    📤  attest_agent(agent-1782170814121,85) submitted: mock-123a072c84bc
+2026-06-22T23:26:54.122Z  
+2026-06-22T23:26:54.122Z  ## 3. get_reputation (view)
+2026-06-22T23:26:54.122Z    📊  "mock"
+2026-06-22T23:26:54.122Z  
+2026-06-22T23:26:54.122Z  ## 4. escrow_deposit
+2026-06-22T23:26:54.122Z    📤  escrow_deposit(agent-1782170814121,1.0 CSPR) submitted: mock-ac0178b66ee5
+2026-06-22T23:26:54.122Z  
+2026-06-22T23:26:54.122Z  ## 5. escrow_payout
+2026-06-22T23:26:54.122Z    📤  escrow_payout(agent-1782170814121) submitted: mock-3a37d43f2014
+2026-06-22T23:26:54.122Z  
+2026-06-22T23:26:54.122Z  ## 6. Final state check (CSPR.cloud)
+2026-06-22T23:26:55.123Z    ⚠️  CSPR.cloud check failed: This operation was aborted
+2026-06-22T23:26:55.123Z  
+2026-06-22T23:26:55.123Z  ## 7. compliance_attest (Compliance::attest_agent, emits Attest)
+2026-06-22T23:26:55.123Z    📤  compliance_attest(verified=true) submitted: mock-be004ddf9315
+2026-06-22T23:26:55.123Z  
+2026-06-22T23:26:55.123Z  ## 8. compliance_revoke (verified: true → false, emits RevokeAttestation)
+2026-06-22T23:26:55.123Z    📤  compliance_revoke(verified=false) submitted: mock-0a30130b3036
+2026-06-22T23:26:55.123Z  
+2026-06-22T23:26:55.123Z  ## 9. set_paused(true) — AgentFactory, owner-only
+2026-06-22T23:26:55.123Z    📤  set_paused(true) submitted: mock-6fa12dd8dc7c
+2026-06-22T23:26:55.123Z  
+2026-06-22T23:26:55.123Z  ## 10. deploy_agent under pause → expect revert
+2026-06-22T23:26:55.123Z    ✅  deploy_agent(under_pause) reverted as expected: User: 0 reverted: Error::Paused
+2026-06-22T23:26:55.123Z  
+2026-06-22T23:26:55.123Z  ## 11. set_paused(false) — resume
+2026-06-22T23:26:55.123Z    📤  set_paused(false) submitted: mock-d6754be1f7f3
+2026-06-22T23:26:55.123Z  
+2026-06-22T23:26:55.123Z  ## 12. deploy_agent → expect success
+2026-06-22T23:26:55.123Z    📤  deploy_agent(resumed) submitted: mock-8321a8a79b00
+2026-06-22T23:26:55.123Z  
+2026-06-22T23:26:55.123Z  ## 13. transfer_ownership(new_owner) — owner-only
+2026-06-22T23:26:55.123Z    📤  transfer_ownership(01dddddd…) submitted: mock-353af4ef6595
+2026-06-22T23:26:55.123Z  
+2026-06-22T23:26:55.123Z  ## 14. deploy_agent under old owner → expect revert (post transfer)
+2026-06-22T23:26:55.123Z    📤  deploy_agent(post_transfer) submitted: mock-37bca309c501
+2026-06-22T23:26:55.123Z  
+2026-06-22T23:26:55.123Z  ## 14b. set_paused(true) → deploy_agent reverts (negative control)
+2026-06-22T23:26:55.123Z    📤  set_paused(true) [post-transfer] submitted: mock-4262ce80423d
+2026-06-22T23:26:55.123Z    ✅  deploy_agent(under_pause_post_transfer) reverted as expected: User: 0 reverted: Error::Paused
+2026-06-22T23:26:55.123Z    📤  set_paused(false) [resume again] submitted: mock-e9eb294979f1
+2026-06-22T23:26:55.123Z  
+2026-06-22T23:26:55.123Z  ## 15. cep18_burn(amount=100) — holder-only, emits Burn
+2026-06-22T23:26:55.123Z    📤  cep18_burn(100) submitted: mock-92272c122df6
+2026-06-22T23:26:55.123Z  
+2026-06-22T23:26:55.123Z  ## 16. cep78_mint + cep78_burn — owner/operator, emits Burn
+2026-06-22T23:26:55.124Z    📤  cep78_mint(recipient) submitted: mock-ace6b7fd3692
+2026-06-22T23:26:55.124Z    📤  cep78_burn(token_id=1) submitted: mock-22d6f7efed73
+2026-06-22T23:26:55.124Z  
+2026-06-22T23:26:55.124Z  ## 17. escrow_set_treasury — backend-only
+2026-06-22T23:26:55.124Z    📤  set_treasury(01111111…) submitted: mock-bf276eca6dcd
+2026-06-22T23:26:55.124Z  
+2026-06-22T23:26:55.124Z  ## 18. on-chain event verification (CSPR.cloud events feed)
+2026-06-22T23:26:55.124Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
+2026-06-22T23:26:55.124Z  
+2026-06-22T23:26:55.124Z  Run finished.

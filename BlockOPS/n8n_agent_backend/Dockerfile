@@ -1,24 +1,45 @@
-# Use official Python runtime as base image
-FROM python:3.11-slim
+# syntax=docker/dockerfile:1.7
+#
+# BlockOps MCP server — single-stage python:3.14-slim runtime.
+#
+# Boots `uvicorn mcp_server_sse:app` (the HTTP/SSE transport added in
+# Phase 21) on port 8080. The stdio transport (`mcp_server.py`) is also
+# available via `docker exec ... python mcp_server.py` for local agents.
 
-# Set working directory in container
+FROM python:3.14-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PORT=8080
+
 WORKDIR /app
 
-# Copy requirements file
-COPY requirements.txt .
+# System deps: tini for clean SIGTERM, curl for HEALTHCHECK.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tini curl \
+ && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python deps first so this layer caches when only source changes.
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY main.py .
-COPY app ./app
+# Application source.
+COPY dispatcher.py main.py mcp_server.py mcp_server_sse.py state.py ./
+COPY tools ./tools
+COPY app ./app 2>/dev/null || true
+COPY examples ./examples
+COPY __tests__ ./__tests__
 
-# Expose port 8000
-EXPOSE 8000
+# Non-root user. python:slim ships with a `nonroot` user.
+RUN useradd -m -u 1001 appuser 2>/dev/null || true
+USER appuser
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
+EXPOSE 8080
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -fsS http://127.0.0.1:8080/health || exit 1
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["uvicorn", "mcp_server_sse:app", "--host", "0.0.0.0", "--port", "8080"]

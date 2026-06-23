@@ -12,10 +12,12 @@ const { getChainMetadata, buildUnsupportedToolError, isToolSupportedOnChain } = 
 const { getClient, getKeysFromHex, getAccountBalance } = require('../utils/blockchain');
 const { deployCep18Token, deployCep78Collection } = require('./contractDeploymentService');
 const { logger } = require('../utils/logger');
+const { getCache } = require('./cacheService');
 
 const BASE_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
 
 const log = logger.child({ component: 'directToolExecutor' });
+const cache = getCache();
 
 /**
  * Tool-to-endpoint table for HTTP-routed tools.
@@ -282,33 +284,42 @@ async function get_reputation({ agentAddress }) {
       return { success: false, error: 'CASPER_REPUTATION_HASH env var is not set' };
     }
 
-    const client = getClient();
-    const stateRootHash = await client.getStateRootHash();
-    const agentKey = parseCasperPublicKey(agentAddress);
-    const dictKey = agentKey.toHex();
+    // Phase 27: read-through cache. Reputation changes when attest_agent
+    // / revoke_attestation land, so the 60s TTL + invalidate() in the
+    // attest handler keeps this fresh.
+    return await cache.getOrFetch(
+      'get_reputation',
+      { contractHash, agentAddress },
+      async () => {
+        const client = getClient();
+        const stateRootHash = await client.getStateRootHash();
+        const agentKey = parseCasperPublicKey(agentAddress);
+        const dictKey = agentKey.toHex();
 
-    const cleanHash = contractHash.startsWith('contract-') ? contractHash.slice('contract-'.length) : contractHash;
-    const ratingKey = `rating_${dictKey}`;
-    const successKey = `success_${dictKey}`;
-    const failureKey = `failure_${dictKey}`;
+        const cleanHash = contractHash.startsWith('contract-') ? contractHash.slice('contract-'.length) : contractHash;
+        const ratingKey = `rating_${dictKey}`;
+        const successKey = `success_${dictKey}`;
+        const failureKey = `failure_${dictKey}`;
 
-    const [rating, successCount, failureCount] = await Promise.all([
-      client.getBlockState(stateRootHash, cleanHash, [ratingKey]).catch(() => null),
-      client.getBlockState(stateRootHash, cleanHash, [successKey]).catch(() => null),
-      client.getBlockState(stateRootHash, cleanHash, [failureKey]).catch(() => null),
-    ]);
+        const [rating, successCount, failureCount] = await Promise.all([
+          client.getBlockState(stateRootHash, cleanHash, [ratingKey]).catch(() => null),
+          client.getBlockState(stateRootHash, cleanHash, [successKey]).catch(() => null),
+          client.getBlockState(stateRootHash, cleanHash, [failureKey]).catch(() => null),
+        ]);
 
-    const result = {
-      success: true,
-      contractHash,
-      agentAddress,
-      rating: rating?.storedValue?.CLValue?.parsed?.[0] ?? 0,
-      successCount: successCount?.storedValue?.CLValue?.parsed?.[0] ?? 0,
-      failureCount: failureCount?.storedValue?.CLValue?.parsed?.[0] ?? 0,
-      source: 'casper_rpc',
-    };
-    log.info({ tool: 'get_reputation', agentAddress, ...result }, 'get_reputation read ok');
-    return result;
+        const result = {
+          success: true,
+          contractHash,
+          agentAddress,
+          rating: rating?.storedValue?.CLValue?.parsed?.[0] ?? 0,
+          successCount: successCount?.storedValue?.CLValue?.parsed?.[0] ?? 0,
+          failureCount: failureCount?.storedValue?.CLValue?.parsed?.[0] ?? 0,
+          source: 'casper_rpc',
+        };
+        log.info({ tool: 'get_reputation', agentAddress, ...result }, 'get_reputation read ok');
+        return result;
+      },
+    );
   } catch (err) {
     log.error({ tool: 'get_reputation', agentAddress, err: err.message }, 'get_reputation read failed');
     return { success: false, error: err.message };

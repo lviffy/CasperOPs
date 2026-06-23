@@ -4,10 +4,16 @@
 # Usage:
 #   ./scripts/dev.sh up            # install + build contracts + run all 3 services
 #   ./scripts/dev.sh down          # kill everything started by `up`
+#   ./scripts/dev.sh docker        # `docker compose up` if Docker is available
 #   ./scripts/dev.sh install       # install all subproject deps
 #   ./scripts/dev.sh build         # cargo odra build for the contracts
 #   ./scripts/dev.sh test          # run all test suites
 #   ./scripts/dev.sh logs          # tail the combined logs
+#
+# Docker mode (added in Phase 24) brings up the full stack — backend,
+# frontend, MCP, Postgres, Redis — in named containers. It is the
+# recommended path for new contributors since it removes the "does
+# Python 3.14 + tiktoken + casper-js-sdk work on my machine" tax.
 
 set -euo pipefail
 
@@ -112,15 +118,46 @@ run_logs() {
   ls -1 "$LOG_DIR"/*.log 2>/dev/null | xargs -r tail -F
 }
 
+run_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "✗ docker not installed. Install Docker Desktop or docker-engine first." >&2
+    exit 1
+  fi
+  if ! docker info >/dev/null 2>&1; then
+    echo "✗ docker daemon not reachable. Start the docker daemon first." >&2
+    exit 1
+  fi
+  if ! docker compose version >/dev/null 2>&1; then
+    echo "✗ 'docker compose' (v2) not available. Update Docker Desktop or install the compose plugin." >&2
+    exit 1
+  fi
+  if [ ! -f "$ROOT/.env" ]; then
+    echo "→ no .env file found; copying .env.example to .env (edit it for real secrets)"
+    cp "$ROOT/.env.example" "$ROOT/.env"
+  fi
+  echo "→ docker compose up -d --build"
+  cd "$ROOT" && docker compose up -d --build
+  echo
+  echo "  Backend  → http://localhost:3000/health/ready"
+  echo "  Frontend → http://localhost:3001/"
+  echo "  MCP      → http://localhost:8080/health"
+  echo "  Postgres → localhost:5432  (user/pass: blockops/blockops)"
+  echo "  Redis    → localhost:6379"
+  echo
+  echo "Tail logs:   docker compose logs -f"
+  echo "Tear down:   docker compose down -v"
+}
+
 case "$cmd" in
   up)        run_up ;;
   down)      run_down ;;
+  docker)    run_docker ;;
   install)   install_all ;;
   build)     build_contracts ;;
   test)      run_test ;;
   logs)      run_logs ;;
   *)
-    echo "Usage: $0 {up|down|install|build|test|logs}" >&2
+    echo "Usage: $0 {up|down|docker|install|build|test|logs}" >&2
     exit 1
     ;;
 esac

@@ -79,7 +79,11 @@ export function UserProfile({ onLogout }: UserProfileProps) {
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+          <Button
+            variant="ghost"
+            className="relative h-10 w-10 rounded-full"
+            aria-label="Open user menu"
+          >
             <Avatar className="h-10 w-10">
               <AvatarFallback className="bg-foreground text-background">
                 <UserIcon className="h-5 w-5" />

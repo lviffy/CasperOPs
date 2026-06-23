@@ -34,6 +34,7 @@ export default function ContractExplorerPage() {
               <div className="flex items-center gap-2.5">
                 <button
                   onClick={() => router.push("/my-agents")}
+                  aria-label="Back to my agents"
                   className="text-muted-foreground hover:text-foreground transition-colors -ml-1"
                 >
                   <ArrowLeft className="size-4" />
@@ -48,7 +49,10 @@ export default function ContractExplorerPage() {
             </div>
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <button className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                <button
+                  aria-label="Open user menu"
+                  className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
                   <Avatar className="size-9 cursor-pointer">
                     <AvatarFallback className="bg-muted">
                       <User className="size-4 text-muted-foreground" />

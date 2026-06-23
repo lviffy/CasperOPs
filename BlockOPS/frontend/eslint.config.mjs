@@ -17,6 +17,22 @@ const eslintConfig = [
       "react-hooks/exhaustive-deps": "warn",
     },
   },
+  // Playwright spec files use test/expect globals + Node-style imports.
+  {
+    files: ["e2e/**/*.{ts,tsx}"],
+    rules: {
+      "no-undef": "off",
+    },
+  },
+  // Generated artefacts and Playwright output — don't lint.
+  {
+    ignores: [
+      ".next/**",
+      "playwright-report/**",
+      "test-results/**",
+      "e2e/fixtures/**",
+    ],
+  },
 ];
 
 export default eslintConfig;
