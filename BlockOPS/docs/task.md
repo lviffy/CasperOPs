@@ -295,3 +295,101 @@ phase makes it demo-ready for the hackathon.
 - [x] Demo script + deploy hash template — `docs/demo-script.md`
 - [x] Staging URL configs — `frontend/vercel.json` + `backend/fly.toml` (needs manual deploy)
 - [x] Testnet deploy checklist — `docs/deploy-checklist.md`
+
+---
+
+## Phase 34: Casper Innovation Track Alignment (AI + DeFi + RWA)
+
+To fully align BlockOps with the **Casper Innovation Track** requirements (combining Agentic AI, DeFi, and RWA), the following tasks will be prioritized:
+
+- [ ] **RWA Valuation & Oracle Feeds**
+  - [ ] Implement `x402-Feed-Gateway` integration on the backend to buy/sell off-chain asset appraisals.
+  - [ ] Create a prototype script for a verified RWA land registry oracle agent submitting property updates.
+  - [ ] Set up a mock property valuation REST API that requires `x402` payment validation to return property certificates.
+- [ ] **AI-State Semantics (MCP Enhancement)**
+  - [ ] Implement a `Casper-State-MCP-Server` plugin to translate raw Casper smart contract hashes and state queries into clean, semantic JSON/Markdown descriptions for LLMs.
+  - [ ] Wire the MCP server with CSPR.cloud GraphQL capabilities to let LLMs perform historical contract queries semantically.
+  - [ ] Add natural-language block/transaction lookup tools to the MCP tool list.
+- [ ] **On-Chain Agent Trust & Reputation**
+  - [ ] Add the `Reputation-Attestor-Skill` block into the visual builder tool palette.
+  - [ ] Attest agent performance directly to the Odra `Reputation` contract at the end of every automated workflow.
+  - [ ] Implement a slashing execution path: trigger a reputation reduction on-chain if a paid agent fails to deliver tool execution criteria.
+- [ ] **ZK Compliance Whitelisting**
+  - [ ] Develop a client-side proof-generation helper that integrates with the Odra `Compliance` contract to support anonymous whitelisting for DeFi pools.
+  - [ ] Enforce compliant transfer constraints: reject transaction building in backend router if the payer fails active compliance status on the `Compliance` contract.
+- [ ] **Pre-packaged Innovation Workflows**
+  - [ ] Create a unified "RWA Yield & Collateral Fund" template in the frontend loader showing all 4 track technologies in action.
+  - [ ] Add a "DAO Treasury Arbitrage" template combining MCP queries, multi-sig approval, and target CEP-18 token swapping.
+
+---
+
+## Phase 35: Advanced Swarm Coordination & CSPR.fans Integration
+
+- [ ] **Multi-Agent Swarm Deliberation UI**
+  - [ ] Create a "Swarm Workspace" page in the frontend showing real-time agent-to-agent negotiation logs (e.g. Risk Agent debating with Treasury Agent).
+  - [ ] Implement a visual timeline showing execution votes, arguments, and final approval request before CSPR.click signing.
+- [ ] **Agent Message Board / Coordination Protocol**
+  - [ ] Implement a Redis-backed pub-sub event pool allowing agents in a workflow to listen to event triggers from other agents.
+  - [ ] Design an Odra `MessageBoard` contract for public agent-to-agent notifications and state logs.
+- [ ] **CSPR.fans Community Voting Integration**
+  - [ ] Embed a "Vote for BlockOps on CSPR.fans" badge and social share prompt directly in the builder dashboard.
+  - [ ] Build a bot daemon that queries the CSPR.fans voting API and pushes live updates/thank-yous to the Telegram bot channel on receiving new votes.
+
+---
+
+## Phase 36: Dynamic Compiler, llms.txt & x402 Analytics
+
+- [ ] **Autonomous Odra Contract Compiler**
+  - [ ] Build a sandboxed compilation endpoint (`/api/compile-contract`) that receives Rust Odra templates, compiles them to Casper WASM, and returns the binary.
+  - [ ] Allow agents to autonomously generate new custom smart contracts based on user requests, compile them, and hand them to CSPR.click for deployment.
+- [ ] **Agentic Docs (llms.txt) Integration**
+  - [ ] Create `/contract/llms.txt` and `/contract/llms-common.txt` outlining full contract entry points, types, and event structures.
+  - [ ] Let LLMs ingest this documentation at runtime so they can write valid Odra Rust contract code dynamically.
+- [ ] **x402 Micropayment Billing & Analytics Dashboard**
+  - [ ] Build a `/billing/analytics` dashboard in the frontend.
+  - [ ] Add chart visualizations for:
+    - Total CSPR spent on tool fees.
+    - Savings derived from cached JWT execution tokens.
+    - Active subscription tiers and upcoming payments.
+
+---
+
+## Phase 37: Casper-Unique Tool Integrations (Native Account & Upgradability Features)
+
+To implement the specialized tools capitalizing on Casper's unique core features, the following tasks will be planned:
+
+- [ ] **Native Threshold Governance Manager**
+  - [ ] Add `update_account_key_weights` tool to the backend tool router using Casper JS SDK account weight configuration parameters.
+  - [ ] Create a workflow component allowing automated risk-response agents to dynamically scale key thresholds up or down.
+- [ ] **Autonomous Contract Package Upgrader**
+  - [ ] Add contract package upgrade endpoints to the backend deployment service to deploy compiled WASM binaries directly to existing package hashes.
+  - [ ] Test the upgrade lifecycle against Odra's native contract upgrading mechanisms.
+- [ ] **CEP-78 Dynamic Metadata Attestor**
+  - [ ] Implement a metadata updating controller for CEP-78 contracts in the backend to mutate NFT parameters.
+  - [ ] Create an on-chain property appraisal template that updates the metadata payload of tokenized properties after valuation.
+- [ ] **Time-Bound Delegated Account Signer**
+  - [ ] Develop key configuration interfaces allowing users to allocate delegated sub-keys with partial transaction weights to AI agent execution loops.
+  - [ ] Enforce backend check parameters to restrict transactions sent by secondary keys within daily spending limit constraints.
+- [ ] **Casper WASM Gas Profiler & Optimizer**
+  - [ ] Write a profiling runner script that analyzes compiled smart contract binaries and estimates gas cost thresholds.
+  - [ ] Output gas optimization suggestions dynamically within the contract deployment page in the visual builder.
+
+---
+
+## Phase 38: Hackathon Winning Features & Voter Conversion (Sandbox & AA Escrows)
+
+To secure the Qualification Round community vote and wow the jury, the following proposals will be prioritized:
+
+- [ ] **One-Click Sandbox Demo Mode**
+  - [ ] Build a landing page toggle button to enter "Sandbox Mode".
+  - [ ] Simulate the CSPR.click sign flow and step-by-step visual execution of the *RWA Yield & Collateral Fund* template without requiring funded testnet keys.
+  - [ ] Add the glowing "Vote for BlockOps on CSPR.fans" modal at the end of the simulation.
+- [ ] **Live Reasoning Terminal & Step Trace**
+  - [ ] Set up SSE streaming channels in `/v1/conversations/` to push step-by-step LLM execution traces directly to the browser.
+  - [ ] Implement the UI Reasoning Terminal component, styling Casper-specific steps in brand colors and linking to testnet explorers.
+- [ ] **Smart Escrow Accounts (Account Abstraction)**
+  - [ ] Deploy a modified Odra `Escrow` contract that enforces time-bound and daily spending caps for delegated AI agents.
+  - [ ] Build the frontend "Deposit to Agent Escrow" budget allocator, letting agents run autonomously in the background without signature prompts.
+- [ ] **x402 Marketplace Analytics**
+  - [ ] Implement the `/api/analytics/x402` stats endpoints to return aggregated CSPR metrics, caching efficiency ratios, and transaction counts.
+  - [ ] Build the charts interface at `/billing/analytics` displaying live micropayments settled.

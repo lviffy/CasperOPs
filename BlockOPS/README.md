@@ -177,6 +177,9 @@ end-to-end flow.
 
 ## 📚 Documentation
 
+- [`docs/casper-ecosystem-toolkit.md`](./docs/casper-ecosystem-toolkit.md) — Casper Agentic Buildathon & AI Toolkit Guide
+- [`docs/unified-agentic-scenarios.md`](./docs/unified-agentic-scenarios.md) — Unified Agentic Scenarios & Practical Use Cases
+- [`docs/hackathon-alignment-proposals.md`](./docs/hackathon-alignment-proposals.md) — Buildathon Strategy & Feature Alignment Proposals
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — system architecture
 - [`docs/API.md`](./docs/API.md) — 22 tool endpoints (params + responses + x402 pricing)
 - [`docs/x402.md`](./docs/x402.md) — x402 payment protocol spec
