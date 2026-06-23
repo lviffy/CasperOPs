@@ -1,0 +1,5 @@
+secrets/
+secrets/*
+testnet-signer.pem
+testnet-signer.json
+.env

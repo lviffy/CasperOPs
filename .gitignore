@@ -1,0 +1,14 @@
+# Environment files
+.env
+.env.*
+*.env
+
+# Secrets and keys
+*.pem
+*.key
+*.json-signing
+
+# Node dependencies
+node_modules/
+dist/
+build/
