@@ -260,7 +260,7 @@ async def health_check():
         "service": "Agent Workflow Builder",
         "blockchain": "Arbitrum Sepolia",
         "ai_providers": {
-            "primary": "Groq (llama-3.3-70b-versatile)" if GROQ_API_KEY else "Not configured",
+            "primary": "Groq (llama-3.3-70b-versatile)" if GROQ_API_KEYS else "Not configured",
             "fallback": "Google Gemini 3.1 Flash Lite" if GEMINI_API_KEY else "Not configured"
         }
     }
