@@ -50,6 +50,7 @@ const nftRoutes           = require('./routes/nftRoutes');
 const transferRoutes      = require('./routes/transferRoutes');
 const healthRoutes        = require('./routes/healthRoutes');
 const metricsRoutes       = require('./routes/metricsRoutes');
+const billingRoutes       = require('./routes/billingRoutes');
 const priceRoutes         = require('./routes/priceRoutes');
 const conversationRoutes  = require('./routes/conversationRoutes');
 const contractChatRoutes  = require('./routes/contractChatRoutes');
@@ -104,6 +105,12 @@ app.use('/price', priceLimiter, priceRoutes);
 
 // Conversation chat: rate limited; api key optional (attaches context if present)
 app.use('/api', chatLimiter, apiKeyAuth({ optional: true }), conversationRoutes);
+
+// Phase 31: Billing (Stripe Checkout + webhook). The webhook route
+// needs the raw body so it's mounted BEFORE express.json() applies
+// to the rest of /billing — the billingRoutes module handles this
+// internally via a per-route express.raw() parser on /webhook.
+app.use('/billing', billingRoutes);
 
 // ── Protected routes (API key required + transaction rate limit) ─────────────
 const authGuard = [txLimiter, apiKeyAuth()];

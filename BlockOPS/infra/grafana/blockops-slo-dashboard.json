@@ -1,0 +1,306 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "BlockOps Casper backend + MCP SLO dashboard (Phase 30). Every panel reads from the metrics exposed on /metrics by prom-client (backend) and prometheus_client (MCP). Query reference: docs/observability/slo-queries.md",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "req/s",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "showPoints": "never"
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Request rate by route (RPS)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (route, method) (rate(blockops_http_requests_total[1m]))",
+          "legendFormat": "{{method}} {{route}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisLabel": "seconds", "drawStyle": "line", "fillOpacity": 5, "lineWidth": 1 },
+          "unit": "s"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "title": "HTTP p95 latency by route",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(blockops_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{route}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.005 },
+              { "color": "red", "value": 0.01 }
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 8 },
+      "id": 3,
+      "title": "5xx error rate",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(blockops_http_requests_total{status_code=~\"5..\"}[5m])) / sum(rate(blockops_http_requests_total[5m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0 },
+              { "color": "red", "value": 0.01 }
+            ]
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 8 },
+      "id": 4,
+      "title": "Deploy stuck rate (alert query)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "rate(blockops_deploy_stuck_total[5m])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 8 },
+      "id": 5,
+      "title": "RPC p95 latency",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(blockops_rpc_call_duration_seconds_bucket[5m])))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 8 },
+      "id": 6,
+      "title": "Active MCP SSE sessions",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "blockops_mcp_active_sessions",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisLabel": "ops/s", "drawStyle": "line", "fillOpacity": 10 },
+          "unit": "ops"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "id": 7,
+      "title": "Tool invocations by tool_id",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (tool_id) (rate(blockops_tool_executions_total[5m]))",
+          "legendFormat": "{{tool_id}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisLabel": "/ min", "drawStyle": "line", "fillOpacity": 10 },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "id": 8,
+      "title": "x402 challenges vs. verified payments",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(blockops_x402_challenges_total[5m])) * 60",
+          "legendFormat": "challenges",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(blockops_tool_executions_total{status=\"ok\", kind=\"proxy\"}[5m])) * 60",
+          "legendFormat": "ok proxy",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisLabel": "ops/s", "drawStyle": "line", "fillOpacity": 10 },
+          "unit": "ops"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+      "id": 9,
+      "title": "Cache ops by result (hit / miss / error)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (cache, result) (rate(blockops_cache_operations_total[5m]))",
+          "legendFormat": "{{cache}} {{result}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisLabel": "msgs/s", "drawStyle": "line", "fillOpacity": 10 },
+          "unit": "ops"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+      "id": 10,
+      "title": "MCP JSON-RPC traffic (inbound vs. outbound)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (kind) (rate(blockops_mcp_session_messages_total[5m]))",
+          "legendFormat": "{{kind}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisLabel": "s", "drawStyle": "line", "fillOpacity": 10 },
+          "unit": "s"
+        }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 30 },
+      "id": 11,
+      "title": "Event loop lag + GC pause p99",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(blockops_node_nodejs_eventloop_lag_seconds[1m])",
+          "legendFormat": "event loop lag",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(blockops_node_nodejs_gc_duration_seconds_bucket[5m]))",
+          "legendFormat": "gc p99",
+          "refId": "B"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["blockops", "slo", "production"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "BlockOps SLO",
+  "uid": "blockops-slo",
+  "version": 1,
+  "weekStart": ""
+}

@@ -27,10 +27,11 @@ from typing import Any, Dict, List, Tuple
 _DEFS: List[Tuple[str, Any, bool, Any]] = [
     ("BLOCKOPS_BACKEND_URL", "http://localhost:3000", False, str),
     ("CASPER_RPC_URL", "https://rpc.testnet.casper.live/rpc", False, str),
+    ("CASPER_RPC_URL_FALLBACK", "", False, str),  # Phase 30: optional secondary RPC
     ("CSPR_CLOUD_API_URL", "https://api.testnet.cspr.cloud", False, str),
     ("CSPR_CLOUD_API_KEY", "", False, str),
     ("CASPER_FAUCET_URL", "https://testnet.cspr.live/tools/faucet", False, str),
-    ("CASPER_EXPLORER_BASE_URL", "https://testnet.casper.live", False, str),
+    ("CASPER_EXPLORER_BASE_URL", "https://testnet.cspr.live", False, str),
     ("REDIS_URL", "", False, str),
     ("POSTGRES_DSN", "", False, str),
     # At least one AI key required in production

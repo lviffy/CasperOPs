@@ -1,19 +1,21 @@
 "use client";
 
 /**
- * Pricing page (Phase 29).
+ * Pricing page (Phase 29 + Phase 31).
  *
- * Three-tier comparison (free / pro / enterprise) with a CTA that
- * signs the user in via CSPR.click (existing component) and routes
- * them to /api-keys to mint a key for the chosen tier.
+ * Three-tier comparison (free / pro / enterprise) with CTAs that
+ * sign the user in via CSPR.click (existing component) and route
+ * them through the Stripe Checkout flow.
  *
- * Stripe Checkout integration is a Phase 29 follow-up — for now the
- * "Upgrade" button bumps the user to "pro" via an authenticated POST
- * that flips the tier in Supabase. Production will swap this for a
- * Stripe Checkout session + webhook handler.
+ * Phase 31: the "Upgrade to Pro" button now calls
+ * `POST /billing/checkout` which creates a Stripe Checkout Session
+ * and returns the redirect URL. The mock mode (when
+ * `STRIPE_DISABLED=1`) returns a URL with `?mock=1` so the frontend
+ * can develop without a real Stripe account.
  */
 
 import Link from "next/link";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,7 +41,8 @@ const TIERS = [
       "Community support (Discord)",
     ],
     cta: "Start for free",
-    href: "/api-keys",
+    checkoutTier: null,
+    externalHref: "/api-keys",
   },
   {
     id: "pro",
@@ -57,7 +60,8 @@ const TIERS = [
       "Webhook delivery + retries",
     ],
     cta: "Upgrade to Pro",
-    href: "/api-keys?upgrade=pro",
+    checkoutTier: "pro",
+    externalHref: null,
   },
   {
     id: "enterprise",
@@ -76,11 +80,41 @@ const TIERS = [
       "On-prem MCP server option",
     ],
     cta: "Contact sales",
-    href: "mailto:sales@blockops.example",
+    checkoutTier: "enterprise",
+    externalHref: null,
   },
 ];
 
 export default function PricingPage() {
+  const [busyTier, setBusyTier] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function startCheckout(tier: "pro" | "enterprise") {
+    setBusyTier(tier);
+    setError(null);
+    try {
+      const res = await fetch("/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ tier }),
+      });
+      if (!res.ok) throw new Error(`/billing/checkout → HTTP ${res.status}`);
+      const body = await res.json();
+      if (!body.url) throw new Error("No redirect URL returned");
+      if (body.enterprise) {
+        // Enterprise opens a mailto: link — pop it in a new tab so
+        // the user can come back to /pricing after they send the email.
+        window.location.href = body.url;
+        return;
+      }
+      window.location.href = body.url;
+    } catch (err: any) {
+      setError(err.message || "Unknown error");
+      setBusyTier(null);
+    }
+  }
+
   return (
     <main className="container mx-auto px-4 py-12 max-w-6xl">
       <header className="text-center mb-12">
@@ -91,59 +125,83 @@ export default function PricingPage() {
         </p>
       </header>
 
+      {error && (
+        <div
+          role="alert"
+          className="mb-6 mx-auto max-w-md rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+        >
+          {error}
+        </div>
+      )}
+
       <div className="grid gap-6 md:grid-cols-3">
-        {TIERS.map((tier) => (
-          <Card
-            key={tier.id}
-            className={
-              tier.highlight
-                ? "border-primary shadow-lg ring-2 ring-primary/20"
-                : undefined
-            }
-            aria-label={`${tier.name} tier`}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                {tier.name}
-                {tier.highlight && (
-                  <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full">
-                    Most popular
-                  </span>
-                )}
-              </CardTitle>
-              <CardDescription>{tier.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-6">
-                <span className="text-4xl font-bold">{tier.price}</span>
-                <span className="text-muted-foreground">{tier.cadence}</span>
-              </div>
-              <div className="text-sm text-muted-foreground mb-4">
-                <strong>{tier.rateLimit}</strong>
-              </div>
-              <ul className="space-y-2 text-sm">
-                {tier.features.map((f) => (
-                  <li key={f} className="flex gap-2">
-                    <span aria-hidden="true" className="text-primary">
-                      ✓
+        {TIERS.map((tier) => {
+          const isFree = tier.id === "free";
+          const button = (
+            <Button
+              className="w-full"
+              variant={tier.highlight ? "default" : "outline"}
+              disabled={!isFree && busyTier === tier.checkoutTier}
+              onClick={() => {
+                if (isFree) return;
+                startCheckout(tier.checkoutTier as "pro" | "enterprise");
+              }}
+            >
+              {tier.cta}
+            </Button>
+          );
+          return (
+            <Card
+              key={tier.id}
+              className={
+                tier.highlight
+                  ? "border-primary shadow-lg ring-2 ring-primary/20"
+                  : undefined
+              }
+              aria-label={`${tier.name} tier`}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  {tier.name}
+                  {tier.highlight && (
+                    <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full">
+                      Most popular
                     </span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-            <CardFooter>
-              <Link href={tier.href} className="w-full">
-                <Button
-                  className="w-full"
-                  variant={tier.highlight ? "default" : "outline"}
-                >
-                  {tier.cta}
-                </Button>
-              </Link>
-            </CardFooter>
-          </Card>
-        ))}
+                  )}
+                </CardTitle>
+                <CardDescription>{tier.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold">{tier.price}</span>
+                  <span className="text-muted-foreground">{tier.cadence}</span>
+                </div>
+                <div className="text-sm text-muted-foreground mb-4">
+                  <strong>{tier.rateLimit}</strong>
+                </div>
+                <ul className="space-y-2 text-sm">
+                  {tier.features.map((f) => (
+                    <li key={f} className="flex gap-2">
+                      <span aria-hidden="true" className="text-primary">
+                        ✓
+                      </span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+              <CardFooter>
+                {isFree ? (
+                  <Link href={tier.externalHref!} className="w-full">
+                    {button}
+                  </Link>
+                ) : (
+                  <div className="w-full">{button}</div>
+                )}
+              </CardFooter>
+            </Card>
+          );
+        })}
       </div>
 
       <footer className="mt-12 text-center text-sm text-muted-foreground">

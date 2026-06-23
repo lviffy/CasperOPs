@@ -33,6 +33,7 @@ const { URL } = require('url');
 const { DEFAULT_CHAIN, FACTORY_ADDRESS, NFT_FACTORY_ADDRESS, getChainConfig } = require('../config/constants');
 const { getChainMetadata, getSupportedChains } = require('../utils/chains');
 const { logger } = require('../utils/logger');
+const { snapshot: rpcSnapshot } = require('../utils/rpcFailover');
 
 const PROBE_TIMEOUT_MS = 4000;
 const BOOT_TIME_MS = Date.now();
@@ -111,17 +112,32 @@ async function runReadinessChecks() {
     probeHttpUrl('redis', process.env.REDIS_URL ? process.env.REDIS_URL.replace(/^redis/, 'http') : null),
   ]);
 
+  // Phase 30: probe the fallback RPC so the readiness snapshot
+  // surfaces a degraded-but-alive state before users hit it.
+  const rpcHealth = rpcSnapshot();
+  checks.push({
+    label: 'casper_rpc_fallback',
+    ok: rpcHealth.fallback.ok,
+    url: rpcHealth.fallback.url,
+    error: rpcHealth.fallback.ok ? null : rpcHealth.fallback.lastError,
+  });
+
   const supabaseConfigured = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
   checks.push({ ok: supabaseConfigured, label: 'supabase', error: supabaseConfigured ? null : 'not_configured' });
 
-  // "Ready" = RPC + Supabase both reachable. CSPR.cloud / Agent backend /
-  // Redis are nice-to-have — failure there is degraded, not unready.
-  const required = checks.filter((c) => ['casper_rpc', 'supabase'].includes(c.label));
+  // "Ready" = primary RPC + fallback RPC + Supabase all reachable.
+  // (Phase 30: if primary is down but fallback is up, we're still ready
+  // because the failover layer transparently routes the reads.)
+  const required = checks.filter((c) =>
+    ['casper_rpc', 'casper_rpc_fallback', 'supabase'].includes(c.label)
+  );
   const requiredOk = required.every((c) => c.ok);
 
   return {
     ok: requiredOk,
     requiredOk,
+    activeRpc: rpcHealth.activeUrl,
+    rpcFailover: rpcHealth,
     checkedAt: new Date().toISOString(),
     uptimeMs: Date.now() - BOOT_TIME_MS,
     checks,

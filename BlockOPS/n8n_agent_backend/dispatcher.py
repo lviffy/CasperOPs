@@ -137,19 +137,46 @@ def classify(tool: str) -> str:
 
 # ---------------------------------------------------------------------------
 # Casper RPC + CSPR.cloud helpers (shared with mcp_server_sse)
+#
+# Phase 30: `rpc()` now tries the fallback RPC URL before giving up.
+# Order is: primary → fallback → (raise). Reads only — writes still
+# must never double-broadcast, so they go straight to `_proxy()` to
+# the BlockOps backend which handles deploy submission.
 # ---------------------------------------------------------------------------
-async def rpc(method: str, params: Any = None) -> Dict[str, Any]:
+PRIMARY_RPC_URL = _ENV["CASPER_RPC_URL"]
+FALLBACK_RPC_URL = _ENV.get("CASPER_RPC_URL_FALLBACK") or _ENV.get("CSPR_CLOUD_API_URL") or ""
+RPC_READ_TIMEOUT_SECONDS = float(_ENV.get("CASPER_RPC_READ_TIMEOUT_SECONDS", "8"))
+
+# Phase 30: read-only RPC with primary → fallback failover. Returns the
+# `result` field on success, raises on total failure (the caller turns
+# that into the structured `{error: "rpc_error: ..."}` envelope).
+async def _rpc_request(url: str, method: str, params: Any = None,
+                       timeout: float = RPC_READ_TIMEOUT_SECONDS) -> Dict[str, Any]:
     payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
+    async with httpx.AsyncClient() as client:
+        r = await client.post(url, json=payload, timeout=timeout)
+        r.raise_for_status()
+        data = r.json()
+    if "error" in data:
+        raise RuntimeError(f"rpc returned error: {data['error']}")
+    return data.get("result", {}) or {}
+
+
+async def rpc(method: str, params: Any = None) -> Dict[str, Any]:
+    """Try primary RPC, then fallback. Returns the structured error
+    envelope (`{error: 'rpc_error: ...'}`) on total failure so callers
+    that previously swallowed errors keep working."""
+    primary_err = None
     try:
-        async with httpx.AsyncClient() as client:
-            r = await client.post(CASPER_RPC_URL, json=payload, timeout=15.0)
-            r.raise_for_status()
-            data = r.json()
-        if "error" in data:
-            return {"error": data["error"]}
-        return data.get("result", {}) or {}
-    except Exception as e:  # pragma: no cover - depends on network
-        return {"error": f"rpc_error: {e!s}"}
+        return await _rpc_request(PRIMARY_RPC_URL, method, params)
+    except Exception as e:
+        primary_err = e
+    if FALLBACK_RPC_URL and FALLBACK_RPC_URL != PRIMARY_RPC_URL:
+        try:
+            return await _rpc_request(FALLBACK_RPC_URL, method, params)
+        except Exception as fallback_err:
+            return {"error": f"rpc_error: primary={primary_err!s}; fallback={fallback_err!s}"}
+    return {"error": f"rpc_error: {primary_err!s}"}
 
 
 async def cspr_cloud(endpoint: str) -> Dict[str, Any]:
@@ -165,6 +192,22 @@ async def cspr_cloud(endpoint: str) -> Dict[str, Any]:
         return {"error": f"cspr_cloud_http_{r.status_code}"}
     except Exception as e:  # pragma: no cover
         return {"error": f"cspr_cloud_error: {e!s}"}
+
+
+def get_rpc_health() -> Dict[str, Any]:
+    """Snapshot used by the health endpoint / Phase 30 readiness probe.
+
+    Note: the dispatcher doesn't background-probe like the backend does
+    (no setInterval equivalent in uvicorn that we trust); instead the
+    caller hits the snapshot and we only know what we tried on the
+    last call. Future phase: wire a background task.
+    """
+    return {
+        "primary": PRIMARY_RPC_URL,
+        "fallback": FALLBACK_RPC_URL or None,
+        "primaryConfigured": bool(PRIMARY_RPC_URL),
+        "fallbackConfigured": bool(FALLBACK_RPC_URL),
+    }
 
 
 def safe_calculate(params: Dict[str, Any]) -> Dict[str, Any]:
