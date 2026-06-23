@@ -20,7 +20,11 @@ if (fs.existsSync(dotenvPath)) {
   require('dotenv').config({ path: dotenvPath });
 }
 
-const RPC_URL = process.env.CASPER_RPC_URL || 'https://rpc.testnet.casper.live/rpc';
+// Use cspr.cloud node RPC if API key is available (bypasses ISP port-7777 blocks)
+const CSPR_CLOUD_KEY = process.env.CSPR_CLOUD_API_KEY || '';
+const RPC_URL = CSPR_CLOUD_KEY
+  ? 'https://node.testnet.cspr.cloud/rpc'
+  : (process.env.CASPER_RPC_URL || 'https://rpc.testnet.casper.live/rpc');
 const SECRET = process.env.CASPER_SECRET_KEY;
 
 if (!SECRET) {
@@ -31,18 +35,22 @@ if (!SECRET) {
 const cleanSecret = SECRET.startsWith('0x') ? SECRET.slice(2) : SECRET;
 const secretBytes = Buffer.from(cleanSecret, 'hex');
 let keys;
-if (secretBytes.length === 32) {
-  keys = Keys.Ed25519.loadKeyPairFromPrivateKey(secretBytes);
-} else if (secretBytes.length === 33 || secretBytes.length === 32) {
-  // secp256k1 secret keys in casper-js-sdk are 32 bytes; tolerate a 33-byte export.
-  keys = Keys.Secp256K1.loadKeyPairFromPrivateKey(secretBytes.subarray(0, 32));
-} else {
-  throw new Error(`Unsupported secret key length: ${secretBytes.length} bytes.`);
+// The PEM-derived key is secp256k1 (32 bytes). Ed25519 keys are also 32 bytes
+// but were generated with a different tool — we detect by trying secp256k1 first
+// since that matches the funded wallet's PEM type.
+try {
+  const privKey = Keys.Secp256K1.parsePrivateKey(secretBytes.subarray(0, 32));
+  const pubKey = Keys.Secp256K1.privateToPublicKey(privKey);
+  keys = Keys.Secp256K1.parseKeyPair(pubKey, privKey);
+} catch (e) {
+  const privKey = Keys.Ed25519.parsePrivateKey(secretBytes.subarray(0, 32));
+  const pubKey = Keys.Ed25519.privateToPublicKey(privKey);
+  keys = Keys.Ed25519.parseKeyPair(pubKey, privKey);
 }
 const algorithm = keys.publicKey.isEd25519() ? 'ed25519' : 'secp256k1';
 console.log(`🔑  Deployer key loaded (${algorithm}): ${keys.publicKey.toHex()}`);
 
-const WASM_DIR = path.resolve(__dirname, 'wasm');
+const WASM_DIR = path.resolve(__dirname, '../wasm');
 
 const PAYMENT_CSPR = 250_000_000_000;
 
@@ -54,6 +62,15 @@ function buildArgs(spec, deployerPublicKey) {
     } else if (value && typeof value === 'string' && value.startsWith('account_hash=')) {
       const hex = value.slice('account_hash='.length).replace(/^0x/, '');
       clArgs[name] = CLValueBuilder.byteArray(Uint8Array.from(Buffer.from(hex, 'hex')));
+    } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+      // Numeric string → u256
+      clArgs[name] = CLValueBuilder.u256(value);
+    } else if (typeof value === 'string') {
+      clArgs[name] = CLValueBuilder.string(value);
+    } else if (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 255) {
+      clArgs[name] = CLValueBuilder.u8(value);
+    } else if (typeof value === 'number') {
+      clArgs[name] = CLValueBuilder.u64(BigInt(value));
     } else {
       clArgs[name] = value;
     }
@@ -123,10 +140,14 @@ function buildDeploy({ wasm, payment, args }) {
   const pmt = DeployUtil.standardPayment(payment);
   const deploy = DeployUtil.makeDeploy(params, session, pmt);
   return DeployUtil.signDeploy(deploy, keys);
-}async function rpc(method, params = {}) {
+}
+
+async function rpc(method, params = {}) {
+  const headers = { 'content-type': 'application/json' };
+  if (CSPR_CLOUD_KEY) headers['Authorization'] = CSPR_CLOUD_KEY;
   const res = await fetch(RPC_URL, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers,
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   });
   const json = await res.json();

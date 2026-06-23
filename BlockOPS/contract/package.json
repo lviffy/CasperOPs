@@ -1,0 +1,14 @@
+{
+  "name": "contract",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BlockOps contract deployment scripts",
+  "scripts": {
+    "generate-signer": "node scripts/generate-signer.js",
+    "deploy": "node scripts/deploy.js"
+  },
+  "dependencies": {
+    "casper-js-sdk": "^5.0.12",
+    "dotenv": "^16.4.5"
+  }
+}
