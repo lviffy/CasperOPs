@@ -1,0 +1,10 @@
+{
+  "name": "RWA Verification Agent",
+  "description": "Submit RWA compliance attestation, mint a CEP-78 NFT as the digital twin, then transfer it to the verified owner. Pre-configured for real-estate RWA workflows.",
+  "icon": "check-square",
+  "tools": [
+    { "tool": "attest_agent", "next_tool": "mint_nft" },
+    { "tool": "mint_nft", "next_tool": "transfer" },
+    { "tool": "transfer", "next_tool": null }
+  ]
+}

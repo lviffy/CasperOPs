@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import {
   AlertCircle,
   ArrowRight,
@@ -13,6 +13,10 @@ import {
   Search,
   ShieldCheck,
   Star,
+  ArrowUpDown,
+  ArrowDownAZ,
+  HandCoins,
+  ExternalLink,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -31,6 +35,9 @@ import {
 } from "@/components/ui/dialog"
 import { BLOCKCHAIN_BACKEND_URL } from "@/lib/backend"
 import { getAgentById } from "@/lib/agents"
+import { initCsprClick, getActiveAccount, sendDeploy } from "@/lib/wallet"
+import { toast } from "@/components/ui/use-toast"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 type AgentManifest = {
   name?: string
@@ -202,13 +209,81 @@ function buildFallbackManifest(agent: {
   } satisfies AgentManifest
 }
 
+type SortMode = "default" | "top-rated"
+
 export default function MarketplacePage() {
   const { logout } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [agents, setAgents] = useState<MarketplaceAgent[]>([])
+  const [sortMode, setSortMode] = useState<SortMode>("top-rated")
   const [selectedAgentForManifest, setSelectedAgentForManifest] = useState<AgentManifest | null>(null)
   const [manifestDialogOpen, setManifestDialogOpen] = useState(false)
+  const [escrowAgent, setEscrowAgent] = useState<MarketplaceAgent | null>(null)
+  const [escrowOpen, setEscrowOpen] = useState(false)
+  const [escrowAmount, setEscrowAmount] = useState("5")
+  const [escrowSigning, setEscrowSigning] = useState(false)
+  const [escrowDeployHash, setEscrowDeployHash] = useState<string | null>(null)
+  const [escrowedIds, setEscrowedIds] = useState<Set<string>>(() => {
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("escrowed-agents")
+      return stored ? new Set(JSON.parse(stored)) : new Set()
+    }
+    return new Set()
+  })
+
+  // Initialize CSPR.click
+  useEffect(() => {
+    initCsprClick()
+  }, [])
+
+  const handleEscrow = useCallback(async () => {
+    if (!escrowAgent) return
+    setEscrowSigning(true)
+    setEscrowDeployHash(null)
+    try {
+      const account = await getActiveAccount()
+      if (!account?.publicKey) {
+        toast({ title: "Wallet required", description: "Please connect CSPR.click first", variant: "destructive" })
+        return
+      }
+      const amountMotes = Math.round(parseFloat(escrowAmount) * 1e9)
+      if (isNaN(amountMotes) || amountMotes <= 0) {
+        toast({ title: "Invalid amount", description: "Enter a valid CSPR amount", variant: "destructive" })
+        return
+      }
+      const deployJson = {
+        deploy: {
+          header: { ttl: "30m", gas_price: 1 },
+          payment: { amount: amountMotes.toString() },
+          session: {
+            entry_point: "deposit",
+            args: [
+              ["agent_id", { bytes: escrowAgent.onChainId, cl_type: "string" }],
+              ["amount", { bytes: amountMotes.toString(), cl_type: "u512" }],
+            ],
+          },
+        },
+      }
+      const result = await sendDeploy(deployJson, account.publicKey)
+      const hash = result?.deployHash || result?.hash || ""
+      setEscrowDeployHash(hash)
+      setEscrowedIds((prev) => {
+        const next = new Set(prev)
+        next.add(escrowAgent.id)
+        sessionStorage.setItem("escrowed-agents", JSON.stringify([...next]))
+        return next
+      })
+      toast({
+        title: "Escrow deposit sent!",
+        description: `Deploy: ${hash.slice(0, 12)}... on CSPR.live`,
+      })
+    } catch (err: any) {
+      toast({ title: "Escrow deposit failed", description: err?.message || "Unknown error", variant: "destructive" })
+    } finally {
+      setEscrowSigning(false)
+    }
+  }, [escrowAgent, escrowAmount])
 
   useEffect(() => {
     async function fetchOnChainAgents() {
@@ -299,11 +374,16 @@ export default function MarketplacePage() {
     fetchOnChainAgents()
   }, [])
 
-  const filteredAgents = agents.filter((agent) =>
-    agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    agent.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    agent.capabilities.some((capability) => capability.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
+  const filteredAgents = agents
+    .filter((agent) =>
+      agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      agent.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      agent.capabilities.some((capability) => capability.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+    .sort((a, b) => {
+      if (sortMode === "top-rated") return b.score - a.score
+      return b.executions - a.executions
+    })
 
   return (
     <div className="min-h-screen bg-background font-aeonik">
@@ -352,7 +432,30 @@ export default function MarketplacePage() {
 
         <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
           <span>{filteredAgents.length} registered agent{filteredAgents.length === 1 ? "" : "s"}</span>
-          <span>Source: Identity Registry</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSortMode("top-rated")}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                sortMode === "top-rated"
+                  ? "bg-foreground text-background"
+                  : "border border-border text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <Star className="h-3 w-3" />
+              Top Rated
+            </button>
+            <button
+              onClick={() => setSortMode("default")}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                sortMode === "default"
+                  ? "bg-foreground text-background"
+                  : "border border-border text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <ArrowDownAZ className="h-3 w-3" />
+              Most Used
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -436,6 +539,32 @@ export default function MarketplacePage() {
                   >
                     View Manifest
                   </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={escrowedIds.has(agent.id) ? "default" : "secondary"}
+                          className={`h-9 flex-1 text-xs ${escrowedIds.has(agent.id) ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+                          onClick={() => {
+                            if (escrowedIds.has(agent.id)) return
+                            setEscrowAgent(agent)
+                            setEscrowAmount("5")
+                            setEscrowDeployHash(null)
+                            setEscrowOpen(true)
+                          }}
+                          disabled={escrowedIds.has(agent.id)}
+                        >
+                          <HandCoins className="mr-1.5 h-3.5 w-3.5" />
+                          {escrowedIds.has(agent.id) ? "Escrow Active" : "Hire via Escrow"}
+                        </Button>
+                      </TooltipTrigger>
+                      {escrowedIds.has(agent.id) && (
+                        <TooltipContent>
+                          <p className="text-xs">Escrow deposit active for this agent</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                   {agent.localAgentId ? (
                     <Button className="h-9 flex-1 text-xs" asChild>
                       <Link href={`/agent/${agent.localAgentId}/chat`}>
@@ -468,6 +597,108 @@ export default function MarketplacePage() {
         )}
       </main>
 
+      <Dialog open={escrowOpen} onOpenChange={setEscrowOpen}>
+        <DialogContent className="sm:max-w-md border-border">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-muted/40">
+                <HandCoins className="h-4 w-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold">Hire via Escrow</DialogTitle>
+                <DialogDescription className="text-xs">
+                  Deposit CSPR into escrow to hire {escrowAgent?.name}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="rounded-md border border-border bg-muted/20 p-3 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Agent</span>
+                <span className="font-medium">{escrowAgent?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">On-Chain ID</span>
+                <span className="font-mono">{escrowAgent?.onChainId ? escrowAgent.onChainId.slice(0, 16) + "..." : "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Reputation</span>
+                <span className="flex items-center gap-1"><Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />{escrowAgent?.score}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground/70">Deposit Amount (CSPR)</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={escrowAmount}
+                  onChange={(e) => setEscrowAmount(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-foreground/30"
+                  placeholder="5"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs"
+                  onClick={() => setEscrowAmount("5")}
+                >
+                  5 CSPR
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs"
+                  onClick={() => setEscrowAmount("10")}
+                >
+                  10 CSPR
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">The deposit is held in escrow and refunded if the agent fails to execute.</p>
+            </div>
+
+            {escrowDeployHash && (
+              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs space-y-1">
+                <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
+                  <Check className="h-3.5 w-3.5" />
+                  Escrow deposit sent!
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-emerald-600">{escrowDeployHash.slice(0, 20)}...</span>
+                  <a
+                    href={`https://testnet.cspr.live/deploy/${escrowDeployHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-emerald-700 hover:underline"
+                  >
+                    View <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" className="h-9 text-xs" onClick={() => setEscrowOpen(false)}>
+              {escrowDeployHash ? "Close" : "Cancel"}
+            </Button>
+            {!escrowDeployHash && (
+              <Button
+                className="h-9 text-xs"
+                onClick={handleEscrow}
+                disabled={escrowSigning || !escrowAmount || parseFloat(escrowAmount) <= 0}
+              >
+                {escrowSigning ? "Signing with CSPR.click..." : `Deposit ${escrowAmount} CSPR`}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={manifestDialogOpen} onOpenChange={setManifestDialogOpen}>
         <DialogContent className="max-w-2xl border-border p-0">
           <DialogHeader className="border-b border-border p-6 pb-4">
@@ -496,7 +727,7 @@ export default function MarketplacePage() {
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Identity</div>
                 <div className="mt-1 flex items-center gap-1 text-xs font-medium text-foreground">
                   <Check className="h-3.5 w-3.5 text-primary" />
-                  Registered on Arbitrum Sepolia
+                  Registered on Casper Testnet
                 </div>
               </div>
               <div className="rounded-md border border-border p-3">

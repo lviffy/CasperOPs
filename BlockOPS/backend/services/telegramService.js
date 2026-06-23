@@ -358,6 +358,50 @@ async function tgRequest(method, body = {}, timeout = 10000) {
 }
 
 /**
+ * Send a message with an inline keyboard.
+ */
+async function sendWithKeyboard(chatId, text, buttons, options = {}) {
+  const rows = []
+  for (const row of buttons) {
+    rows.push(row.map((btn) => (typeof btn === 'string' ? { text: btn, callback_data: btn } : btn)))
+  }
+  return sendMessage(chatId, text, {
+    ...options,
+    reply_markup: JSON.stringify({ inline_keyboard: rows }),
+  })
+}
+
+function explorerUrl(deployHash) {
+  return `https://testnet.cspr.live/deploy/${deployHash}`
+}
+
+async function csprBalance(address) {
+  const { data } = await axios.get(`${BACKEND_URL}/transfer/balance/${address}`, {
+    headers: { 'x-api-key': MASTER_KEY },
+    timeout: 10000,
+  })
+  return data?.balance ?? data?.result?.balance ?? '?'
+}
+
+async function deployStatus(deployHash) {
+  const { data } = await axios.get(`${BACKEND_URL}/v1/tools/lookup_deploy`, {
+    params: { deploy_hash: deployHash },
+    headers: { 'x-api-key': MASTER_KEY },
+    timeout: 15000,
+  })
+  return data?.result ?? data ?? { status: 'unknown' }
+}
+
+async function executeTool(tool, params = {}) {
+  const { data } = await axios.post(
+    `${BACKEND_URL}/v1/tools/${tool}`,
+    params,
+    { headers: { 'x-api-key': MASTER_KEY, 'Content-Type': 'application/json' }, timeout: 30000 },
+  )
+  return data
+}
+
+/**
  * Send a plain-text message to a Telegram chat.
  * Silently no-ops if bot token is missing.
  */
@@ -433,71 +477,75 @@ async function handleStart(chatId, user) {
     username:  user.username,
     firstName: user.first_name
   });
-  await sendMessage(chatId,
-    `👋 Welcome to *BlockOps*!\n\n` +
+  await sendWithKeyboard(chatId,
+    `👋 Welcome to *BlockOps* on *Casper*!\n\n` +
     `I'm your on-chain AI assistant. Here's what I can do:\n\n` +
-    `🔹 /balance \`<address>\` — check ETH balance\n` +
-    `🔹 /price \`<token>\` — get token price (e.g., /price ETH)\n` +
-    `🔹 /status \`<txHash>\` — look up a transaction\n` +
-    `🔹 /help — show all commands\n\n` +
-    `Or just ask me anything in plain English:\n` +
-    `  • "What's the gas price right now?"\n` +
-    `  • "Show me the portfolio for 0x1234..."\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `🤖 *Want a custom agent?*\n` +
-    `Create one at https://blockops.in/agents\n` +
-    `Then type: /connect <agent-id> <api-key>\n\n` +
-    `Your agent can have:\n` +
-    `  ✓ Custom personality\n` +
-    `  ✓ Specific tools only\n` +
-    `  ✓ Pre-configured wallet\n\n` +
-    `For now, you're in *generic mode* with all tools enabled.`
+    `💰 /balance \`<address>\` — check CSPR balance\n` +
+    `💸 /transfer \`<to> <amount>\` — send CSPR\n` +
+    `🤖 /agents — list on-chain agents\n` +
+    `🔍 /status \`<deployHash>\` — check deploy status\n` +
+    `📋 /help — show all commands\n\n` +
+    `Or just chat with me in plain English!`,
+    [
+      [{ text: '💰 Balance', callback_data: 'cmd_balance' }, { text: '💸 Transfer', callback_data: 'cmd_transfer' }],
+      [{ text: '🤖 My Agents', callback_data: 'cmd_agents' }, { text: '📋 Help', callback_data: 'cmd_help' }],
+    ]
   );
 }
 
 async function handleHelp(chatId) {
-  await sendMessage(chatId,
+  await sendWithKeyboard(chatId,
     `*BlockOps Bot Commands*\n\n` +
-    `*Basic Commands:*\n` +
-    `/balance \`<address>\` — ETH balance for an address\n` +
-    `/price \`<token>\` — current token price\n` +
-    `/status \`<txHash>\` — transaction status\n` +
-    `/help — this message\n\n` +
+    `*Casper-native:*\n` +
+    `/balance \`<address>\` — CSPR balance for an address\n` +
+    `/transfer \`<to> <amount>\` — send CSPR tokens\n` +
+    `/status \`<deployHash>\` — check deploy status\n` +
+    `/price \`<symbol>\` — CSPR or CEP-18 token price\n` +
+    `/deploy \`<tool> <params>\` — execute a tool\n\n` +
     `*Agent Commands:*\n` +
+    `/agents — list on-chain registered agents\n` +
     `/connect \`<agent-id> <api-key>\` — link to your custom agent\n` +
     `/disconnect — return to generic mode\n` +
-    `/agent — show linked agent details\n` +
-    `/switch \`<agent-id> <api-key>\` — switch to different agent\n\n` +
-    `You can also ask me anything in plain English, e.g.:\n` +
-    `_"What is the gas price right now?"_\n` +
-    `_"Show me the portfolio for 0x1234..."_\n` +
-    `_"What's the ETH price?"_`
+    `/agent — show linked agent details\n\n` +
+    `Or just ask me anything in plain English!`,
+    [
+      [{ text: '💰 Balance', callback_data: 'cmd_balance' }, { text: '💸 Transfer', callback_data: 'cmd_transfer' }],
+      [{ text: '🤖 Agents', callback_data: 'cmd_agents' }, { text: '🔍 Status', callback_data: 'cmd_status' }],
+    ]
   );
 }
 
 async function handleBalance(chatId, args) {
-  const address = args[0];
-  if (!address || !address.startsWith('0x') || address.length < 40) {
-    return sendMessage(chatId, '❌ Please provide a valid Ethereum address.\nUsage: `/balance 0x1234...`');
+  let address = args[0];
+  if (!address) {
+    // Try the user's linked wallet address
+    const tgUser = await getTelegramUser(chatId);
+    const agent = tgUser?.linked_agent_id ? await getAgentById(tgUser.linked_agent_id) : null;
+    address = agent?.wallet_address || null;
+    if (!address) {
+      return sendWithKeyboard(chatId,
+        '❌ Please provide a Casper address.\n\nUsage: `/balance <casper-address>`\n\nOr link a wallet to your agent first.',
+        [[{ text: '💰 Check Balance', callback_data: 'cmd_balance' }]]
+      );
+    }
+  }
+  if (!/^(0x)?0[12][0-9a-fA-F]{64}$/.test(address)) {
+    return sendMessage(chatId, '❌ Invalid Casper address. It should be a 66-char hex string starting with `01` or `02`.');
   }
   try {
-    const { data } = await axios.get(`${BACKEND_URL}/transfer/balance/${address}`, {
-      headers: { 'x-api-key': MASTER_KEY },
-      timeout: 10000
-    });
-    const bal = data.balance ?? data.result?.balance ?? '?';
-    const balFormatted = typeof bal === 'number' ? bal.toFixed(4) : String(bal);
-    await sendMessage(chatId, `💰 Balance for \`${address.slice(0, 10)}...\`\n\n*${balFormatted} ETH*`);
+    const bal = await csprBalance(address);
+    const short = address.slice(0, 8) + '...' + address.slice(-4);
+    await sendWithKeyboard(chatId,
+      `💰 *CSPR Balance*\n\nAddress: \`${short}\`\nBalance: *${bal} CSPR*`,
+      [[{ text: '🔄 Refresh', callback_data: `cmd_balance_${address}` }, { text: '💸 Transfer', callback_data: 'cmd_transfer' }]]
+    );
   } catch (err) {
     await sendMessage(chatId, `❌ Could not fetch balance: ${err.message}`);
   }
 }
 
 async function handlePrice(chatId, args) {
-  const query = args.join(' ');
-  if (!query) {
-    return sendMessage(chatId, '❌ Please provide a token name.\nUsage: `/price ETH` or `/price bitcoin`');
-  }
+  const query = (args.join(' ') || 'CSPR').trim().toUpperCase();
   try {
     const { data } = await axios.post(`${BACKEND_URL}/price/token`, { query }, {
       headers: { 'Content-Type': 'application/json' },
@@ -506,45 +554,138 @@ async function handlePrice(chatId, args) {
     const prices = data.prices || data.result?.prices || [];
     let lines;
     if (Array.isArray(prices)) {
-      // Array of { coin, price, currency, change_24h, market_cap, ... }
       lines = prices.map(p => {
         const change = p.change_24h != null ? ` (${p.change_24h >= 0 ? '+' : ''}${p.change_24h.toFixed(2)}%)` : '';
         return `*${(p.coin || p.symbol || '?').toUpperCase()}*: $${Number(p.price).toLocaleString()}${change}`;
       }).join('\n');
     } else {
-      // Object keyed by symbol (fallback)
       lines = Object.entries(prices)
         .map(([sym, info]) => `*${sym.toUpperCase()}*: $${info.usd ?? info}`)
         .join('\n');
     }
-    await sendMessage(chatId, lines || `No price found for "${query}"`);
+    await sendWithKeyboard(chatId, lines || `No price found for "${query}"`,
+      [[{ text: '🔄 Refresh', callback_data: `cmd_price_${query}` }]]
+    );
   } catch (err) {
     await sendMessage(chatId, `❌ Could not fetch price: ${err.message}`);
   }
 }
 
 async function handleStatus(chatId, args) {
-  const txHash = args[0];
-  if (!txHash || !txHash.startsWith('0x')) {
-    return sendMessage(chatId, '❌ Please provide a transaction hash.\nUsage: `/status 0xabc...`');
+  const deployHash = args[0];
+  if (!deployHash || !/^[0-9a-fA-F]{64}$/.test(deployHash)) {
+    return sendWithKeyboard(chatId,
+      '❌ Please provide a valid deploy hash (64 hex chars).\nUsage: `/status <deploy-hash>`',
+      [[{ text: '🔍 Lookup Deploy', callback_data: 'cmd_status' }]]
+    );
   }
   try {
-    const { data } = await axios.get(`${BACKEND_URL}/chain/tx/${txHash}`, {
-      headers: { 'x-api-key': MASTER_KEY },
-      timeout: 15000
-    });
-    const tx = data.result || data;
-    const status  = tx.receipt?.status ?? 'pending';
-    const block   = tx.blockNumber ?? 'pending';
-    const value   = tx.value ? `\nValue: *${tx.value} ETH*` : '';
-    await sendMessage(chatId,
-      `📋 *Transaction* \`${txHash.slice(0, 12)}...\`\n` +
+    const info = await deployStatus(deployHash);
+    const status = info.execution_results?.[0]?.result?.Success ? '✅ Finalized' : info.status || '⏳ Pending';
+    const cost = info.execution_results?.[0]?.cost || '';
+    const block = info.block || '';
+    await sendWithKeyboard(chatId,
+      `📋 *Deploy* \`${deployHash.slice(0, 12)}...\`\n\n` +
       `Status: *${status}*\n` +
-      `Block: ${block}${value}\n` +
-      `[View on Arbiscan](${tx.explorerUrl || `https://sepolia.arbiscan.io/tx/${txHash}`})`
+      (block ? `Block: ${block}\n` : '') +
+      (cost ? `Cost: ${cost} CSPR\n` : ''),
+      [[{ text: '🔍 View on CSPR.live', url: explorerUrl(deployHash) }]]
     );
   } catch (err) {
-    await sendMessage(chatId, `❌ Could not fetch transaction: ${err.message}`);
+    await sendMessage(chatId, `❌ Could not fetch deploy: ${err.message}`);
+  }
+}
+
+// ── Casper-native Commands ────────────────────────────────────────────────────
+
+async function handleTransfer(chatId, args) {
+  const [recipient, amountStr] = args;
+  if (!recipient || !amountStr || isNaN(parseFloat(amountStr))) {
+    return sendWithKeyboard(chatId,
+      '❌ Usage: `/transfer <recipient> <amount>`\n\nExample: `/transfer 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef 10`',
+      [[{ text: '💸 Transfer', callback_data: 'cmd_transfer' }]]
+    );
+  }
+  if (!/^(0x)?0[12][0-9a-fA-F]{64}$/.test(recipient)) {
+    return sendMessage(chatId, '❌ Invalid Casper recipient address. Must be a 66-char hex string starting with `01` or `02`.');
+  }
+  try {
+    const { data } = await axios.post(
+      `${BACKEND_URL}/v1/tools/transfer`,
+      { recipient, amount: amountStr },
+      { headers: { 'x-api-key': MASTER_KEY, 'Content-Type': 'application/json' }, timeout: 30000 }
+    );
+    const deployHash = data?.result?.deployHash || data?.deployHash || data?.result?.hash || '';
+    if (!deployHash) {
+      return sendMessage(chatId, `⚠️ Transfer sent but no deploy hash returned.\n${JSON.stringify(data)}`);
+    }
+    await sendWithKeyboard(chatId,
+      `💸 *Transfer Sent!*\n\nTo: \`${recipient.slice(0, 8)}...${recipient.slice(-4)}\`\nAmount: *${amountStr} CSPR*\nDeploy: \`${deployHash.slice(0, 16)}...\``,
+      [
+        [{ text: '🔍 View on CSPR.live', url: explorerUrl(deployHash) }],
+        [{ text: '✅ Check Status', callback_data: `cmd_status_${deployHash}` }],
+      ]
+    );
+  } catch (err) {
+    await sendMessage(chatId, `❌ Transfer failed: ${err.message}`);
+  }
+}
+
+async function handleAgents(chatId, _args) {
+  try {
+    // Fetch from on-chain AgentFactory events via CSPR.cloud
+    const factoryHash = process.env.NEXT_PUBLIC_AGENT_FACTORY_CONTRACT_HASH || '';
+    if (!factoryHash) {
+      return sendMessage(chatId, '⚠️ Agent Factory contract not configured.');
+    }
+    const { data: eventsData } = await axios.get(
+      `https://node.cspr.cloud/contracts/${factoryHash}/events?entry_point=agent_registered&limit=20`,
+      { headers: { accept: 'application/json' }, timeout: 10000 }
+    );
+    const events = eventsData?.data ?? eventsData?.events ?? [];
+    if (events.length === 0) {
+      return sendWithKeyboard(chatId, '🤖 No agents registered on-chain yet.\n\nCreate one at blockops.in/agents',
+        [[{ text: '🤖 Create Agent', url: 'https://blockops.in/agents' }]]
+      );
+    }
+    const lines = events.slice(0, 10).map((ev, i) => {
+      const id = ev.data?.agent_id ?? ev.data?.agentId ?? `#${i + 1}`;
+      const owner = (ev.data?.owner ?? '').slice(0, 8) + '...';
+      return `${i + 1}. Agent \`${String(id).slice(0, 12)}...\` · Owner: \`${owner}\``;
+    }).join('\n');
+    await sendWithKeyboard(chatId,
+      `🤖 *On-Chain Agents* (${events.length} total)\n\n${lines}`,
+      [[{ text: '🔄 Refresh', callback_data: 'cmd_agents' }]]
+    );
+  } catch (err) {
+    await sendMessage(chatId, `❌ Could not fetch agents: ${err.message}`);
+  }
+}
+
+async function handleDeployCmd(chatId, args) {
+  const [tool, ...rest] = args;
+  if (!tool) {
+    return sendWithKeyboard(chatId,
+      '❌ Usage: `/deploy <tool> [params...]`\n\nAvailable: transfer, register_agent, attest_agent, yield_rebalance, get_balance, get_reputation, fetch_price, lookup_deploy, send_email, wallet_readiness',
+      [[{ text: '📋 Help', callback_data: 'cmd_help' }]]
+    );
+  }
+  const params = rest.length > 0 ? { args: rest.join(' ') } : {};
+  try {
+    const result = await executeTool(tool, params);
+    const deployHash = result?.result?.deployHash || result?.deployHash || '';
+    const summary = deployHash
+      ? `Deploy: \`${deployHash.slice(0, 16)}...\``
+      : `Result: ${JSON.stringify(result).slice(0, 200)}`;
+    await sendWithKeyboard(chatId,
+      `⚡ *Tool Executed:* \`${tool}\`\n\n${summary}`,
+      deployHash
+        ? [[{ text: '🔍 View on CSPR.live', url: explorerUrl(deployHash) }],
+           [{ text: '✅ Check Status', callback_data: `cmd_status_${deployHash}` }]]
+        : [[{ text: '🔄 Try Again', callback_data: `cmd_deploy_${tool}` }]]
+    );
+  } catch (err) {
+    await sendMessage(chatId, `❌ Tool \`${tool}\` failed: ${err.message}`);
   }
 }
 
@@ -601,10 +742,10 @@ async function handleConnect(chatId, args) {
     `• Name: ${mdEscape(agent.name)}\n` +
     `• Enabled Tools: ${toolCount} ${toolCount > 4 ? '(showing first 4)' : ''}\n` +
     `  ${toolList}\n` +
-    (agent.wallet_address ? `• Wallet: ${mdEscape(agent.wallet_address.slice(0, 10))}...\n` : '') +
+    (agent.wallet_address ? `• Wallet: \`${mdEscape(agent.wallet_address.slice(0, 10))}...\`\n` : '') +
     (agent.system_prompt ? `• Personality: "${mdEscape(agent.system_prompt.slice(0, 80))}"\n\n` : '\n') +
     `🔹 Your messages will now be handled by this agent with custom settings.\n` +
-    `🔹 Generic commands (/balance, /price, /status) still work.\n\n` +
+    `🔹 Commands: /balance /transfer /status /agents\n\n` +
     `Type /agent to see full details.\n` +
     `Type /disconnect to return to generic mode.`
   );
@@ -658,7 +799,7 @@ async function handleAgent(chatId) {
     return sendMessage(chatId,
       'ℹ️ *Generic Mode* (default)\n\n' +
       'You\'re using the standard BlockOps assistant with:\n' +
-      '• All 20+ tools enabled\n' +
+      '• All 19 Casper tools enabled\n' +
       '• Default system prompt\n' +
       '• No wallet pre-configured\n\n' +
       '━━━━━━━━━━━━━━━━━━━━\n\n' +
@@ -687,10 +828,10 @@ async function handleAgent(chatId) {
     (agent.description ? `*Description:* ${mdEscape(agent.description)}\n` : '') +
     (agent.wallet_address ? `*Wallet:* ${mdEscape(agent.wallet_address.slice(0, 10))}...\n` : '') +
     (agent.system_prompt ? `*System Prompt:* "${mdEscape(agent.system_prompt.slice(0, 120))}"\n\n` : '\n') +
-    `*Enabled Tools (${toolCount}/20+):*\n${toolList}\n` +
+    `*Enabled Tools (${toolCount}/19):*\n${toolList}\n` +
     (toolCount > 8 ? `  ...and ${toolCount - 8} more\n\n` : '\n') +
     `━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `Generic commands (/balance, /price, /status) still work.\n` +
+    `Commands: /balance /transfer /status /agents\n` +
     `Type /disconnect to return to generic mode.`
   );
 }
@@ -805,9 +946,38 @@ async function handleFreeText(chatId, text, user) {
 // ── Update dispatcher ─────────────────────────────────────────────────────────
 
 /**
+ * Handle callback_query from inline keyboard buttons.
+ */
+async function handleCallbackQuery(callbackQuery) {
+  const chatId = callbackQuery.message?.chat?.id;
+  const data = callbackQuery.data || '';
+  if (!chatId) return;
+
+  // Answer callback query to remove the loading indicator
+  await tgRequest('answerCallbackQuery', { callback_query_id: callbackQuery.id }).catch(() => {});
+
+  if (data === 'cmd_balance') return handleBalance(chatId, []);
+  if (data === 'cmd_transfer') return sendMessage(chatId, 'Usage: `/transfer <recipient> <amount>`\n\nExample: `/transfer 0123456789abcdef 10`');
+  if (data === 'cmd_agents') return handleAgents(chatId, []);
+  if (data === 'cmd_help') return handleHelp(chatId);
+  if (data === 'cmd_status') return sendMessage(chatId, 'Usage: `/status <deploy-hash>`\n\nExample: `/status a1b2c3d4e5f6...`');
+  if (data.startsWith('cmd_status_')) return handleStatus(chatId, [data.slice(11)]);
+  if (data.startsWith('cmd_balance_')) return handleBalance(chatId, [data.slice(12)]);
+  if (data.startsWith('cmd_price_')) return handlePrice(chatId, [data.slice(10)]);
+  if (data.startsWith('cmd_deploy_')) return handleDeployCmd(chatId, [data.slice(10)]);
+}
+
+/**
  * Process a single Telegram update object (from webhook or long-poll).
  */
 async function processUpdate(update) {
+  // Handle callback queries from inline keyboards
+  if (update.callback_query) {
+    return handleCallbackQuery(update.callback_query).catch(e =>
+      console.error('[Telegram] callbackQuery error:', e.message)
+    );
+  }
+
   const msg = update.message || update.edited_message;
   if (!msg || !msg.text) return; // skip non-text updates
 
@@ -826,8 +996,11 @@ async function processUpdate(update) {
       case 'start':    return handleStart(chatId, user);
       case 'help':     return handleHelp(chatId);
       case 'balance':  return handleBalance(chatId, args);
+      case 'transfer': return handleTransfer(chatId, args);
+      case 'agents':   return handleAgents(chatId, args);
       case 'price':    return handlePrice(chatId, args);
       case 'status':   return handleStatus(chatId, args);
+      case 'deploy':   return handleDeployCmd(chatId, args);
       case 'connect':  return handleConnect(chatId, args);
       case 'disconnect': return handleDisconnect(chatId);
       case 'agent':    return handleAgent(chatId);
@@ -878,7 +1051,7 @@ async function startLongPolling() {
       const { result } = await tgRequest('getUpdates', {
         offset:  _pollOffset,
         timeout: 30,          // Telegram server-side long-poll seconds
-        allowed_updates: ['message', 'edited_message']
+        allowed_updates: ['message', 'edited_message', 'callback_query']
       }, 35000);             // axios timeout must be > Telegram timeout (30s → 35s)
       for (const update of result || []) {
         _pollOffset = update.update_id + 1;
@@ -914,7 +1087,7 @@ async function registerWebhook() {
   try {
     const result = await tgRequest('setWebhook', {
       url: `${WEBHOOK_URL}/telegram/webhook`,
-      allowed_updates: ['message', 'edited_message'],
+      allowed_updates: ['message', 'edited_message', 'callback_query'],
       drop_pending_updates: true
     });
     console.log('[Telegram] Webhook registered:', result.description || result.ok);

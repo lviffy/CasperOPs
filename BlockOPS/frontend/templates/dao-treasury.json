@@ -1,0 +1,11 @@
+{
+  "name": "DAO Treasury Executor",
+  "description": "Check treasury balance, execute a CSPR transfer, deploy a new CEP-18 governance token, and verify the deploy on-chain. Pre-wired for multi-sig style approval flow.",
+  "icon": "wallet",
+  "tools": [
+    { "tool": "get_balance", "next_tool": "transfer" },
+    { "tool": "transfer", "next_tool": "deploy_cep18" },
+    { "tool": "deploy_cep18", "next_tool": "lookup_deploy" },
+    { "tool": "lookup_deploy", "next_tool": null }
+  ]
+}

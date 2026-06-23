@@ -22,7 +22,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css"
 import { toast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
-import { Save, ArrowLeft, Wallet } from "lucide-react"
+import { Save, ArrowLeft, Wallet, LayoutTemplate, ChevronDown } from "lucide-react"
 import NodeLibrary from "./node-library"
 import NodeConfigPanel from "./node-config-panel"
 import CustomEdge from "./custom-edge"
@@ -35,6 +35,7 @@ import { UserProfile } from "./user-profile"
 import { useAuth } from "@/lib/auth"
 import { createAgent, getAgentById, updateAgent } from "@/lib/agents"
 import { workflowToTools, toolsToWorkflow } from "@/lib/workflow-converter"
+import { getTemplates, type TemplateDefinition } from "@/lib/templates"
 import { AgentWalletModal } from "./agent-wallet"
 import { initCsprClick, getActiveAccount } from "@/lib/wallet"
 import AIQuotaCompact from "./payment/ai-quota-compact"
@@ -155,6 +156,47 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
   const [saving, setSaving] = useState(false)
   const [showNodeLibrary, setShowNodeLibrary] = useState(false)
   const [walletBalance, setWalletBalance] = useState<string | null>(null)
+  const [showTemplateMenu, setShowTemplateMenu] = useState(false)
+  const [templateLoaded, setTemplateLoaded] = useState(false)
+  const templateMenuRef = useRef<HTMLDivElement>(null)
+
+  const loadTemplate = useCallback(
+    (template: TemplateDefinition) => {
+      const { nodes: templateNodes, edges: templateEdges } = toolsToWorkflow(template.tools, AGENT_NODE_ID)
+      const agentNode = createAgentNode()
+      setNodes([agentNode, ...templateNodes])
+      setEdges(templateEdges)
+      setTemplateLoaded(true)
+      setShowTemplateMenu(false)
+      setTimeout(() => reactFlowInstance?.fitView({ padding: 0.2 }), 100)
+      toast({
+        title: `Loaded: ${template.name}`,
+        description: template.description,
+      })
+    },
+    [setNodes, setEdges, reactFlowInstance],
+  )
+
+  // Close template menu on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (templateMenuRef.current && !templateMenuRef.current.contains(e.target as Node)) {
+        setShowTemplateMenu(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  // Pre-load Yield Optimizer template on first visit (no agentId, no existing workflow)
+  useEffect(() => {
+    if (!agentId && !templateLoaded && reactFlowInstance) {
+      const templates = getTemplates()
+      if (templates.length > 0) {
+        loadTemplate(templates[0])
+      }
+    }
+  }, [agentId, templateLoaded, reactFlowInstance, loadTemplate])
 
   // Initialize CSPR.click once on mount
   useEffect(() => {
@@ -306,6 +348,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
 
   useEffect(() => {
     if (agentId && authenticated && user?.id) {
+      setTemplateLoaded(true)
       loadAgent()
     }
   }, [agentId, authenticated, user])
@@ -404,12 +447,41 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
                     <ArrowLeft className="h-4 w-4 sm:mr-2" />
                     <span className="hidden sm:inline">Back</span>
                   </Button>
+                  <div className="relative" ref={templateMenuRef}>
+                    <Button
+                      onClick={() => setShowTemplateMenu((v) => !v)}
+                      size="sm"
+                      variant="outline"
+                      className="font-medium text-xs sm:text-sm"
+                    >
+                      <LayoutTemplate className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Templates</span>
+                      <ChevronDown className={`ml-1 h-3 w-3 transition-transform ${showTemplateMenu ? "rotate-180" : ""}`} />
+                    </Button>
+                    {showTemplateMenu && (
+                      <div className="absolute left-0 top-full mt-1 w-72 bg-white rounded-lg border border-gray-200 shadow-xl z-50">
+                        <div className="p-2 space-y-1">
+                          {getTemplates().map((template) => (
+                            <button
+                              key={template.name}
+                              onClick={() => loadTemplate(template)}
+                              className="w-full text-left px-3 py-2.5 rounded hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="text-sm font-medium text-gray-900">{template.name}</div>
+                              <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{template.description}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <Button
                     onClick={() => setIsAIChatOpen(true)}
                     size="sm"
                     variant="default"
                     className="bg-foreground text-background hover:bg-foreground/90 shadow-lg font-semibold text-xs sm:text-sm"
                   >
+                    <LayoutTemplate className="h-4 w-4 sm:mr-2" />
                     <span className="hidden sm:inline">Create with AI</span>
                     <span className="sm:hidden">AI</span>
                   </Button>

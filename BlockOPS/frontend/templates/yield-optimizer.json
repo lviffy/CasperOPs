@@ -1,0 +1,9 @@
+{
+  "name": "Yield Optimizer",
+  "description": "Automatically rebalance yield vault positions and send email notifications. Pre-configured with moderate risk profile and weekly rebalance schedule.",
+  "icon": "zap",
+  "tools": [
+    { "tool": "yield_rebalance", "next_tool": "send_email" },
+    { "tool": "send_email", "next_tool": null }
+  ]
+}

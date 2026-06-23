@@ -1,0 +1,11 @@
+{
+  "name": "Risk Assessment & Compliance Guardian",
+  "description": "Verify wallet readiness, submit compliance attestation, register the agent on-chain, and check reputation score. Ideal for automated compliance monitoring.",
+  "icon": "shield-check",
+  "tools": [
+    { "tool": "wallet_readiness", "next_tool": "attest_agent" },
+    { "tool": "attest_agent", "next_tool": "register_agent" },
+    { "tool": "register_agent", "next_tool": "get_reputation" },
+    { "tool": "get_reputation", "next_tool": null }
+  ]
+}
