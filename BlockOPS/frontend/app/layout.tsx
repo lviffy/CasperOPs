@@ -5,6 +5,7 @@ import localFont from "next/font/local";
 import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import Script from "next/script";
 
 const aeonik = localFont({
   src: [
@@ -72,9 +73,25 @@ export default function RootLayout({
         className={`${aeonik.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
+        <Script id="click-ui-options" strategy="beforeInteractive">
+          {`window.clickUIOptions = { showTopBar: false, csprclickSdk: '/csprclick-sdk-1.11.js', rootAppElement: '#csprclick-navbar' };
+            var clickUIOptions = window.clickUIOptions;
+            window.clickSDKOptions = {
+              appName: "BlockOps",
+              appId: "csprclick-template",
+              providers: ["casper-wallet", "casper-signer", "ledger", "metamask-snap", "walletconnect"],
+              chainName: "casper-test",
+              casperNode: "https://rpc.testnet.casper.live/rpc",
+              contentMode: "iframe"
+            };
+            var clickSDKOptions = window.clickSDKOptions;`}
+        </Script>
+        <Script id="csprclick-client" src="/csprclick-client-1.11.0.js" strategy="afterInteractive" />
+        <div id="csprclick-navbar"></div>
         <Providers>{children}</Providers>
         <Analytics />
       </body>
     </html>
   );
 }
+

@@ -191,10 +191,7 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
             stepTimer = setTimeout(() => {
               setCurrentStep(prev => {
                 const next = prev + 1
-                if (next < steps.length) {
-                  runStep(next)
-                }
-                return next
+                return next < steps.length ? next : prev
               })
             }, 1200)
           }
@@ -412,6 +409,7 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
               </div>
               <div className="flex-1 overflow-y-auto space-y-1 text-slate-300">
                 {logs.map((log, idx) => {
+                  if (!log) return null
                   const isError = log.includes("[ERROR]")
                   const isSuccess = log.includes("✓") || log.includes("★")
                   const isHeader = log.includes("[SYSTEM]") || log.includes("[CSPR.CLICK]") || log.includes("[CHAIN]") || log.includes("[AI AGENT]") || log.includes("[ESCROW]") || log.includes("[ORACLE]")

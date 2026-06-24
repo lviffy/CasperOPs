@@ -21,4 +21,35 @@ if (typeof window === 'undefined') {
   } as Storage
 }
 
+if (typeof window !== 'undefined') {
+  const originalError = console.error
+  console.error = (...args: any[]) => {
+    const errorStr = args
+      .map(arg => {
+        if (arg instanceof Error) return arg.stack || arg.message
+        if (typeof arg === 'object' && arg !== null) {
+          try {
+            return JSON.stringify(arg)
+          } catch {
+            return String(arg)
+          }
+        }
+        return String(arg)
+      })
+      .join(' ')
+
+    // Filter out harmless Casper/CSPR.click locked wallet/key support console errors
+    if (
+      errorStr.includes('Cant fetch getActivePublicKeySupports list') ||
+      errorStr.includes('Wallet is locked') ||
+      errorStr.includes('_getActivePublicKeySupports')
+    ) {
+      console.warn('[CSPR.click Filtered Error]:', ...args)
+      return
+    }
+
+    originalError(...args)
+  }
+}
+
 export {}

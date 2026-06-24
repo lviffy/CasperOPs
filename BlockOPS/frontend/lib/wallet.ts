@@ -27,7 +27,7 @@ export type ConnectedAccount = {
 function getCsprClickConfig() {
   return {
     appName: process.env.NEXT_PUBLIC_CSPRCLICK_APP_NAME || "BlockOps",
-    appId: process.env.NEXT_PUBLIC_CSPRCLICK_APP_ID || "blockops",
+    appId: process.env.NEXT_PUBLIC_CSPRCLICK_APP_ID || "csprclick-template",
     providers: ["casper-wallet", "casper-signer", "ledger", "metamask-snap", "walletconnect"],
     chainName: CHAIN_CONFIGS[DEFAULT_CHAIN_ID].chainName,
     casperNode: CHAIN_CONFIGS[DEFAULT_CHAIN_ID].rpcUrl,
@@ -40,10 +40,15 @@ function getCsprClickConfig() {
  */
 export function initCsprClick(): CSPRClickSDK | null {
   if (typeof window === "undefined") return null;
+  console.log("[initCsprClick] window.csprclick:", window.csprclick);
   if (!window.csprclick) return null;
-  if (window.csprclick.appName && window.csprclick.appId) return window.csprclick;
+  if (window.csprclick.appName && window.csprclick.appId) {
+    console.log("[initCsprClick] SDK already initialized:", window.csprclick.appName);
+    return window.csprclick;
+  }
 
   const cfg = getCsprClickConfig();
+  console.log("[initCsprClick] calling window.csprclick.init with config:", cfg);
   try {
     window.csprclick.init(cfg);
   } catch (err) {
@@ -58,16 +63,88 @@ export function initCsprClick(): CSPRClickSDK | null {
  * Returns the connected account, or `null` if the user cancelled.
  */
 export async function connectWallet(provider = "casper-wallet"): Promise<ConnectedAccount | null> {
+  console.log("[connectWallet] attempting connect. provider:", provider, "window.csprclick:", window.csprclick);
   const sdk = initCsprClick();
   if (!sdk) throw new Error("CSPR.click SDK not available");
-  const account = await sdk.connect(provider);
-  if (!account) return null;
-  const publicKey = (account.public_key || "") as CasperPublicKey;
-  return {
-    publicKey,
-    provider,
-    csprName: (account as any).cspr_name ?? null,
-  };
+
+  if (provider && provider !== "csprclick") {
+    try {
+      const account = await sdk.connect(provider);
+      if (account) {
+        return {
+          publicKey: (account.public_key || "") as CasperPublicKey,
+          provider,
+          csprName: (account as any).cspr_name ?? null,
+        };
+      }
+    } catch (err) {
+      console.warn(`[connectWallet] direct connect to ${provider} failed, falling back to signIn modal:`, err);
+    }
+  }
+
+  // Fallback: trigger standard CSPR.click sign-in modal
+  return new Promise((resolve) => {
+    let resolved = false;
+
+    const handleSignedIn = (evt: any) => {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      console.log("[connectWallet] Event: csprclick:signed_in received inside promise", evt);
+      if (evt?.account) {
+        resolve({
+          publicKey: evt.account.public_key,
+          provider: evt.account.provider || provider || "casper-wallet",
+          csprName: evt.account.cspr_name ?? null,
+        });
+      } else {
+        resolve(null);
+      }
+    };
+
+    const handleDisconnected = () => {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      resolve(null);
+    };
+
+    const cleanup = () => {
+      if (typeof sdk.off === "function") {
+        sdk.off("csprclick:signed_in", handleSignedIn);
+        sdk.off("csprclick:disconnected", handleDisconnected);
+        sdk.off("csprclick:signed_out", handleDisconnected);
+      }
+    };
+
+    if (typeof sdk.on === "function") {
+      sdk.on("csprclick:signed_in", handleSignedIn);
+      sdk.on("csprclick:disconnected", handleDisconnected);
+      sdk.on("csprclick:signed_out", handleDisconnected);
+    } else {
+      console.warn("[connectWallet] Event emitter methods not available on SDK instance.");
+      resolve(null);
+      return;
+    }
+
+    // Timeout after 5 minutes
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        cleanup();
+        resolve(null);
+      }
+    }, 5 * 60 * 1000);
+
+    try {
+      sdk.signIn();
+    } catch (err) {
+      console.error("[connectWallet] sdk.signIn failed:", err);
+      resolved = true;
+      cleanup();
+      resolve(null);
+    }
+  });
 }
 
 /**
@@ -207,20 +284,16 @@ export async function getTokenBalances(address: string): Promise<{ native: strin
 export async function saveWalletToUser(userId: string, publicKey: string): Promise<void> {
   await updateCompatibleUserWallet(userId, {
     wallet_address: publicKey,
-    private_key: null,
     wallet_type: "csprclick",
-    pkp_public_key: null,
-    pkp_token_id: null,
+    ed25519_public_key: publicKey,
   });
 }
 
 export async function removeWalletFromUser(userId: string): Promise<void> {
   await updateCompatibleUserWallet(userId, {
     wallet_address: null,
-    private_key: null,
     wallet_type: null,
-    pkp_public_key: null,
-    pkp_token_id: null,
+    ed25519_public_key: null,
   });
 }
 

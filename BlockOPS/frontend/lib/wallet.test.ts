@@ -64,7 +64,7 @@ describe("wallet (CSPR.click)", () => {
     const sdk = initCsprClick()
     expect(sdk).toBe(sdkMock)
     expect(sdkMock.init).toHaveBeenCalledWith(
-      expect.objectContaining({ appName: "BlockOps", appId: "blockops" }),
+      expect.objectContaining({ appName: "BlockOps", appId: "csprclick-template" }),
     )
   })
 

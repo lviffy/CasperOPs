@@ -1,17 +1,15 @@
 /// <reference types="vitest" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
-// vi.mock is hoisted to the top of the file by vitest, so the factory cannot
-// reference top-level `const` bindings. Use `vi.hoisted` to create the mock
-// state, then point `vi.mock` at it.
-const walletMock = vi.hoisted(() => ({
+vi.mock("./wallet", () => ({
   getActiveAccount: vi.fn(),
   signDeploy: vi.fn(),
   sendDeploy: vi.fn(),
   casperDeployUrl: vi.fn((hash: string) => `https://testnet.cspr.live/deploy/${hash}`),
 }));
 
-vi.mock("./wallet", () => walletMock);
+import * as walletModule from "./wallet";
+const walletMock = walletModule as any;
 
 import { x402Fetch, isX402Response, readChallenge } from "./x402-client";
 

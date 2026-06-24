@@ -64,14 +64,18 @@ export function useAuth() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const sdk = initCsprClick()
-    setReady(!!sdk)
+    setReady(true)
     if (!sdk) {
       setHydrating(false)
       return
     }
 
-    sdk
-      .getActiveAccountAsync({ withBalance: false })
+    const getActiveAccountPromise = sdk.getActiveAccountAsync({ withBalance: false })
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('CSPR.click active account fetch timed out')), 1500)
+    )
+
+    Promise.race([getActiveAccountPromise, timeoutPromise])
       .then((active: any) => {
         if (active?.public_key) {
           setAccount({
@@ -83,24 +87,92 @@ export function useAuth() {
           })
         }
       })
-      .catch(() => {
-        // No active session — caller will prompt connect.
+      .catch((err) => {
+        console.warn('[auth] session check failed or timed out:', err)
+        // No active session or timeout — caller will prompt connect.
       })
       .finally(() => setHydrating(false))
+
+    const handleSignedIn = (evt: any) => {
+      console.log('[auth] Event: csprclick:signed_in received:', evt)
+      if (evt?.account) {
+        const newAccount = {
+          publicKey: evt.account.public_key,
+          provider: evt.account.provider || 'casper-wallet',
+          csprName: evt.account.cspr_name ?? null,
+          balance: evt.account.liquid_balance ?? null,
+          balanceMotes: evt.account.liquid_balance ?? null,
+        }
+        setAccount(newAccount)
+        console.log('[auth] Event: saving wallet to user...', newAccount.publicKey)
+        saveWalletToUser(newAccount.publicKey, newAccount.publicKey)
+          .then(() => console.log('[auth] Event: wallet saved successfully'))
+          .catch((err) => console.warn('[auth] Event: saveWalletToUser failed:', err))
+      }
+    }
+
+    const handleSwitchedAccount = (evt: any) => {
+      console.log('[auth] Event: csprclick:switched_account received:', evt)
+      if (evt?.account) {
+        const newAccount = {
+          publicKey: evt.account.public_key,
+          provider: evt.account.provider || 'casper-wallet',
+          csprName: evt.account.cspr_name ?? null,
+          balance: evt.account.liquid_balance ?? null,
+          balanceMotes: evt.account.liquid_balance ?? null,
+        }
+        setAccount(newAccount)
+        console.log('[auth] Event: saving switched wallet to user...', newAccount.publicKey)
+        saveWalletToUser(newAccount.publicKey, newAccount.publicKey)
+          .then(() => console.log('[auth] Event: switched wallet saved successfully'))
+          .catch((err) => console.warn('[auth] Event: saveWalletToUser failed:', err))
+      }
+    }
+
+    const handleSignedOut = () => {
+      console.log('[auth] Event: csprclick:signed_out')
+      setAccount(null)
+    }
+
+    const handleDisconnected = () => {
+      console.log('[auth] Event: csprclick:disconnected')
+      setAccount(null)
+    }
+
+    if (typeof sdk.on === 'function') {
+      sdk.on('csprclick:signed_in', handleSignedIn)
+      sdk.on('csprclick:switched_account', handleSwitchedAccount)
+      sdk.on('csprclick:unsolicited_account_change', handleSwitchedAccount)
+      sdk.on('csprclick:signed_out', handleSignedOut)
+      sdk.on('csprclick:disconnected', handleDisconnected)
+    }
+
+    return () => {
+      if (typeof sdk.off === 'function') {
+        sdk.off('csprclick:signed_in', handleSignedIn)
+        sdk.off('csprclick:switched_account', handleSwitchedAccount)
+        sdk.off('csprclick:unsolicited_account_change', handleSwitchedAccount)
+        sdk.off('csprclick:signed_out', handleSignedOut)
+        sdk.off('csprclick:disconnected', handleDisconnected)
+      }
+    }
   }, [])
 
   const syncUser = useCallback(async () => {
     const pk = account?.publicKey
+    console.log('[auth] syncUser starting. pk:', pk)
     if (!pk) return
     setSyncing(true)
     try {
       const { user: existing, pkpSchemaReady } = await fetchCompatibleUser(pk)
+      console.log('[auth] fetchCompatibleUser result existing:', existing, 'pkpSchemaReady:', pkpSchemaReady)
       setSchemaReady(pkpSchemaReady)
 
       if (existing) {
         setDbUser(existing)
       } else {
         const created = await createCompatibleUser(pk)
+        console.log('[auth] createCompatibleUser result created:', created)
         setSchemaReady(created.pkpSchemaReady)
         setDbUser(created.user)
       }
@@ -122,11 +194,15 @@ export function useAuth() {
 
   const login = useCallback(
     async (provider: string = 'casper-wallet') => {
+      console.log('[auth] login() called. provider:', provider)
       const connected = await connectWallet(provider)
+      console.log('[auth] login() connectWallet result:', connected)
       if (!connected) return null
       setAccount(connected)
       try {
+        console.log('[auth] saving wallet to user...')
         await saveWalletToUser(connected.publicKey, connected.publicKey)
+        console.log('[auth] wallet saved successfully')
       } catch (err) {
         console.warn('[auth] saveWalletToUser failed:', err)
       }
