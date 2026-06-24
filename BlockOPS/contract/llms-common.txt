@@ -1,0 +1,71 @@
+# Odra & Casper Smart Contract Development
+
+This file describes the common types, imports, structure, and compilation processes for writing Casper smart contracts using the Odra framework.
+
+## 1. Core Odra imports and structure
+
+Odra contracts are written in Rust using procedural macros:
+```rust
+use odra::prelude::*;
+use casper_event_standard::Event;
+
+#[odra::module]
+pub struct MyContract {
+    pub value: Var<u32>,
+    pub balances: Mapping<Address, Balance>,
+}
+
+#[odra::module]
+impl MyContract {
+    pub fn init(&mut self, initial_value: u32) {
+        self.value.set(initial_value);
+    }
+
+    pub fn set_value(&mut self, val: u32) {
+        self.value.set(val);
+    }
+
+    pub fn get_value(&self) -> u32 {
+        self.value.get().unwrap_or(0)
+    }
+}
+```
+
+## 2. Common Types in Odra / Casper
+
+- `Address`: Address of an account or contract.
+- `Balance`: Representation of token balances.
+- `U256`: 256-bit unsigned integer (for token amounts).
+- `Var<T>`: Single state variable storage.
+- `Mapping<K, V>`: Key-value map storage.
+- `List<T>`: State array/list storage.
+
+## 3. Events on Casper
+
+Events must derive the `Event` trait:
+```rust
+#[derive(Event, Debug, PartialEq, Eq)]
+pub struct ValueUpdated {
+    pub new_value: u32,
+    pub updater: Address,
+}
+```
+Emit an event with `self.env().emit_event(event)`.
+
+## 4. Error Handling
+
+Use a custom enum for errors:
+```rust
+#[odra::odra_error]
+pub enum Error {
+    Unauthorized = 1001,
+    InsufficientBalance = 1002,
+}
+```
+Revert with `self.env().revert(Error::Unauthorized)`.
+
+## 5. Compilation CLI Commands
+
+Inside `contract/` directory:
+- Build to WASM: `cargo odra build`
+- Run unit tests: `cargo test`

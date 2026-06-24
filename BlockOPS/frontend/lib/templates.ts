@@ -9,12 +9,16 @@ import yieldOptimizer from "@/templates/yield-optimizer.json"
 import rwaVerifier from "@/templates/rwa-verifier.json"
 import complianceGuardian from "@/templates/compliance-guardian.json"
 import daoTreasury from "@/templates/dao-treasury.json"
+import rwaYieldFund from "@/templates/rwa-yield-fund.json"
+import daoArbitrage from "@/templates/dao-arbitrage.json"
 
 const TEMPLATES: TemplateDefinition[] = [
   yieldOptimizer as TemplateDefinition,
   rwaVerifier as TemplateDefinition,
   complianceGuardian as TemplateDefinition,
   daoTreasury as TemplateDefinition,
+  rwaYieldFund as TemplateDefinition,
+  daoArbitrage as TemplateDefinition,
 ]
 
 export function getTemplates(): TemplateDefinition[] {

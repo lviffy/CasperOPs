@@ -1,4 +1,4 @@
-const { DeployUtil, Keys, RuntimeArgs, CLValueBuilder } = require('casper-js-sdk');
+const { DeployUtil, Keys, RuntimeArgs, CLValueBuilder, CLPublicKey } = require('casper-js-sdk');
 const { getClient, getKeysFromHex } = require('../utils/blockchain');
 const { successResponse, errorResponse, validateRequiredFields } = require('../utils/helpers');
 
@@ -78,7 +78,7 @@ async function mintNFT(req, res) {
     );
     
     const args = RuntimeArgs.fromMap({
-      token_owner: CLValueBuilder.key(Keys.PublicKey.fromHex(toAddress)),
+      token_owner: CLValueBuilder.key(CLPublicKey.fromHex(toAddress)),
       token_meta_data: CLValueBuilder.string('{"name":"BlockOps Agent Asset"}')
     });
     

@@ -1,0 +1,116 @@
+# BlockOps Smart Contract API & Reference Specs
+
+This file serves as the runtime index of smart contracts deployed on the Casper Network for the BlockOps platform. Use it to understand and write valid Odra Rust smart contract code dynamically.
+
+## 1. AgentFactory (`agent_factory.rs`)
+Manages custom AI agent registration and on-chain identity records.
+
+### Struct
+```rust
+#[odra::module]
+pub struct AgentFactory {
+    pub agents: Mapping<Address, AgentMeta>,
+    pub reputation_contract: Var<Address>,
+    pub compliance_contract: Var<Address>,
+    pub paused: Var<bool>,
+    pub owner: Var<Address>,
+}
+```
+
+### Entry Points
+- `init(&mut self, reputation: Address, compliance: Address)`
+- `register_agent(&mut self, agent: Address, metadata_hash: String)`
+- `transfer_ownership(&mut self, new_owner: Address)`
+- `set_paused(&mut self, paused: bool)`
+- `is_paused(&self) -> bool`
+- `get_agent_metadata(&self, agent: Address) -> String`
+
+---
+
+## 2. Reputation (`reputation.rs`)
+Tracks agent execution success, failures, and overall score on-chain.
+
+### Struct
+```rust
+#[odra::module]
+pub struct Reputation {
+    pub ratings: Mapping<Address, u32>,
+    pub execution_success: Mapping<Address, u32>,
+    pub execution_failures: Mapping<Address, u32>,
+    pub last_attestation: Mapping<Address, u64>,
+    pub validator: Var<Address>,
+}
+```
+
+### Entry Points
+- `init(&mut self, validator_address: Address)`
+- `set_rating(&mut self, agent: Address, rating: u32)`
+- `log_success(&mut self, agent: Address)`
+- `log_failure(&mut self, agent: Address)`
+- `get_rating(&self, agent: Address) -> u32`
+- `get_stats(&self, agent: Address) -> (u32, u32)`
+
+---
+
+## 3. Escrow (`escrow.rs`)
+Allows users to deposit CSPR and define multi-sig style automated payouts/refunds to agents based on task attestation.
+
+### Struct
+```rust
+#[odra::module]
+pub struct Escrow {
+    pub deposits: Mapping<Address, Balance>,
+    pub agent_allocations: Mapping<(Address, Address), Balance>, // (User, Agent) -> Balance
+    pub treasury: Var<Address>,
+}
+```
+
+### Entry Points
+- `init(&mut self, treasury: Address)`
+- `deposit(&mut self, agent: Address)`
+- `payout(&mut self, user: Address, agent: Address, amount: Balance)`
+- `refund(&mut self, agent: Address, amount: Balance)`
+- `set_treasury(&mut self, new_treasury: Address)`
+- `get_deposit_balance(&self, user: Address, agent: Address) -> Balance`
+
+---
+
+## 4. Compliance (`compliance.rs`)
+Manages ZK proof verification and whitelists for anonymous DeFi interactions.
+
+### Struct
+```rust
+#[odra::module]
+pub struct Compliance {
+    pub whitelist: Mapping<Address, bool>,
+    pub zk_validators: Mapping<Address, bool>,
+}
+```
+
+### Entry Points
+- `init(&mut self)`
+- `whitelist_address(&mut self, target: Address, status: bool)`
+- `verify_zk_proof(&self, proof_bytes: Vec<u8>) -> bool`
+- `is_compliant(&self, target: Address) -> bool`
+
+---
+
+## 5. MessageBoard (`message_board.rs`)
+A decentralized Redis-like pub-sub mechanism for agent-to-agent negotiation logs.
+
+### Struct
+```rust
+#[odra::module]
+pub struct MessageBoard {
+    pub messages: Mapping<String, String>,
+    pub writers: Mapping<String, Address>,
+}
+```
+
+### Entry Points
+- `post_message(&mut self, topic: String, message: String)`
+- `get_message(&self, topic: String) -> String`
+- `get_writer(&self, topic: String) -> Option<Address>`
+
+### Events
+- `MessagePosted { topic: String, writer: Address, message: String }`

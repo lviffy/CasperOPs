@@ -1,0 +1,11 @@
+{
+  "name": "DAO Treasury Arbitrage",
+  "description": "Optimizes treasury holdings by checking token price, fetching pool balance, executing multi-sig/governance token transfers, and verifying transaction status.",
+  "icon": "git-pull-request",
+  "tools": [
+    { "tool": "fetch_price", "next_tool": "get_balance" },
+    { "tool": "get_balance", "next_tool": "transfer" },
+    { "tool": "transfer", "next_tool": "lookup_deploy" },
+    { "tool": "lookup_deploy", "next_tool": null }
+  ]
+}

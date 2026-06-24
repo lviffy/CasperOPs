@@ -139,6 +139,24 @@ const AVAILABLE_TOOLS = {
     parameters: ['walletAddress'],
     examples: ['Is my Casper wallet ready?'],
   },
+  rwa_valuation: {
+    name: 'rwa_valuation',
+    description: 'Fetches the certified appraisal and land registry valuation for a property address. Requires x402 payment.',
+    parameters: ['propertyAddress'],
+    examples: ['Get property valuation for 010101...', 'Appraise the RWA property at 010203...'],
+  },
+  fractionalize_rwa: {
+    name: 'fractionalize_rwa',
+    description: 'Fractionalizes a certified RWA (Real World Asset) valuation into a CEP-18 token or CEP-78 fractional NFT collection representing ownership shares. Requires x402 payment.',
+    parameters: ['propertyAddress', 'valuationId', 'tokenName', 'tokenSymbol', 'decimals (optional, defaults to 9)', 'fractionsCount (optional, defaults to 10000)'],
+    examples: ['Fractionalize the property at 010101... with valuation id val-123 into 1000000 shares', 'Tokenize property 010203... with valuation val-abc into shares named PropShare (PROP) with total supply 100000'],
+  },
+  attest_performance: {
+    name: 'attest_performance',
+    description: 'Attests agent execution success or failure directly to the Reputation contract. Requires x402 payment.',
+    parameters: ['agentAddress', 'success (bool)'],
+    examples: ['Attest performance of agent 010101... as successful', 'Log failure for agent 010203... on reputation contract'],
+  },
   schedule_reminder: {
     name: 'schedule_reminder',
     description: 'Schedule a one-time or recurring reminder that posts back into the same chat.',
@@ -156,6 +174,24 @@ const AVAILABLE_TOOLS = {
     description: 'Cancel a scheduled reminder by id (or matching filters).',
     parameters: ['id (optional)', 'taskType (optional)', 'walletAddress (optional)'],
     examples: ['Cancel reminder abc123'],
+  },
+  compliance_check: {
+    name: 'compliance_check',
+    description: 'Checks if an agent or wallet address is compliant on the Compliance contract.',
+    parameters: ['agent_id', 'jurisdiction (optional)'],
+    examples: ['Is address 0123... compliant?', 'Check compliance status for 0123...'],
+  },
+  post_message: {
+    name: 'post_message',
+    description: 'Posts a coordination message to the on-chain MessageBoard contract and broadcasts it via Redis. Requires x402 payment.',
+    parameters: ['topic', 'message'],
+    examples: ['Post message "risk low" to topic "risk-assessment"', 'Log swarm decision to message board'],
+  },
+  get_message: {
+    name: 'get_message',
+    description: 'Gets the latest message for a topic from the on-chain MessageBoard contract.',
+    parameters: ['topic'],
+    examples: ['Get message for topic "risk-assessment"', 'Read swarm message board for topic "compliance"'],
   },
 };
 
@@ -412,7 +448,11 @@ function detectToolsWithRegex(message) {
     tools.push({ tool: 'mint_nft', reason: 'User wants to mint an NFT', parameters: {}, depends_on: [] });
   }
   if (/\b(attest|compliance|verify|kyc)\b/i.test(message)) {
-    tools.push({ tool: 'attest_agent', reason: 'User wants to attest an agent', parameters: {}, depends_on: [] });
+    if (/\b(check|status|is|are|query)\b/i.test(message) || /\b(compliant|check_compliance)\b/i.test(message)) {
+      tools.push({ tool: 'compliance_check', reason: 'User wants to check compliance status', parameters: {}, depends_on: [] });
+    } else {
+      tools.push({ tool: 'attest_agent', reason: 'User wants to attest an agent', parameters: {}, depends_on: [] });
+    }
   }
   if (/\b(reputation|rating|trust)\b/i.test(message)) {
     tools.push({ tool: 'get_reputation', reason: 'User mentioned reputation', parameters: {}, depends_on: [] });
@@ -422,6 +462,21 @@ function detectToolsWithRegex(message) {
   }
   if (/\b(register.*agent|new.*agent|create.*agent)\b/i.test(message)) {
     tools.push({ tool: 'register_agent', reason: 'User wants to register an agent', parameters: {}, depends_on: [] });
+  }
+  if (/\b(appraise|valuation|rwa|property.*val)\b/i.test(message)) {
+    tools.push({ tool: 'rwa_valuation', reason: 'User mentioned property valuation / appraisal', parameters: {}, depends_on: [] });
+  }
+  if (/\b(fractionalize|tokenize|split.*shares|fractional.*shares|fractionalize.*rwa)\b/i.test(message)) {
+    tools.push({ tool: 'fractionalize_rwa', reason: 'User mentioned fractionalizing / tokenizing an RWA', parameters: {}, depends_on: [] });
+  }
+  if (/\b(attest.*perf|log.*success|log.*failure|slash.*reput|reputation.*attest)\b/i.test(message)) {
+    tools.push({ tool: 'attest_performance', reason: 'User mentioned attesting agent performance or reputation', parameters: {}, depends_on: [] });
+  }
+  if (/\b(post.*message|write.*message|send.*message|log.*message|board.*post)\b/i.test(message)) {
+    tools.push({ tool: 'post_message', reason: 'User wants to post a message', parameters: {}, depends_on: [] });
+  }
+  if (/\b(get.*message|read.*message|fetch.*message|board.*get)\b/i.test(message)) {
+    tools.push({ tool: 'get_message', reason: 'User wants to get a message', parameters: {}, depends_on: [] });
   }
   if (hasEmailIntent) {
     const dependencies = [];

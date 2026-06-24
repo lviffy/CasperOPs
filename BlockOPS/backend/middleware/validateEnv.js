@@ -52,6 +52,7 @@ function buildSchema(isProd) {
     CASPER_REPUTATION_HASH: z.preprocess(trim, z.string().min(1).optional()),
     CASPER_ESCROW_HASH: z.preprocess(trim, z.string().min(1).optional()),
     CASPER_COMPLIANCE_HASH: z.preprocess(trim, z.string().min(1).optional()),
+    CASPER_MESSAGE_BOARD_HASH: z.preprocess(trim, z.string().min(1).optional()),
 
     // AI
     GROQ_API_KEY1: z.preprocess(

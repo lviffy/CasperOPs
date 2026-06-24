@@ -1,0 +1,12 @@
+{
+  "name": "RWA Yield & Collateral Fund",
+  "description": "Unified workflow showing all 4 Casper hackathon tracks: verifies investor compliance status, requests property valuation, fractionalizes RWA shares, executes yield rebalancing, and attests execution performance.",
+  "icon": "bank",
+  "tools": [
+    { "tool": "compliance_check", "next_tool": "rwa_valuation" },
+    { "tool": "rwa_valuation", "next_tool": "fractionalize_rwa" },
+    { "tool": "fractionalize_rwa", "next_tool": "yield_rebalance" },
+    { "tool": "yield_rebalance", "next_tool": "attest_performance" },
+    { "tool": "attest_performance", "next_tool": null }
+  ]
+}

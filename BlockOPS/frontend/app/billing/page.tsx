@@ -133,9 +133,14 @@ export default function BillingPage() {
     <main className="container mx-auto px-4 py-8 max-w-3xl">
       <header className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Billing</h1>
-        <Link href="/api-keys" className="text-sm text-muted-foreground underline">
-          ← Back to API keys
-        </Link>
+        <div className="flex gap-4 items-center">
+          <Link href="/billing/analytics" className="text-sm text-primary hover:underline">
+            View Analytics →
+          </Link>
+          <Link href="/api-keys" className="text-sm text-muted-foreground underline">
+            ← Back to API keys
+          </Link>
+        </div>
       </header>
 
       {error && (

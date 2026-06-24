@@ -26,6 +26,7 @@ import {
   Terminal,
   Code2,
   Globe,
+  Users,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { getAgentsByUserId, deleteAgent } from "@/lib/agents"
@@ -274,6 +275,12 @@ export default function MyAgents() {
                 Contract Explorer
               </Link>
             </Button>
+            <Button asChild variant="outline" size="sm" className="h-8 text-xs font-medium">
+              <Link href="/swarm">
+                <Users className="mr-1.5 h-3.5 w-3.5 text-indigo-500" />
+                Swarm Workspace
+              </Link>
+            </Button>
             <div className="flex-1" />
             <Button asChild size="sm" className="h-8 bg-foreground text-background hover:bg-foreground/90 text-xs font-medium">
               <Link href="/agent-builder">
@@ -281,6 +288,29 @@ export default function MyAgents() {
                 Create Agent
               </Link>
             </Button>
+          </div>
+
+          {/* CSPR.fans voting banner */}
+          <div className="mt-6 p-4 rounded-xl border border-pink-500/20 bg-linear-to-r from-pink-500/10 via-purple-500/5 to-transparent flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-pink-500/15 rounded-lg text-pink-500">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.9 1.603-.9 1.902 0l1.519 4.674a1 1 0 00.95.69h4.907c.961 0 1.36 1.246.588 1.81l-3.974 2.89a1 1 0 00-.364 1.118l1.518 4.674c.3.9-.752 1.697-1.497 1.1l-3.97-2.89a1 1 0 00-1.175 0l-3.97 2.89c-.745.59-1.797-.2-1.497-1.1l1.518-4.674a1 1 0 00-.364-1.118L2.05 10.1c-.773-.564-.375-1.81.587-1.81h4.907a1 1 0 00.95-.69l1.519-4.674z" />
+                </svg>
+              </div>
+              <div className="text-left">
+                <h4 className="text-xs font-semibold text-pink-700 dark:text-pink-400 uppercase tracking-wider">CSPR.fans Community Vote</h4>
+                <h3 className="text-sm font-semibold text-foreground mt-0.5">Vote for BlockOps on CSPR.fans!</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Help us win the Qualification Round by casting a vote for our Casper Automation Platform.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+              <Button asChild size="sm" variant="outline" className="h-8 text-xs border-pink-500/20 hover:bg-pink-500/5 hover:text-pink-600 dark:hover:text-pink-400">
+                <a href="https://cspr.fans/project/blockops" target="_blank" rel="noopener noreferrer">
+                  Vote Now
+                </a>
+              </Button>
+            </div>
           </div>
 
           <Separator className="my-6" />

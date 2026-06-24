@@ -178,6 +178,15 @@ export default function Home() {
               >
                 Contract Explorer
               </Link>
+              <Link 
+                href="/swarm" 
+                prefetch 
+                onClick={() => setLoadingLink('/swarm')}
+                className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors flex items-center gap-1.5"
+              >
+                Swarm Workspace
+                <Badge variant="outline" className="h-4 px-1 text-[9px] bg-indigo-500/10 text-indigo-500 border-indigo-500/20">Beta</Badge>
+              </Link>
             </div>
 
             {/* Mobile & Desktop Right Side */}
@@ -261,6 +270,16 @@ export default function Home() {
                   className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors py-2"
                 >
                   Contract Explorer
+                </Link>
+                <Link 
+                  href="/swarm" 
+                  onClick={() => {
+                    setLoadingLink('/swarm')
+                    setMobileMenuOpen(false)
+                  }}
+                  className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors py-2"
+                >
+                  Swarm Workspace
                 </Link>
               </div>
             </div>

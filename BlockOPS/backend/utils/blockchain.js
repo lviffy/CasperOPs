@@ -1,4 +1,4 @@
-const { Keys } = require('casper-js-sdk');
+const { Keys, CLPublicKey } = require('casper-js-sdk');
 const { getCache } = require('../services/cacheService');
 const { rpc, snapshot: rpcSnapshot } = require('./rpcFailover');
 
@@ -40,7 +40,7 @@ async function getAccountBalance(publicKeyHex) {
         const { CasperServiceByJsonRPC } = require('casper-js-sdk');
         const url = process.env.CASPER_RPC_URL || 'https://rpc.testnet.casper.live/rpc';
         const client = new CasperServiceByJsonRPC(url);
-        const publicKey = Keys.PublicKey.fromHex(publicKeyHex);
+        const publicKey = CLPublicKey.fromHex(publicKeyHex);
         const balance = await client.getAccountBalanceUrefByPublicKey(stateRootHash, publicKey)
           .then((uref) => client.getAccountBalance(stateRootHash, uref));
         return balance.toString();
@@ -67,7 +67,14 @@ function getRpcHealth() {
   return rpcSnapshot();
 }
 
+function getClient() {
+  const { CasperServiceByJsonRPC } = require('casper-js-sdk');
+  const url = process.env.CASPER_RPC_URL || 'https://rpc.testnet.casper.live/rpc';
+  return new CasperServiceByJsonRPC(url);
+}
+
 module.exports = {
+  getClient,
   getKeysFromHex,
   getAccountBalance,
   sendDeploy,

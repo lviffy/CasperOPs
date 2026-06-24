@@ -59,6 +59,9 @@ const webhookRoutes       = require('./routes/webhookRoutes');
 const reminderRoutes      = require('./routes/reminderRoutes');
 const telegramRoutes      = require('./routes/telegramRoutes');
 const agentRoutes         = require('./routes/agentRoutes');
+const rwaRoutes           = require('./routes/rwaRoutes');
+const compilerRouter      = require('./routes/compilerRouter');
+const accountRoutes       = require('./routes/accountRoutes');
 const telegramService     = require('./services/telegramService');
 const { reloadReminderJobsFromDB } = require('./controllers/reminderController');
 
@@ -105,6 +108,9 @@ app.use('/price', priceLimiter, priceRoutes);
 
 // Conversation chat: rate limited; api key optional (attaches context if present)
 app.use('/api', chatLimiter, apiKeyAuth({ optional: true }), conversationRoutes);
+app.use('/api', compilerRouter);
+// Phase 37: Casper-unique account management, contract upgrader, NFT metadata, WASM profiler
+app.use('/api', accountRoutes);
 
 // Phase 31: Billing (Stripe Checkout + webhook). The webhook route
 // needs the raw body so it's mounted BEFORE express.json() applies
@@ -123,6 +129,7 @@ app.use('/contract-chat', ...authGuard, contractChatRoutes);
 app.use('/webhooks',      ...authGuard, webhookRoutes);
 app.use('/agents',        txLimiter, agentRoutes);
 app.use('/reminders',     chatLimiter, apiKeyAuth({ optional: true }), reminderRoutes);
+app.use('/rwa',           ...authGuard, rwaRoutes);
 
 // Telegram: /webhook is public (called by Telegram, no key needed)
 // All other /telegram/* routes require authGuard

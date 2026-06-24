@@ -8,6 +8,7 @@ pub mod escrow;
 pub mod compliance;
 pub mod cep18;
 pub mod cep78;
+pub mod message_board;
 
 pub use agent_factory::AgentFactory;
 pub use reputation::Reputation;
@@ -15,3 +16,4 @@ pub use escrow::Escrow;
 pub use compliance::Compliance;
 pub use cep18::Cep18Token;
 pub use cep78::Cep78Nft;
+pub use message_board::MessageBoard;

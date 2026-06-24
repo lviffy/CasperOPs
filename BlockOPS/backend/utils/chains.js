@@ -45,6 +45,18 @@ const CASPER_SUPPORTED_TOOLS = new Set([
   'get_reputation',
   'yield_rebalance',
   'wallet_readiness',
+  'rwa_valuation',
+  'fractionalize_rwa',
+  'attest_performance',
+  'compliance_check',
+  'post_message',
+  'get_message',
+  // Phase 37: Casper-unique native capabilities
+  'update_account_weights',
+  'upgrade_contract_package',
+  'update_nft_metadata',
+  'add_delegated_key',
+  'profile_wasm_gas',
 ]);
 
 function isCasperChain(chain) {
@@ -124,6 +136,7 @@ const TOOL_PRICING = {
   calculate: { tier: 'free', priceMotes: 0 },
   get_reputation: { tier: 'free', priceMotes: 0 },
   wallet_readiness: { tier: 'free', priceMotes: 0 },
+  compliance_check: { tier: 'free', priceMotes: 0 },
 
   // Paid
   transfer: { tier: 'paid', priceMotes: 100_000_000 }, // 0.10 CSPR
@@ -135,6 +148,17 @@ const TOOL_PRICING = {
   register_agent: { tier: 'paid', priceMotes: 500_000_000 }, // 0.50 CSPR
   attest_agent: { tier: 'paid', priceMotes: 200_000_000 }, // 0.20 CSPR
   yield_rebalance: { tier: 'paid', priceMotes: 100_000_000 }, // 0.10 CSPR
+  rwa_valuation: { tier: 'paid', priceMotes: 200_000_000 }, // 0.20 CSPR
+  fractionalize_rwa: { tier: 'paid', priceMotes: 500_000_000 }, // 0.50 CSPR
+  attest_performance: { tier: 'paid', priceMotes: 200_000_000 }, // 0.20 CSPR
+  post_message: { tier: 'paid', priceMotes: 100_000_000 }, // 0.10 CSPR
+  get_message: { tier: 'free', priceMotes: 0 },
+  // Phase 37: Casper-unique native capabilities
+  update_account_weights: { tier: 'paid', priceMotes: 500_000_000 },  // 0.50 CSPR
+  upgrade_contract_package: { tier: 'paid', priceMotes: 5_000_000_000 }, // 5.00 CSPR
+  update_nft_metadata: { tier: 'paid', priceMotes: 200_000_000 },     // 0.20 CSPR
+  add_delegated_key: { tier: 'paid', priceMotes: 300_000_000 },       // 0.30 CSPR
+  profile_wasm_gas: { tier: 'free', priceMotes: 0 },
 };
 
 function getToolPrice(tool) {

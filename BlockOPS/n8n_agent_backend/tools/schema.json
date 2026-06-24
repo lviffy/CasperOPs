@@ -333,6 +333,85 @@
         },
         "required": ["public_key"]
       }
+    },
+    {
+      "name": "rwa_valuation",
+      "description": "Fetches the certified appraisal and land registry valuation for a property address. Requires x402 payment.",
+      "tier": "paid",
+      "x402_required": true,
+      "price_motes": 200000000,
+      "input": {
+        "type": "object",
+        "properties": {
+          "property_address": { "type": "string", "description": "RWA property address" }
+        },
+        "required": ["property_address"]
+      }
+    },
+    {
+      "name": "fractionalize_rwa",
+      "description": "Fractionalizes a certified RWA valuation into a CEP-18 token representing shares. Requires x402 payment.",
+      "tier": "paid",
+      "x402_required": true,
+      "price_motes": 500000000,
+      "input": {
+        "type": "object",
+        "properties": {
+          "property_address": { "type": "string", "description": "RWA property address" },
+          "valuation_id": { "type": "string", "description": "RWA valuation ID / attestation IPFS CID" },
+          "token_name": { "type": "string", "description": "Name for the fractional token shares" },
+          "token_symbol": { "type": "string", "description": "Symbol for the fractional token shares" },
+          "decimals": { "type": "integer", "description": "Decimals for the token shares", "default": 9 },
+          "fractions_count": { "type": "integer", "description": "Number of shares to mint", "default": 10000 }
+        },
+        "required": ["property_address", "valuation_id"]
+      }
+    },
+    {
+      "name": "explain_contract_state",
+      "description": "Queries raw Casper smart contract state keys or dictionaries and translates them into clean, semantic Markdown descriptions for LLMs.",
+      "tier": "free",
+      "x402_required": false,
+      "price_motes": 0,
+      "input": {
+        "type": "object",
+        "properties": {
+          "contract_hash": { "type": "string", "description": "Casper contract hash (e.g. hash-...)" },
+          "path": { "type": "string", "description": "State key path or dictionary name (optional)" },
+          "key": { "type": "string", "description": "Specific dictionary key (optional)" }
+        },
+        "required": ["contract_hash"]
+      }
+    },
+    {
+      "name": "query_contract_history",
+      "description": "Queries CSPR.cloud for a contract's transaction and event history, returning a semantic timeline.",
+      "tier": "free",
+      "x402_required": false,
+      "price_motes": 0,
+      "input": {
+        "type": "object",
+        "properties": {
+          "contract_hash": { "type": "string", "description": "Casper contract hash (e.g. hash-...)" },
+          "limit": { "type": "integer", "description": "Max history items to return", "default": 10 }
+        },
+        "required": ["contract_hash"]
+      }
+    },
+    {
+      "name": "semantic_lookup",
+      "description": "Performs a natural-language-friendly lookup of a Casper block or deploy hash, translating raw RPC data into a clean semantic explanation.",
+      "tier": "free",
+      "x402_required": false,
+      "price_motes": 0,
+      "input": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["block", "deploy"], "description": "Type of lookup" },
+          "identifier": { "type": "string", "description": "Block height/hash or deploy hash" }
+        },
+        "required": ["type", "identifier"]
+      }
     }
   ],
   "contracts": {

@@ -1,6 +1,7 @@
-const { DeployUtil, Keys } = require('casper-js-sdk');
+const { DeployUtil, Keys, CLPublicKey } = require('casper-js-sdk');
 const { getClient, getKeysFromHex, getAccountBalance } = require('../utils/blockchain');
 const { successResponse, errorResponse, validateRequiredFields } = require('../utils/helpers');
+const { checkAddressCompliance } = require('../services/directToolExecutor');
 
 async function transfer(req, res) {
   try {
@@ -18,6 +19,12 @@ async function transfer(req, res) {
 
     const client = getClient();
     const fromAddress = keys.publicKey.toHex();
+    
+    // Check compliance status
+    const compliant = await checkAddressCompliance(fromAddress);
+    if (!compliant) {
+      return res.status(400).json(errorResponse(`Payer address ${fromAddress} is not compliant on the Compliance contract`));
+    }
     
     // Check balance
     const balanceMotes = await getAccountBalance(fromAddress);
@@ -39,7 +46,7 @@ async function transfer(req, res) {
     
     const session = DeployUtil.ExecutableDeployItem.newTransfer(
       amountInMotes.toString(),
-      Keys.PublicKey.fromHex(toAddress),
+      CLPublicKey.fromHex(toAddress),
       undefined,
       12345
     );
@@ -89,6 +96,12 @@ async function prepareTransfer(req, res) {
     const validationError = validateRequiredFields(req.body, ['fromAddress', 'toAddress', 'amount']);
     if (validationError) {
       return res.status(400).json(validationError);
+    }
+
+    // Check compliance status
+    const compliant = await checkAddressCompliance(fromAddress);
+    if (!compliant) {
+      return res.status(400).json(errorResponse(`Payer address ${fromAddress} is not compliant on the Compliance contract`));
     }
 
     const amountInMotes = BigInt(Math.floor(Number(amount) * 1_000_000_000));

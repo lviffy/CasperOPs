@@ -42,7 +42,7 @@ sys.path.insert(0, str(HERE))
 
 import dispatcher  # noqa: E402
 
-EXPECTED_TOOL_COUNT = 19  # matches backend TOOL_PRICING (Phase 19 correction)
+EXPECTED_TOOL_COUNT = 24  # matches 19 original + 2 RWA + 3 semantic tools
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +246,44 @@ class HttpSseSmokeTests(unittest.TestCase):
         if not result.get("success"):
             # Either the env var is missing OR we couldn't reach the RPC.
             self.assertIn("error", result)
+
+    # ----- Semantic Tools ----------------------------------------------------
+    def test_31_explain_contract_state(self):
+        body = {
+            "jsonrpc": "2.0", "id": 100, "method": "tools/call",
+            "params": {"name": "explain_contract_state", "arguments": {"contract_hash": "hash-reputation-contract"}}
+        }
+        r = self._post("/mcp/message", body)
+        self.assertEqual(r.status_code, 200)
+        result = r.json()["result"]
+        self.assertTrue(result["success"])
+        self.assertEqual(result["kind"], "rpc")
+        self.assertIn("semantic_description", result["result"])
+        self.assertIn("Reputation Engine", result["result"]["semantic_description"])
+
+    def test_32_query_contract_history(self):
+        body = {
+            "jsonrpc": "2.0", "id": 101, "method": "tools/call",
+            "params": {"name": "query_contract_history", "arguments": {"contract_hash": "hash-compliance-contract"}}
+        }
+        r = self._post("/mcp/message", body)
+        self.assertEqual(r.status_code, 200)
+        result = r.json()["result"]
+        self.assertTrue(result["success"])
+        self.assertEqual(result["kind"], "rpc")
+        self.assertIn("history_timeline", result["result"])
+
+    def test_33_semantic_lookup(self):
+        body = {
+            "jsonrpc": "2.0", "id": 102, "method": "tools/call",
+            "params": {"name": "semantic_lookup", "arguments": {"type": "deploy", "identifier": "abc123deployhash"}}
+        }
+        r = self._post("/mcp/message", body)
+        self.assertEqual(r.status_code, 200)
+        result = r.json()["result"]
+        self.assertTrue(result["success"])
+        self.assertEqual(result["kind"], "rpc")
+        self.assertIn("semantic_summary", result["result"])
 
     # ----- SSE stream ---------------------------------------------------------
     def test_40_sse_stream_emits_ready(self):

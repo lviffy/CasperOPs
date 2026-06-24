@@ -88,6 +88,13 @@ const toolTypes = [
     icon: Star,
     category: "Agents",
   },
+  {
+    type: "attest_performance",
+    label: "Attest Agent Performance",
+    description: "Attest agent success/failure directly to the Reputation contract",
+    icon: Star,
+    category: "Agents",
+  },
 
   // ── Yield & DeFi ──────────────────────────────────────────
   {
