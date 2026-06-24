@@ -384,16 +384,16 @@ To implement the specialized tools capitalizing on Casper's unique core features
 
 To secure the Qualification Round community vote and wow the jury, the following proposals will be prioritized:
 
-- [ ] **One-Click Sandbox Demo Mode**
-  - [ ] Build a landing page toggle button to enter "Sandbox Mode".
-  - [ ] Simulate the CSPR.click sign flow and step-by-step visual execution of the *RWA Yield & Collateral Fund* template without requiring funded testnet keys.
-  - [ ] Add the glowing "Vote for BlockOps on CSPR.fans" modal at the end of the simulation.
-- [ ] **Live Reasoning Terminal & Step Trace**
-  - [ ] Set up SSE streaming channels in `/v1/conversations/` to push step-by-step LLM execution traces directly to the browser.
-  - [ ] Implement the UI Reasoning Terminal component, styling Casper-specific steps in brand colors and linking to testnet explorers.
-- [ ] **Smart Escrow Accounts (Account Abstraction)**
-  - [ ] Deploy a modified Odra `Escrow` contract that enforces time-bound and daily spending caps for delegated AI agents.
-  - [ ] Build the frontend "Deposit to Agent Escrow" budget allocator, letting agents run autonomously in the background without signature prompts.
-- [ ] **x402 Marketplace Analytics**
-  - [ ] Implement the `/api/analytics/x402` stats endpoints to return aggregated CSPR metrics, caching efficiency ratios, and transaction counts.
-  - [ ] Build the charts interface at `/billing/analytics` displaying live micropayments settled.
+- [x] **One-Click Sandbox Demo Mode**
+  - [x] Build a landing page toggle button to enter "Sandbox Mode".
+  - [x] Simulate the CSPR.click sign flow and step-by-step visual execution of the *RWA Yield & Collateral Fund* template without requiring funded testnet keys.
+  - [x] Add the glowing "Vote for BlockOps on CSPR.fans" modal at the end of the simulation.
+- [x] **Live Reasoning Terminal & Step Trace**
+  - [x] Set up SSE streaming channels in `/v1/conversations/` to push step-by-step LLM execution traces directly to the browser.
+  - [x] Implement the UI Reasoning Terminal component, styling Casper-specific steps in brand colors and linking to testnet explorers.
+- [x] **Smart Escrow Accounts (Account Abstraction)**
+  - [x] Deploy a modified Odra `Escrow` contract that enforces time-bound and daily spending caps for delegated AI agents.
+  - [x] Build the frontend "Deposit to Agent Escrow" budget allocator, letting agents run autonomously in the background without signature prompts.
+- [x] **x402 Marketplace Analytics**
+  - [x] Implement the `/api/analytics/x402` stats endpoints to return aggregated CSPR metrics, caching efficiency ratios, and transaction counts.
+  - [x] Build the charts interface at `/billing/analytics` displaying live micropayments settled.

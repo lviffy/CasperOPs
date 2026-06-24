@@ -5,9 +5,10 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/auth"
-import { ArrowRight, Bot, Loader2 } from "lucide-react"
+import { ArrowRight, Bot, Loader2, Play } from "lucide-react"
 import { UserProfile } from "@/components/user-profile"
 import { PrivateKeySetupModal } from "@/components/private-key-setup-modal"
+import { SandboxDemoModal } from "@/components/sandbox-demo-modal"
 import FeaturesExpandableCards from "@/components/features-expandable-cards"
 import { Modal, ModalBody, ModalContent, ModalFooter, ModalTrigger } from "@/components/ui/animated-modal"
 import { motion, useInView, useSpring } from "motion/react"
@@ -61,6 +62,7 @@ export default function Home() {
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [loadingLink, setLoadingLink] = useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isSandboxOpen, setIsSandboxOpen] = useState(false)
 
   // Initialize Lenis smooth scrolling
   useEffect(() => {
@@ -332,6 +334,14 @@ export default function Home() {
                     Create Agent
                   </Link>
                 </Button>
+                <Button 
+                  onClick={() => setIsSandboxOpen(true)}
+                  size="lg" 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-650 hover:to-purple-750 text-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto border-0 shadow-lg shadow-purple-500/10 flex items-center gap-2 cursor-pointer"
+                >
+                  <Play className="h-4 w-4" />
+                  Try Sandbox Demo
+                </Button>
               </>
             ) : (
               <>
@@ -349,6 +359,14 @@ export default function Home() {
                   ) : (
                     "Get Started"
                   )}
+                </Button>
+                <Button 
+                  onClick={() => setIsSandboxOpen(true)}
+                  size="lg" 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-650 hover:to-purple-750 text-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto border-0 shadow-lg shadow-purple-500/10 flex items-center gap-2 cursor-pointer"
+                >
+                  <Play className="h-4 w-4" />
+                  Try Sandbox Demo
                 </Button>
               </>
             )}
@@ -726,6 +744,12 @@ export default function Home() {
           pkpSchemaReady={pkpSchemaReady}
         />
       )}
+
+      {/* Sandbox Demo Modal */}
+      <SandboxDemoModal
+        isOpen={isSandboxOpen}
+        onClose={() => setIsSandboxOpen(false)}
+      />
     </div>
   )
 }

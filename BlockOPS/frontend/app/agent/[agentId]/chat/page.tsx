@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/use-toast"
 import { UserProfile } from "@/components/user-profile"
 import { useAuth } from "@/lib/auth"
+import { ReasoningTerminal } from "@/components/reasoning-terminal"
 import {
   getAgentById,
   getAgentAuditLogContent,
@@ -1855,6 +1856,8 @@ export default function AgentChatPage() {
         userId={dbUser?.id}
         conversationId={conversationId}
       />
+
+      <ReasoningTerminal conversationId={conversationId ?? null} />
     </TooltipProvider>
   )
 }

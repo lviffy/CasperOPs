@@ -62,6 +62,9 @@ const agentRoutes         = require('./routes/agentRoutes');
 const rwaRoutes           = require('./routes/rwaRoutes');
 const compilerRouter      = require('./routes/compilerRouter');
 const accountRoutes       = require('./routes/accountRoutes');
+const reasoningRoutes     = require('./routes/reasoningRoutes');
+const escrowRoutes        = require('./routes/escrowRoutes');
+const analyticsRoutes     = require('./routes/analyticsRoutes');
 const telegramService     = require('./services/telegramService');
 const { reloadReminderJobsFromDB } = require('./controllers/reminderController');
 
@@ -111,6 +114,10 @@ app.use('/api', chatLimiter, apiKeyAuth({ optional: true }), conversationRoutes)
 app.use('/api', compilerRouter);
 // Phase 37: Casper-unique account management, contract upgrader, NFT metadata, WASM profiler
 app.use('/api', accountRoutes);
+// Phase 38: Live Reasoning, Escrow, and Analytics
+app.use('/api', reasoningRoutes);
+app.use('/api', escrowRoutes);
+app.use('/api', analyticsRoutes);
 
 // Phase 31: Billing (Stripe Checkout + webhook). The webhook route
 // needs the raw body so it's mounted BEFORE express.json() applies

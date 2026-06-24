@@ -49,6 +49,8 @@ require.cache[require.resolve('../utils/blockchain')] = {
   paths: [],
 };
 
+// Disable Redis for unit tests so they don't depend on a running Redis instance
+process.env.REDIS_URL = '';
 const { post_message, get_message } = require('../services/directToolExecutor');
 const eventPool = require('../services/eventPoolService');
 

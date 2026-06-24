@@ -17,6 +17,7 @@ const { blake2b } = require('@noble/hashes/blake2b');
 const eventPool = require('./eventPoolService');
 
 const BASE_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+const reasoningRoutes = require('../routes/reasoningRoutes');
 
 const log = logger.child({ component: 'directToolExecutor' });
 const cache = getCache();
@@ -964,8 +965,24 @@ async function executeToolStep(step, fallbackMessage = '', executionContext = {}
   const { mapped, missing } = mapToolParams(tool, parameters || {}, fallbackMessage, executionContext);
   const stepLog = log.child({ tool });
 
+  if (executionContext.conversationId) {
+    reasoningRoutes.broadcastTrace(executionContext.conversationId, {
+      type: 'tool_start',
+      tool,
+      message: `Executing tool ${tool}...`
+    });
+  }
+
   if (!isToolSupportedOnChain(tool)) {
     stepLog.warn({ reason: 'unsupported_tool' }, 'tool step rejected');
+    if (executionContext.conversationId) {
+      reasoningRoutes.broadcastTrace(executionContext.conversationId, {
+        type: 'tool_done',
+        tool,
+        success: false,
+        message: buildUnsupportedToolError(tool)
+      });
+    }
     return {
       tool_call: { tool, parameters: mapped },
       result: { success: false, tool, error: buildUnsupportedToolError(tool) },
@@ -973,6 +990,14 @@ async function executeToolStep(step, fallbackMessage = '', executionContext = {}
   }
   if (missing.length > 0) {
     stepLog.warn({ missing, reason: 'missing_params' }, 'tool step missing required params');
+    if (executionContext.conversationId) {
+      reasoningRoutes.broadcastTrace(executionContext.conversationId, {
+        type: 'tool_done',
+        tool,
+        success: false,
+        message: `Missing required parameters: ${missing.join(', ')}`
+      });
+    }
     return {
       tool_call: { tool, parameters: mapped },
       result: { success: false, tool, error: `Missing required parameters: ${missing.join(', ')}` },
@@ -985,6 +1010,14 @@ async function executeToolStep(step, fallbackMessage = '', executionContext = {}
       const compliant = await checkAddressCompliance(payer);
       if (!compliant) {
         stepLog.warn({ payer, reason: 'non_compliant_payer' }, 'transfer tool step rejected — payer is not compliant');
+        if (executionContext.conversationId) {
+          reasoningRoutes.broadcastTrace(executionContext.conversationId, {
+            type: 'tool_done',
+            tool,
+            success: false,
+            message: `Payer address ${payer} is not compliant`
+          });
+        }
         return {
           tool_call: { tool, parameters: mapped },
           result: { success: false, tool, error: `Payer address ${payer} is not compliant on the Compliance contract` },
@@ -998,12 +1031,32 @@ async function executeToolStep(step, fallbackMessage = '', executionContext = {}
       const payload = await LOCAL_TOOL_HANDLERS[tool](mapped, executionContext);
       const ok = payload?.success !== false;
       stepLog[ok ? 'info' : 'warn']({ ok, keys: Object.keys(payload || {}) }, 'local tool step finished');
+      
+      const txHash = payload?.deployHash || payload?.hash || payload?.transactionHash || payload?.result?.deployHash || payload?.result?.hash;
+      if (executionContext.conversationId) {
+        reasoningRoutes.broadcastTrace(executionContext.conversationId, {
+          type: 'tool_done',
+          tool,
+          success: ok,
+          txHash,
+          message: ok ? `Successfully completed ${tool}` : `Failed executing ${tool}: ${payload?.error || 'Unknown error'}`
+        });
+      }
+
       return {
         tool_call: { tool, parameters: mapped },
         result: { success: ok, tool, result: payload },
       };
     } catch (err) {
       stepLog.error({ err: err.message, stack: err.stack }, 'local tool step threw');
+      if (executionContext.conversationId) {
+        reasoningRoutes.broadcastTrace(executionContext.conversationId, {
+          type: 'tool_done',
+          tool,
+          success: false,
+          message: `Tool execution threw error: ${err.message}`
+        });
+      }
       return { tool_call: { tool, parameters: mapped }, result: { success: false, tool, error: err.message } };
     }
   }
@@ -1011,12 +1064,28 @@ async function executeToolStep(step, fallbackMessage = '', executionContext = {}
   if (tool === 'calculate') {
     const result = safeCalculate(mapped);
     stepLog[result?.success ? 'info' : 'warn']({ ok: result?.success }, 'calculate step finished');
+    if (executionContext.conversationId) {
+      reasoningRoutes.broadcastTrace(executionContext.conversationId, {
+        type: 'tool_done',
+        tool,
+        success: result?.success,
+        message: result?.success ? `Successfully computed calculation` : `Calculation failed`
+      });
+    }
     return { tool_call: { tool, parameters: mapped }, result };
   }
 
   const config = TOOL_ENDPOINTS[tool];
   if (!config) {
     stepLog.error({ reason: 'no_endpoint' }, 'tool has no endpoint and no local handler');
+    if (executionContext.conversationId) {
+      reasoningRoutes.broadcastTrace(executionContext.conversationId, {
+        type: 'tool_done',
+        tool,
+        success: false,
+        message: `Tool ${tool} not supported for direct execution`
+      });
+    }
     return { tool_call: { tool, parameters: mapped }, result: { success: false, tool, error: 'Tool not supported for direct execution' } };
   }
 
@@ -1054,11 +1123,27 @@ async function executeToolStep(step, fallbackMessage = '', executionContext = {}
       throw new Error(`Unsupported method: ${config.method}`);
     }
     stepLog.info({ status: response.status }, 'http tool step ok');
+    if (executionContext.conversationId) {
+      reasoningRoutes.broadcastTrace(executionContext.conversationId, {
+        type: 'tool_done',
+        tool,
+        success: true,
+        message: `Successfully executed HTTP tool: ${tool}`
+      });
+    }
     return { tool_call: { tool, parameters: mapped }, result: { success: true, tool, result: response.data } };
   } catch (err) {
     const statusCode = err.response?.status;
     const detail = err.response?.data?.error || err.response?.data?.message || err.response?.data?.details || err.message;
     stepLog.error({ statusCode, err: detail }, 'http tool step failed');
+    if (executionContext.conversationId) {
+      reasoningRoutes.broadcastTrace(executionContext.conversationId, {
+        type: 'tool_done',
+        tool,
+        success: false,
+        message: `HTTP execution failed: ${statusCode ? `HTTP ${statusCode}: ${detail}` : detail}`
+      });
+    }
     return { tool_call: { tool, parameters: mapped }, result: { success: false, tool, error: statusCode ? `HTTP ${statusCode}: ${detail}` : detail } };
   }
 }

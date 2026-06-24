@@ -11,6 +11,7 @@ const {
 const { fireEvent } = require('../services/webhookService');
 const { DEFAULT_CHAIN, getChainConfig } = require('../config/constants');
 const { buildUnsupportedToolError, isToolSupportedOnChain, normalizeChainId } = require('../utils/chains');
+const reasoningRoutes = require('../routes/reasoningRoutes');
 
 const IN_MEMORY_MESSAGE_LIMIT = 30;
 const DEFAULT_AUDIT_WAIT_MS = 8000;
@@ -368,6 +369,12 @@ async function chat(req, res) {
       addInMemoryMessage(convId, 'user', truncatedMessage);
       messages = getInMemoryMessages(convId);
     }
+
+    // SSE routing broadcast
+    reasoningRoutes.broadcastTrace(convId, {
+      type: 'routing',
+      message: 'Analyzing user request with Intelligent Tool Routing...'
+    });
 
     // Check if the message requires tools using intelligent AI routing
     console.log('[Chat] Analyzing message for tool requirements...');
@@ -820,6 +827,16 @@ async function chat(req, res) {
       addInMemoryMessage(convId, 'assistant', aiResponse, toolResults);
       console.log('[Chat] AI response generated and stored in memory');
     }
+
+    // SSE final broadcasts
+    reasoningRoutes.broadcastTrace(convId, {
+      type: 'ai_response',
+      message: 'AI assistant response generated.'
+    });
+    reasoningRoutes.broadcastTrace(convId, {
+      type: 'done',
+      message: 'Workflow trace completed.'
+    });
 
     // Return response
     res.json({

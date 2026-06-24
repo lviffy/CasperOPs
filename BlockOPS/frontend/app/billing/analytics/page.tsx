@@ -33,8 +33,19 @@ type AnalyticsData = {
   };
 };
 
+interface X402Data {
+  totalCsprSettled: number;
+  totalTransactions: number;
+  avgTransactionCspr: number;
+  cacheHitRatio: number;
+  cacheSavingsCspr: number;
+  topTools: Array<{ tool: string; count: number; csprVolume: number }>;
+  dailyVolume: Array<{ date: string; settled: number; txCount: number }>;
+}
+
 export default function BillingAnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
+  const [x402Data, setX402Data] = useState<X402Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +53,7 @@ export default function BillingAnalyticsPage() {
     try {
       setLoading(true);
       setError(null);
-      // Retrieve the master/session API key or credentials
+      
       const res = await fetch("/billing/analytics", { credentials: "include" });
       if (!res.ok) {
         throw new Error(`Failed to load analytics: HTTP ${res.status}`);
@@ -52,6 +63,15 @@ export default function BillingAnalyticsPage() {
         throw new Error(json.error || "Failed to fetch analytics data");
       }
       setData(json);
+
+      // Fetch x402 metrics
+      const x402Res = await fetch("/api/analytics/x402");
+      if (x402Res.ok) {
+        const x402Json = await x402Res.json();
+        if (x402Json.ok) {
+          setX402Data(x402Json.metrics);
+        }
+      }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");
     } finally {
@@ -265,6 +285,98 @@ export default function BillingAnalyticsPage() {
           </table>
         </CardContent>
       </Card>
+
+      {/* x402 Marketplace Section */}
+      {x402Data && (
+        <section className="space-y-6 pt-6 border-t border-border/80">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+              x402 Micropayment Marketplace
+            </h2>
+            <p className="text-muted-foreground mt-1">
+              Live developer transaction settlement stats, cached savings efficiency, and tool activity logs.
+            </p>
+          </div>
+
+          {/* x402 Summary Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="border-border bg-card/40">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Total Settled Volume</CardDescription>
+                <CardTitle className="text-2xl font-extrabold text-purple-400">{x402Data.totalCsprSettled} CSPR</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-[11px] text-muted-foreground">Across {x402Data.totalTransactions} total transactions</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card/40">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Cache Hit Ratio</CardDescription>
+                <CardTitle className="text-2xl font-extrabold text-emerald-400">{(x402Data.cacheHitRatio * 100).toFixed(0)}%</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-[11px] text-muted-foreground">Saved {x402Data.cacheSavingsCspr} CSPR in gas fees</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card/40">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Avg Transaction Cost</CardDescription>
+                <CardTitle className="text-2xl font-extrabold text-blue-400">{x402Data.avgTransactionCspr} CSPR</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-[11px] text-muted-foreground">Average fee settled per tool call</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* x402 Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-border bg-card/30">
+              <CardHeader>
+                <CardTitle>Daily Settled Volume</CardTitle>
+                <CardDescription>Micropayment volumes settled on-chain daily</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={x402Data.dailyVolume} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorSettled" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                    <XAxis dataKey="date" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: "rgba(17, 17, 17, 0.9)", border: "1px solid rgba(255, 255, 255, 0.1)" }} />
+                    <Area type="monotone" name="Settled (CSPR)" dataKey="settled" stroke="#a855f7" fillOpacity={1} fill="url(#colorSettled)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card/30">
+              <CardHeader>
+                <CardTitle>Top Tools by CSPR Volume</CardTitle>
+                <CardDescription>Total settled volume per tool</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={x402Data.topTools} layout="vertical" margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                    <XAxis type="number" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis dataKey="tool" type="category" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: "rgba(17, 17, 17, 0.9)", border: "1px solid rgba(255, 255, 255, 0.1)" }} />
+                    <Bar name="Volume (CSPR)" dataKey="csprVolume" fill="#ec4899" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      )}
     </main>
   );
 }
