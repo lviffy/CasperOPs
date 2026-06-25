@@ -180,11 +180,6 @@ function createPendingExecutionAudit(toolResults) {
       timestamp: now,
       txHash,
       amount,
-      storageStatus: 'pending',
-      filecoinCid: null,
-      filecoinUri: null,
-      prepareTxHash: null,
-      storageError: 'Filecoin archival in progress',
       dbError: null
     };
   });
@@ -192,7 +187,6 @@ function createPendingExecutionAudit(toolResults) {
   return {
     totalCount: entries.length,
     successfulCount: entries.filter((entry) => entry.success).length,
-    filecoinStoredCount: 0,
     pending: true,
     entries
   };
@@ -251,7 +245,7 @@ async function chat(req, res) {
     let messages = [];
     const idsAreSupabaseCompatible =
       isUuidLike(agentId) &&
-      isUuidLike(userId) &&
+      (typeof userId === 'string' && userId.trim().length > 0) &&
       (!conversationId || isUuidLike(conversationId));
 
     let useSupabase = !!supabase && idsAreSupabaseCompatible; // Track whether we're using Supabase for this request
@@ -798,14 +792,13 @@ async function chat(req, res) {
           auditPromise
             .then((finalAudit) => {
               if (finalAudit?.totalCount) {
-                console.log('[Chat] Filecoin archival completed asynchronously:', {
-                  totalCount: finalAudit.totalCount,
-                  filecoinStoredCount: finalAudit.filecoinStoredCount
+                console.log('[Chat] Tool execution logging completed asynchronously:', {
+                  totalCount: finalAudit.totalCount
                 });
               }
             })
             .catch((archiveError) => {
-              console.error('[Chat] Async Filecoin archival failed:', archiveError.message);
+              console.error('[Chat] Async tool execution logging failed:', archiveError.message);
             });
         }
 

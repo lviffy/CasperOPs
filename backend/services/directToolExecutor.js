@@ -709,6 +709,7 @@ function interpolateParameters(params, previousResults) {
           autoVariables.token_price = price;
           autoVariables[`${coin}_price`] = price;
         }
+        autoVariables.current_price = price;
       }
     }
     const balanceResults = previousResults.filter((r) => r?.success && r?.tool === 'get_balance');
@@ -719,8 +720,10 @@ function interpolateParameters(params, previousResults) {
         autoVariables.balance = balance;
       }
     }
-    if (Object.keys(autoVariables).length > 0) {
-      interpolated.variables = { ...autoVariables, ...(params.variables || {}) };
+    const userVariables = { ...(params.values || {}), ...(params.variables || {}) };
+    interpolated.variables = { ...autoVariables, ...userVariables };
+    if (interpolated.values) {
+      delete interpolated.values;
     }
   }
 

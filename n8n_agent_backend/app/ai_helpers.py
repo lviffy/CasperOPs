@@ -59,9 +59,10 @@ def enrich_calculate_args(function_args: Dict[str, Any], all_tool_results: List[
     if not function_args.get("expression"):
         return function_args
 
-    variables = function_args.get("variables", {})
-    if not isinstance(variables, dict):
-        variables = {}
+    user_vars = function_args.get("variables") or function_args.get("values") or {}
+    if not isinstance(user_vars, dict):
+        user_vars = {}
+    variables = {**user_vars}
 
     # Scan all previous successful results
     for tr in all_tool_results:
@@ -108,11 +109,15 @@ def enrich_calculate_args(function_args: Dict[str, Any], all_tool_results: List[
                                         "arb_price", "sol_price", "target_price"]:
                                 if key not in variables:
                                     variables[key] = p
+                        if "current_price" not in variables:
+                            variables["current_price"] = p
                     except (ValueError, TypeError):
                         pass
 
     function_args = dict(function_args)
     function_args["variables"] = variables
+    if "values" in function_args:
+        del function_args["values"]
 
     # Also scan context_text (user_message) for a balance value as last resort.
     # The conversationController.js embeds e.g. "ETH Balance: 0.1 ETH" in user_message.

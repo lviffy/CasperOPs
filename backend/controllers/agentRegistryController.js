@@ -3,39 +3,6 @@ const supabase = require('../config/supabase');
 // Filecoin archival was removed in the Casper migration (Phase 13). Registry
 // payloads are now persisted in the `metadata` JSONB column on agent_registry
 // and in `tool_executions` (see supabase/migrations/20260622_casper_schema.sql).
-// The functions below preserve the previous call sites so the controller keeps
-// working — they just return a no-op shape.
-function archiveJsonToFilecoin() {
-  return Promise.resolve({
-    status: 'disabled',
-    cid: null,
-    pieceCid: null,
-    uri: null,
-    provider: null,
-    prepareTxHash: null,
-    error: 'filecoin archival removed in Casper migration; payload is stored in agent_registry.metadata'
-  });
-}
-
-function retrieveJsonFromFilecoin() {
-  return Promise.resolve({
-    status: 'disabled',
-    data: null,
-    parsed: null,
-    payload: null,
-    metadata: null,
-    rawText: null,
-    pieceCid: null,
-    uri: null,
-    contentType: null,
-    parseError: null,
-    error: 'filecoin retrieval removed in Casper migration; payload is stored in tool_executions.result'
-  });
-}
-
-function parsePieceCidFromUri(_uri) {
-  return null;
-}
 
 function toArray(value, fallback = []) {
   if (Array.isArray(value)) {
@@ -86,8 +53,6 @@ function normalizeRegistryRow(row) {
     metadata: row.metadata || {},
     status: row.status,
     version: row.version,
-    metadataCid: row.metadata_cid,
-    metadataUri: row.metadata_uri,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -219,13 +184,6 @@ async function upsertAgentRegistry(req, res) {
       version: nextVersion
     };
 
-    const filecoin = await archiveJsonToFilecoin(registryPayload, {
-      namespace: 'casperops-agent-registry',
-      name: `agent-registry-${agentId}-v${nextVersion}`,
-      metadata: { agentId, userId }
-    });
-    const metadataCid = filecoin?.pieceCid || filecoin?.cid || null;
-
     const upsertPayload = {
       agent_id: agentId,
       user_id: userId,
@@ -236,8 +194,6 @@ async function upsertAgentRegistry(req, res) {
       metadata: metadataObject,
       status: normalizedStatus,
       version: nextVersion,
-      metadata_cid: metadataCid || existingRow?.metadata_cid || null,
-      metadata_uri: filecoin.uri || existingRow?.metadata_uri || null,
       updated_at: new Date().toISOString()
     };
 
@@ -254,15 +210,7 @@ async function upsertAgentRegistry(req, res) {
 
     return res.json({
       success: true,
-      registry: normalizeRegistryRow(savedRegistry),
-      filecoin: {
-        status: filecoin.status,
-        provider: filecoin.provider,
-        cid: metadataCid,
-        pieceCid: filecoin.pieceCid || null,
-        uri: filecoin.uri || null,
-        error: filecoin.error || null
-      }
+      registry: normalizeRegistryRow(savedRegistry)
     });
   } catch (error) {
     console.error('[AgentRegistry] Upsert error:', error);
@@ -523,14 +471,6 @@ async function getAgentAuditLogContent(req, res) {
     return res.json({
       success: true,
       logId: logRow.id,
-      filecoin: {
-        status: 'disabled',
-        provider: null,
-        pieceCid: null,
-        uri: null,
-        contentType: 'application/json',
-        parseError: null
-      },
       envelope,
       payload: envelope,
       metadata: envelope.metadata || {},

@@ -35,16 +35,7 @@ const MASTER_KEY   = process.env.MASTER_API_KEY || '';
 const TG_API = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : null;
 const telegramConversationSessions = new Map();
 
-const LIT_PRIVATE_KEY_PREFIX = 'lit:v1:';
-const LIT_PROVIDERS = ['lit-chipotle', 'lit-naga-test'];
-const DEFAULT_LIT_API_BASE_URL = 'https://api.dev.litprotocol.com/core/v1';
-const decryptedKeyCache = new Map();
-const DECRYPT_ACTION_CODE = `
-async function main({ pkpId, ciphertext }) {
-  const plaintext = await Lit.Actions.Decrypt({ pkpId, ciphertext });
-  return { plaintext };
-}
-`;
+
 
 function getConversationSessionKey(chatId, agentId) {
   return `${String(chatId)}:${String(agentId || 'generic')}`;
@@ -78,9 +69,7 @@ function isRawPrivateKey(privateKey) {
   return /^0x[a-fA-F0-9]{64}$/.test(trimmed) || /^[a-fA-F0-9]{64}$/.test(trimmed);
 }
 
-function isLitStoredPrivateKey(privateKey) {
-  return !!privateKey && typeof privateKey === 'string' && privateKey.startsWith(LIT_PRIVATE_KEY_PREFIX);
-}
+
 
 function normalizePrivateKey(privateKey) {
   if (!privateKey || typeof privateKey !== 'string') return null;
@@ -102,142 +91,6 @@ function normalizeAddress(address) {
   return CASPER_KEY_REGEX.test(trimmed) ? trimmed : null;
 }
 
-function deriveAddressFromPrivateKey(_privateKey) {
-  // Casper ed25519 / secp256k1 keys are the key itself; there is no
-  // derivation step the way EVM has. Returning null here preserves the
-  // call sites that previously used this for sanity-checking.
-  return null;
-}
-
-function deriveAddressFromPkpPublicKey(_pkpPublicKey) {
-  // PKP public keys on Casper are the user address directly. Returning
-  // null mirrors the previous behaviour; callers fall back to the stored
-  // wallet_address / preferredWalletAddress fields.
-  return null;
-}
-
-function parseLitStoredPrivateKey(storedPrivateKey) {
-  if (!isLitStoredPrivateKey(storedPrivateKey)) {
-    throw new Error('Not a Lit-managed private key payload');
-  }
-
-  const rawJson = storedPrivateKey.slice(LIT_PRIVATE_KEY_PREFIX.length);
-  let parsed;
-  try {
-    parsed = JSON.parse(rawJson);
-  } catch (_) {
-    throw new Error('Invalid Lit private key payload format');
-  }
-
-  if (
-    !parsed ||
-    typeof parsed !== 'object' ||
-    parsed.version !== 1 ||
-    !LIT_PROVIDERS.includes(parsed.provider) ||
-    typeof parsed.pkpId !== 'string' ||
-    typeof parsed.ciphertext !== 'string'
-  ) {
-    throw new Error('Invalid Lit private key payload schema');
-  }
-
-  return parsed;
-}
-
-function parseLitResponsePayload(payload) {
-  if (typeof payload === 'string') {
-    try {
-      const parsed = JSON.parse(payload);
-      if (parsed && typeof parsed === 'object') {
-        return parsed;
-      }
-      return { value: parsed };
-    } catch (_) {
-      return { value: payload };
-    }
-  }
-
-  if (payload && typeof payload === 'object') {
-    return payload;
-  }
-
-  return { value: payload };
-}
-
-function getLitConfig() {
-  const apiBaseUrl = (process.env.LIT_API_BASE_URL || DEFAULT_LIT_API_BASE_URL).replace(/\/$/, '');
-  const apiKey = process.env.LIT_USAGE_API_KEY;
-  const defaultPkpId = process.env.LIT_PKP_ID || null;
-
-  if (!apiKey) {
-    throw new Error('Lit is not configured: missing LIT_USAGE_API_KEY');
-  }
-
-  return { apiBaseUrl, apiKey, defaultPkpId };
-}
-
-async function runLitAction({ code, jsParams }) {
-  const { apiBaseUrl, apiKey } = getLitConfig();
-
-  const response = await axios.post(
-    `${apiBaseUrl}/lit_action`,
-    {
-      code,
-      js_params: jsParams || {}
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Api-Key': apiKey
-      },
-      timeout: 15000,
-      validateStatus: () => true
-    }
-  );
-
-  if (response.status < 200 || response.status >= 300) {
-    const responseBody = typeof response.data === 'string'
-      ? response.data
-      : response.data?.logs || JSON.stringify(response.data);
-    throw new Error(`Lit action request failed (${response.status}): ${responseBody}`);
-  }
-
-  const body = response.data;
-
-  if (!body || typeof body !== 'object') {
-    throw new Error('Lit action returned an invalid response');
-  }
-
-  if (body.has_error) {
-    throw new Error(body.logs || 'Lit action execution failed');
-  }
-
-  return parseLitResponsePayload(body.response);
-}
-
-async function decryptSecretWithLit(ciphertext, pkpId) {
-  const { defaultPkpId } = getLitConfig();
-  const finalPkpId = pkpId || defaultPkpId;
-
-  if (!finalPkpId) {
-    throw new Error('Lit decrypt requires pkpId (missing payload pkpId and LIT_PKP_ID)');
-  }
-
-  const payload = await runLitAction({
-    code: DECRYPT_ACTION_CODE,
-    jsParams: {
-      pkpId: finalPkpId,
-      ciphertext
-    }
-  });
-
-  const plaintext = typeof payload?.plaintext === 'string' ? payload.plaintext : null;
-  if (!plaintext) {
-    throw new Error('Lit decryption did not return plaintext');
-  }
-
-  return plaintext;
-}
-
 async function decryptStoredPrivateKey(storedPrivateKey) {
   if (!storedPrivateKey || typeof storedPrivateKey !== 'string') return null;
 
@@ -245,28 +98,7 @@ async function decryptStoredPrivateKey(storedPrivateKey) {
     return normalizePrivateKey(storedPrivateKey);
   }
 
-  if (!isLitStoredPrivateKey(storedPrivateKey)) {
-    return null;
-  }
-
-  if (decryptedKeyCache.has(storedPrivateKey)) {
-    return decryptedKeyCache.get(storedPrivateKey) || null;
-  }
-
-  const litPayload = parseLitStoredPrivateKey(storedPrivateKey);
-  const plaintext = await decryptSecretWithLit(litPayload.ciphertext, litPayload.pkpId);
-
-  if (!isRawPrivateKey(plaintext)) {
-    throw new Error('Lit decrypt returned an invalid private key');
-  }
-
-  const normalizedPrivateKey = normalizePrivateKey(plaintext);
-  if (!normalizedPrivateKey) {
-    throw new Error('Unable to normalize decrypted private key');
-  }
-
-  decryptedKeyCache.set(storedPrivateKey, normalizedPrivateKey);
-  return normalizedPrivateKey;
+  return null;
 }
 
 async function getTelegramWalletContext(preferredWalletAddress = null, linkedUserId = null) {
@@ -275,15 +107,13 @@ async function getTelegramWalletContext(preferredWalletAddress = null, linkedUse
     return {
       walletAddress: preferredAddress,
       walletType: null,
-      privateKey: null,
-      pkpPublicKey: null,
-      pkpTokenId: null
+      privateKey: null
     };
   }
 
   const { data: userRecord, error } = await supabase
     .from('users')
-    .select('private_key, wallet_address, wallet_type, pkp_public_key, pkp_token_id')
+    .select('wallet_address, wallet_type')
     .eq('id', String(linkedUserId))
     .maybeSingle();
 
@@ -292,54 +122,18 @@ async function getTelegramWalletContext(preferredWalletAddress = null, linkedUse
     return {
       walletAddress: preferredAddress,
       walletType: null,
-      privateKey: null,
-      pkpPublicKey: null,
-      pkpTokenId: null
+      privateKey: null
     };
   }
 
-  const walletType =
-    userRecord?.wallet_type === 'pkp'
-      ? 'pkp'
-      : userRecord?.wallet_type === 'traditional'
-        ? 'traditional'
-        : null;
-  const pkpPublicKey =
-    walletType === 'pkp' && typeof userRecord?.pkp_public_key === 'string'
-      ? userRecord.pkp_public_key
-      : null;
-  const pkpTokenId =
-    walletType === 'pkp' && typeof userRecord?.pkp_token_id === 'string'
-      ? userRecord.pkp_token_id
-      : null;
-  let privateKey = null;
-  const storedPrivateKey = typeof userRecord?.private_key === 'string' ? userRecord.private_key : null;
-  if (walletType !== 'pkp' && storedPrivateKey) {
-    try {
-      privateKey = await decryptStoredPrivateKey(storedPrivateKey);
-    } catch (err) {
-      console.warn('[Telegram] Failed to resolve linked user private key for Telegram chat:', err.message || err);
-    }
-  }
-
+  const walletType = userRecord?.wallet_type === 'csprclick' ? 'csprclick' : null;
   const userWalletAddress = normalizeAddress(userRecord?.wallet_address || null);
-  const derivedAddress = deriveAddressFromPrivateKey(privateKey);
-  const pkpDerivedAddress = normalizeAddress(deriveAddressFromPkpPublicKey(pkpPublicKey));
-
-  let walletAddress = userWalletAddress || pkpDerivedAddress || derivedAddress || preferredAddress || null;
-
-  // Never pass a signer key when it does not map to the active wallet context.
-  if (privateKey && walletAddress && derivedAddress && walletAddress.toLowerCase() !== derivedAddress.toLowerCase()) {
-    console.warn('[Telegram] Linked user wallet differs from decrypted private key; privateKey context disabled for this chat');
-    privateKey = null;
-  }
+  let walletAddress = userWalletAddress || preferredAddress || null;
 
   return {
     walletAddress,
     walletType,
-    privateKey,
-    pkpPublicKey,
-    pkpTokenId
+    privateKey: null
   };
 }
 
@@ -914,10 +708,7 @@ async function handleFreeText(chatId, text, user) {
       systemPrompt: agentConfig?.systemPrompt,       // null = use default
       enabledTools: agentConfig?.enabledTools,       // null = enable all
       walletAddress: telegramWalletContext.walletAddress, // linked user wallet context (fallback: linked agent wallet)
-      walletType: telegramWalletContext.walletType,
-      pkpPublicKey: telegramWalletContext.pkpPublicKey,
-      pkpTokenId: telegramWalletContext.pkpTokenId,
-      privateKey: telegramWalletContext.privateKey        // linked website user's private key when available
+      walletType: telegramWalletContext.walletType
     }, {
       headers: { 'Content-Type': 'application/json', 'x-api-key': MASTER_KEY },
       timeout: 60000

@@ -138,7 +138,7 @@ export function UserProfile({ onLogout }: UserProfileProps) {
                   <span className="text-xs font-medium">Set Up Agent Wallet</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Generate a true seedless Lit PKP wallet on naga-test, or import an existing wallet with Lit-encrypted storage
+                  Connect your Casper wallet via CSPR.click to sign agent interaction deploys.
                 </p>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

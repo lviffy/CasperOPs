@@ -40,11 +40,6 @@ export interface AgentAuditLog {
   success: boolean
   tx_hash: string | null
   amount: string | null
-  filecoin_cid: string | null
-  filecoin_uri: string | null
-  filecoin_provider: string | null
-  storage_status: string
-  storage_error: string | null
   created_at: string
 }
 
@@ -58,14 +53,6 @@ export interface ListAgentAuditLogsParams {
 
 export interface AgentAuditLogContent {
   logId: string
-  filecoin: {
-    status: string
-    provider: string
-    pieceCid: string | null
-    uri: string | null
-    contentType?: "json" | "text"
-    parseError?: string | null
-  }
   envelope: unknown
   payload: unknown
   metadata: unknown
@@ -244,27 +231,4 @@ export async function listAgentAuditLogs(
     logs: Array.isArray(payload.logs) ? (payload.logs as AgentAuditLog[]) : [],
     count: typeof payload.count === 'number' ? payload.count : 0,
   }
-}
-
-export async function getAgentAuditLogContent(
-  agentId: string,
-  logId: string,
-  userId: string
-): Promise<AgentAuditLogContent> {
-  const query = new URLSearchParams({ userId })
-  const response = await safeFetch(
-    `${BLOCKCHAIN_BACKEND_URL}/agents/${encodeURIComponent(agentId)}/audit-logs/${encodeURIComponent(logId)}/content?${query.toString()}`,
-    {
-      headers: getApiKeyHeaders(),
-    }
-  )
-  const payload = await parseJson(response)
-
-  if (!response.ok || !payload.success) {
-    throw new Error(
-      `Failed to fetch stored Filecoin JSON: ${payload.error || `Request failed with status ${response.status}`}`
-    )
-  }
-
-  return payload as AgentAuditLogContent
 }

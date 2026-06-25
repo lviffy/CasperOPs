@@ -18,10 +18,8 @@ import { useAuth } from "@/lib/auth"
 import { ReasoningTerminal } from "@/components/reasoning-terminal"
 import {
   getAgentById,
-  getAgentAuditLogContent,
   listAgentAuditLogs,
   type AgentAuditLog,
-  type AgentAuditLogContent,
 } from "@/lib/agents"
 import {
   cancelScheduledTransferJob,
@@ -41,7 +39,6 @@ import { CHAIN_CONFIGS, getChainConfig, getStoredChain, type SupportedChainId } 
 const DEFAULT_EMAIL_RECIPIENT_KEY = "casperops.defaultEmailRecipient"
 const AUDIT_LOG_FETCH_LIMIT = 200
 
-type StorageFilter = "all" | "stored" | "pending" | "failed" | "not_configured"
 type AuditScopeFilter = "all" | "conversation"
 type ReminderScopeFilter = "all" | "conversation"
 
@@ -211,20 +208,6 @@ function stringifyValue(value: unknown): string {
   }
 }
 
-function getStorageBadgeClass(status: string): string {
-  switch (status) {
-    case "stored":
-      return "border-emerald-500/40 bg-emerald-500/10 text-emerald-600"
-    case "pending":
-      return "border-amber-500/40 bg-amber-500/10 text-amber-600"
-    case "failed":
-      return "border-red-500/40 bg-red-500/10 text-red-600"
-    case "not_configured":
-      return "border-slate-500/40 bg-slate-500/10 text-slate-600"
-    default:
-      return "border-border bg-muted/40 text-muted-foreground"
-  }
-}
 
 function AuditDetailField({
   label,
@@ -275,13 +258,9 @@ function AuditLogsSheet({
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [storageFilter, setStorageFilter] = useState<StorageFilter>("all")
   const [scopeFilter, setScopeFilter] = useState<AuditScopeFilter>("all")
   const [toolFilter, setToolFilter] = useState<string>("all")
   const [expandedById, setExpandedById] = useState<Record<string, boolean>>({})
-  const [contentById, setContentById] = useState<Record<string, AgentAuditLogContent>>({})
-  const [contentErrorById, setContentErrorById] = useState<Record<string, string>>({})
-  const [contentLoadingById, setContentLoadingById] = useState<Record<string, boolean>>({})
 
   const noConversationSelected = scopeFilter === "conversation" && !conversationId
 
@@ -336,22 +315,6 @@ function AuditLogsSheet({
     void fetchLogs()
   }, [fetchLogs, open])
 
-  const pendingCount = React.useMemo(
-    () => logs.filter((log) => log.storage_status === "pending").length,
-    [logs]
-  )
-
-  useEffect(() => {
-    if (!open || pendingCount === 0) {
-      return
-    }
-
-    const timerId = window.setInterval(() => {
-      void fetchLogs(true)
-    }, 7000)
-
-    return () => window.clearInterval(timerId)
-  }, [fetchLogs, open, pendingCount])
 
   const availableTools = React.useMemo(() => {
     const set = new Set<string>()
@@ -373,57 +336,7 @@ function AuditLogsSheet({
     }
   }, [availableTools, toolFilter])
 
-  const filteredLogs = React.useMemo(() => {
-    if (storageFilter === "all") {
-      return logs
-    }
-
-    return logs.filter((log) => log.storage_status === storageFilter)
-  }, [logs, storageFilter])
-
-  const storageFilterOptions: Array<{ value: StorageFilter; label: string }> = [
-    { value: "all", label: "All" },
-    { value: "stored", label: "Stored" },
-    { value: "pending", label: "Pending" },
-    { value: "failed", label: "Failed" },
-    { value: "not_configured", label: "Not Config" },
-  ]
-
-  const handleLoadStoredJson = async (logId: string) => {
-    if (!userId || contentLoadingById[logId] || contentById[logId]) {
-      return
-    }
-
-    setContentLoadingById((prev) => ({ ...prev, [logId]: true }))
-    setContentErrorById((prev) => {
-      const next = { ...prev }
-      delete next[logId]
-      return next
-    })
-
-    try {
-      const content = await getAgentAuditLogContent(agentId, logId, userId)
-      setContentById((prev) => ({ ...prev, [logId]: content }))
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to load stored JSON"
-      setContentErrorById((prev) => ({ ...prev, [logId]: message }))
-    } finally {
-      setContentLoadingById((prev) => ({ ...prev, [logId]: false }))
-    }
-  }
-
-  const handleClearStoredJson = (logId: string) => {
-    setContentById((prev) => {
-      const next = { ...prev }
-      delete next[logId]
-      return next
-    })
-    setContentErrorById((prev) => {
-      const next = { ...prev }
-      delete next[logId]
-      return next
-    })
-  }
+  const filteredLogs = logs
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -436,7 +349,7 @@ function AuditLogsSheet({
                 Tool Audit Logs
               </SheetTitle>
               <SheetDescription>
-                View persisted Filecoin and execution details for every tool call.
+                View execution details for every tool call.
               </SheetDescription>
             </div>
             <Button
@@ -480,19 +393,6 @@ function AuditLogsSheet({
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5">
-              {storageFilterOptions.map((option) => (
-                <Button
-                  key={option.value}
-                  type="button"
-                  variant={storageFilter === option.value ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-7 text-[11px]"
-                  onClick={() => setStorageFilter(option.value)}
-                >
-                  {option.label}
-                </Button>
-              ))}
-
               <select
                 className="h-7 rounded-md border border-border bg-background px-2 text-[11px]"
                 value={toolFilter}
@@ -510,11 +410,6 @@ function AuditLogsSheet({
             <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
               <span>Rows loaded: {logs.length}</span>
               <span>Total matching query: {totalCount}</span>
-              {pendingCount > 0 && (
-                <Badge variant="outline" className="h-5 border-amber-500/40 bg-amber-500/10 text-amber-600">
-                  {pendingCount} pending (auto-refresh active)
-                </Badge>
-              )}
             </div>
           </div>
         </SheetHeader>
@@ -544,9 +439,6 @@ function AuditLogsSheet({
           <div className="space-y-3">
             {filteredLogs.map((log) => {
               const isExpanded = Boolean(expandedById[log.id])
-              const storedContent = contentById[log.id]
-              const contentError = contentErrorById[log.id]
-              const contentLoading = Boolean(contentLoadingById[log.id])
 
               return (
                 <Collapsible
@@ -577,12 +469,6 @@ function AuditLogsSheet({
                             >
                               {log.success ? "success" : "failed"}
                             </Badge>
-                            <Badge
-                              variant="outline"
-                              className={cn("h-5 px-1.5 text-[10px]", getStorageBadgeClass(log.storage_status))}
-                            >
-                              {log.storage_status}
-                            </Badge>
                             {log.chain && (
                               <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
                                 {log.chain}
@@ -611,31 +497,6 @@ function AuditLogsSheet({
                       <AuditDetailField label="Tool Index" value={log.tool_index ?? "N/A"} />
                       <AuditDetailField label="Transaction Hash" value={log.tx_hash || "N/A"} mono />
                       <AuditDetailField label="Amount" value={log.amount || "N/A"} mono />
-                      <AuditDetailField
-                        label="Filecoin CID"
-                        value={log.filecoin_cid ? truncateMiddle(log.filecoin_cid) : "N/A"}
-                        mono
-                      />
-                      <AuditDetailField
-                        label="Filecoin URI"
-                        value={
-                          log.filecoin_uri ? (
-                            <a
-                              href={log.filecoin_uri}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs underline underline-offset-2"
-                            >
-                              <Link2 className="h-3 w-3" />
-                              {truncateMiddle(log.filecoin_uri, 18, 16)}
-                            </a>
-                          ) : (
-                            "N/A"
-                          )
-                        }
-                      />
-                      <AuditDetailField label="Filecoin Provider" value={log.filecoin_provider || "N/A"} />
-                      <AuditDetailField label="Storage Error" value={log.storage_error || "N/A"} />
                     </div>
 
                     <AuditJsonBlock title="Sanitized Params" value={log.params_sanitized} />
@@ -643,63 +504,7 @@ function AuditLogsSheet({
                     <AuditJsonBlock title="Raw Result" value={log.raw_result} />
                     <AuditJsonBlock title="Full Stored Row" value={log} />
 
-                    {log.storage_status === "stored" && log.filecoin_cid && (
-                      <div className="space-y-2 rounded-md border border-border bg-background/50 p-2.5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                            Filecoin Stored JSON
-                          </p>
-                          {!storedContent && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-6 px-2 text-[10px]"
-                              onClick={() => void handleLoadStoredJson(log.id)}
-                              disabled={contentLoading || !userId}
-                            >
-                              {contentLoading ? (
-                                <>
-                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                  Loading...
-                                </>
-                              ) : (
-                                "View Stored JSON"
-                              )}
-                            </Button>
-                          )}
 
-                          {storedContent && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-[10px]"
-                              onClick={() => handleClearStoredJson(log.id)}
-                            >
-                              Hide
-                            </Button>
-                          )}
-                        </div>
-
-                        {contentError && (
-                          <div className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-xs text-red-600">
-                            {contentError}
-                          </div>
-                        )}
-
-                        {storedContent && (
-                          <>
-                            <AuditJsonBlock title="Stored Envelope (exact upload JSON)" value={storedContent.envelope} />
-                            <AuditJsonBlock title="Stored Payload" value={storedContent.payload} />
-                            <AuditJsonBlock title="Stored Metadata" value={storedContent.metadata} />
-                            {storedContent.filecoin.contentType === "text" && (
-                              <AuditJsonBlock title="Raw Stored Text" value={storedContent.rawText} />
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
                   </CollapsibleContent>
                 </Collapsible>
               )

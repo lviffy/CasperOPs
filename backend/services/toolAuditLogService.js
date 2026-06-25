@@ -14,9 +14,7 @@ const CHAIN_ID_MAP = {
   1: 'ethereum-mainnet',
   11155111: 'ethereum-sepolia',
   42161: 'arbitrum-mainnet',
-  421614: 'arbitrum-sepolia',
-  314: 'filecoin-mainnet',
-  314159: 'filecoin-calibration'
+  421614: 'arbitrum-sepolia'
 };
 
 function sanitizeErrorMessage(value) {
@@ -258,21 +256,6 @@ async function persistAuditLog(record) {
     .single();
 }
 
-function resolveFilecoinArchivePrivateKey(filecoinPrivateKey = null) {
-  const explicitKey =
-    typeof filecoinPrivateKey === 'string' && filecoinPrivateKey.trim()
-      ? filecoinPrivateKey.trim()
-      : null;
-  const configuredKey =
-    typeof process.env.FILECOIN_WALLET_PRIVATE_KEY === 'string' &&
-    process.env.FILECOIN_WALLET_PRIVATE_KEY.trim()
-      ? process.env.FILECOIN_WALLET_PRIVATE_KEY.trim()
-      : null;
-
-  // Prefer the dedicated Calibration wallet from env so audit logging does not
-  // accidentally reuse an Arbitrum/Lit transaction signer that is unfunded on Filecoin.
-  return configuredKey || explicitKey || null;
-}
 
 async function archiveToolExecutionLogs({
   agentId,
@@ -280,7 +263,6 @@ async function archiveToolExecutionLogs({
   conversationId,
   message,
   toolResults,
-  filecoinPrivateKey = null,
   routingPlan = null
 }) {
   const toolCalls = Array.isArray(toolResults?.tool_calls) ? toolResults.tool_calls : [];
@@ -292,7 +274,6 @@ async function archiveToolExecutionLogs({
     return {
       totalCount: 0,
       successfulCount: 0,
-      filecoinStoredCount: 0,
       entries: []
     };
   }
@@ -306,7 +287,6 @@ async function archiveToolExecutionLogs({
 
   const executionMode = toolResults?.execution_mode || 'agent_backend';
   const entries = [];
-  const archivePrivateKey = resolveFilecoinArchivePrivateKey(filecoinPrivateKey);
 
   for (let index = 0; index < total; index += 1) {
     const toolCall = toolCalls[index] || {};
@@ -356,11 +336,6 @@ async function archiveToolExecutionLogs({
       success: Boolean(resultSummary.success),
       tx_hash: resultSummary.txHash,
       amount: resultSummary.amount,
-      filecoin_cid: null,
-      filecoin_uri: null,
-      filecoin_provider: null,
-      storage_status: 'not_configured',
-      storage_error: 'filecoin archival removed in Casper migration',
       created_at: timestamp
     };
 
@@ -383,11 +358,6 @@ async function archiveToolExecutionLogs({
       timestamp,
       txHash: resultSummary.txHash,
       amount: resultSummary.amount,
-      storageStatus: 'not_configured',
-      filecoinCid: null,
-      filecoinUri: null,
-      prepareTxHash: null,
-      storageError: 'filecoin archival removed in Casper migration',
       dbError
     });
   }
@@ -395,7 +365,6 @@ async function archiveToolExecutionLogs({
   return {
     totalCount: entries.length,
     successfulCount: entries.filter((entry) => entry.success).length,
-    filecoinStoredCount: 0,
     entries
   };
 }
@@ -432,8 +401,7 @@ function formatExecutionAuditForChat(executionAudit) {
   executionAudit.entries.forEach((entry, index) => {
     const status = entry.success ? 'success' : 'failed';
     const txLabel = entry.txHash ? `tx ${entry.txHash}` : 'tx n/a';
-    const cidLabel = entry.filecoinCid ? `cid ${entry.filecoinCid}` : `filecoin ${entry.storageStatus}`;
-    lines.push(`${index + 1}. ${entry.tool} | ${status} | ${txLabel} | ${cidLabel}`);
+    lines.push(`${index + 1}. ${entry.tool} | ${status} | ${txLabel}`);
   });
 
   return lines.join('\n');

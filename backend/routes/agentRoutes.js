@@ -91,7 +91,7 @@ router.get('/:id/audit-logs', listAgentAuditLogs);
 
 /**
  * GET /agents/:id/audit-logs/:logId/content
- * Retrieve exact JSON content archived on Filecoin for a specific audit log.
+ * Retrieve exact JSON content for a specific audit log.
  *
  * Query: { userId }
  */
