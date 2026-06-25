@@ -1,5 +1,5 @@
 -- ============================================
--- BlockOps Complete Database Schema
+-- CasperOPs Complete Database Schema
 -- Supabase PostgreSQL Database
 -- ============================================
 

@@ -1,6 +1,6 @@
 """
 Sample CrewAI agent that registers an agent + attests it + reads the
-reputation via the BlockOps MCP server.
+reputation via the CasperOPs MCP server.
 
 The flow is the same as `langgraph_agent.py` but expressed as a CrewAI
 task. We create one agent with three MCP-backed tools (register_agent,
@@ -37,7 +37,7 @@ import httpx
 # MCP HTTP client (JSON-RPC over HTTP)
 # ---------------------------------------------------------------------------
 class McpHttpClient:
-    """Tiny JSON-RPC client that talks to the BlockOps MCP HTTP/SSE server."""
+    """Tiny JSON-RPC client that talks to the CasperOPs MCP HTTP/SSE server."""
 
     def __init__(self, base_url: str, session_id: Optional[str] = None,
                  agent_id: Optional[str] = None) -> None:
@@ -146,7 +146,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mcp-url", default=os.getenv("MCP_HTTP_URL",
                                                      "http://localhost:8080/mcp"))
-    parser.add_argument("--agent-id", default=os.getenv("BLOCKOPS_AGENT_ID",
+    parser.add_argument("--agent-id", default=os.getenv("CASPEROPS_AGENT_ID",
                                                       "crewai-demo-agent"))
     parser.add_argument("--deterministic", action="store_true",
                         help="Skip CrewAI's LLM loop and call the three tools in order.")
@@ -199,13 +199,13 @@ def main() -> int:
     tools = build_crewai_tools(client)
 
     agent = Agent(
-        role="BlockOps agent operator",
+        role="CasperOPs agent operator",
         goal=(
             f"Register an AI agent with id '{args.agent_id}' on the Casper testnet, "
             "submit a 90+ score attestation, then return the agent's reputation."
         ),
         backstory=(
-            "You are a senior agent operator on the BlockOps platform. You speak MCP "
+            "You are a senior agent operator on the CasperOPs platform. You speak MCP "
             "and you always verify the final reputation after registering and attesting."
         ),
         tools=tools,

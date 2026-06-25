@@ -1,6 +1,6 @@
 // Payment Service - x402 payment verification and execution-token issuance.
 //
-// BlockOps now uses Casper x402: the user signs a CEP-18 transfer deploy via
+// CasperOPs now uses Casper x402: the user signs a CEP-18 transfer deploy via
 // CSPR.click and the backend verifies the deploy on-chain via CSPR.cloud,
 // then issues a short-lived JWT the frontend sends back to invoke the paid
 // tool. The old EVM payment-escrow contract is no longer required.

@@ -1,12 +1,12 @@
-# BlockOps Technical Architecture & Stack Reference (Casper Network)
+# CasperOPs Technical Architecture & Stack Reference (Casper Network)
 
-This document provides a comprehensive technical breakdown of **BlockOps** compiled for the **Casper Network**, detailing its architecture, smart contracts, integration protocols, and agent orchestration layer.
+This document provides a comprehensive technical breakdown of **CasperOPs** compiled for the **Casper Network**, detailing its architecture, smart contracts, integration protocols, and agent orchestration layer.
 
 ---
 
 ## 🏗️ High-Level System Architecture
 
-BlockOps on the Casper Network is designed to orchestrate autonomous AI agents safely, using decentralized credentials, on-chain registries, and micropayment channels.
+CasperOPs on the Casper Network is designed to orchestrate autonomous AI agents safely, using decentralized credentials, on-chain registries, and micropayment channels.
 
 ```mermaid
 graph TD
@@ -45,7 +45,7 @@ graph TD
 
 ## 🌐 Casper Network & AI Tooling Integration
 
-BlockOps relies on Casper's AI toolkit and infrastructure to enable key agent behaviors:
+CasperOPs relies on Casper's AI toolkit and infrastructure to enable key agent behaviors:
 
 ### 1. CSPR.click Agent Skills
 * **Role**: Credential and transaction signing delegation.
@@ -67,7 +67,7 @@ BlockOps relies on Casper's AI toolkit and infrastructure to enable key agent be
 
 ## 📄 Smart Contract Architecture (Odra Framework)
 
-All smart contracts in BlockOps are written in **Rust** using the **Odra Framework** and compiled to WebAssembly (Wasm) for execution on the Casper Network.
+All smart contracts in CasperOPs are written in **Rust** using the **Odra Framework** and compiled to WebAssembly (Wasm) for execution on the Casper Network.
 
 ```
 contract/

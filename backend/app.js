@@ -1,5 +1,5 @@
 /**
- * BlockOps Casper backend.
+ * CasperOPs Casper backend.
  *
  * Phase 23 cleanup:
  *   - Removed `safeRequire` / `deprecatedRouter` shims; routes and
@@ -273,7 +273,7 @@ if (require.main === module) {
     }
 
     console.log('\n' + '='.repeat(50));
-    console.log('🚀 BlockOps Casper Backend');
+    console.log('🚀 CasperOPs Casper Backend');
     console.log('='.repeat(50));
     console.log(`📡 Server running on port ${PORT}`);
     console.log(`🌐 Network: ${NETWORK_NAME}`);

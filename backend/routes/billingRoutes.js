@@ -30,8 +30,8 @@
  *   STRIPE_SECRET_KEY         sk_live_...
  *   STRIPE_WEBHOOK_SECRET     whsec_...
  *   STRIPE_PRICE_PRO_MONTHLY  price_...
- *   STRIPE_SUCCESS_URL        https://blockops.example/billing?status=success
- *   STRIPE_CANCEL_URL         https://blockops.example/billing?status=cancelled
+ *   STRIPE_SUCCESS_URL        https://casperops.example/billing?status=success
+ *   STRIPE_CANCEL_URL         https://casperops.example/billing?status=cancelled
  *
  * In dev / CI (`STRIPE_DISABLED=1` or no key) every endpoint returns
  * a mocked response so the frontend can develop against it without
@@ -318,18 +318,18 @@ async function sendDunningEmail(transition) {
   const { sendEmail } = require('../services/emailService');
   if (!sendEmail) return;
   const to = transition.userEmail || transition.userId;
-  const subject = 'Your BlockOps payment failed — please update your card';
+  const subject = 'Your CasperOPs payment failed — please update your card';
   const text = [
     `Hi there,`,
     ``,
-    `We tried to charge your card for the BlockOps Pro subscription but the payment failed.`,
+    `We tried to charge your card for the CasperOPs Pro subscription but the payment failed.`,
     `Your account is in a past_due state. To avoid service interruption, please update your card:`,
     ``,
-    `  https://blockops.example/billing`,
+    `  https://casperops.example/billing`,
     ``,
-    `If you have any questions, reply to this email or ping #blockops-help on Discord.`,
+    `If you have any questions, reply to this email or ping #casperops-help on Discord.`,
     ``,
-    `— The BlockOps team`,
+    `— The CasperOPs team`,
   ].join('\n');
   await sendEmail({ to, subject, text });
 }

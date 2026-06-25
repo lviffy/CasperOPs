@@ -1,5 +1,5 @@
 """
-BlockOps MCP state layer.
+CasperOPs MCP state layer.
 
 Persists session metadata in Redis (short-term) and tool-call history in
 Postgres (long-term) so the MCP server can survive restarts and surface

@@ -117,7 +117,7 @@ export function PrivateKeySetupModal({
       setCsprPublicKey(account.publicKey)
       toast({
         title: "CSPR.click wallet connected",
-        description: `Your ${chain.symbol} account is now bound to your BlockOps identity.`,
+        description: `Your ${chain.symbol} account is now bound to your CasperOPs identity.`,
       })
       onComplete()
     } catch (connectError: any) {
@@ -145,7 +145,7 @@ export function PrivateKeySetupModal({
             Connect a Casper Wallet
           </DialogTitle>
           <DialogDescription>
-            BlockOps signs every on-chain interaction with your CSPR.click wallet — no seed phrases
+            CasperOPs signs every on-chain interaction with your CSPR.click wallet — no seed phrases
             or raw private keys are ever stored in Supabase.
           </DialogDescription>
         </DialogHeader>
@@ -187,7 +187,7 @@ export function PrivateKeySetupModal({
               <AlertDescription className="text-sm">
                 <strong>Flagship experience:</strong> CSPR.click connects directly to the Casper
                 Wallet, Ledger, or signer you already use. Your public key is saved to Supabase so
-                the BlockOps backend can route deploys to you, but the secret key never leaves the
+                the CasperOPs backend can route deploys to you, but the secret key never leaves the
                 wallet.
               </AlertDescription>
             </Alert>
@@ -199,7 +199,7 @@ export function PrivateKeySetupModal({
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Wallet connected</p>
                     <p className="text-xs text-muted-foreground">
-                      BlockOps will sign deploys on {chain.chainName} with this account.
+                      CasperOPs will sign deploys on {chain.chainName} with this account.
                     </p>
                   </div>
                 </div>

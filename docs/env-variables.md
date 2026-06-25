@@ -1,4 +1,4 @@
-# BlockOps Environment Variables
+# CasperOPs Environment Variables
 
 All env vars by layer. Required = must be set, no fallback. Optional = has a safe default.
 
@@ -231,8 +231,8 @@ cd n8n_agent_backend && uvicorn mcp_server_sse:app --port 8080  # MCP
 |---|---|---|
 | `NEXT_PUBLIC_CASPER_RPC_URL` | `https://rpc.testnet.casper.live/rpc` | Casper testnet RPC |
 | `NEXT_PUBLIC_AGENT_BACKEND_URL` | `http://localhost:8080` | MCP server URL |
-| `NEXT_PUBLIC_CSPRCLICK_APP_NAME` | `BlockOps` | CSPR.click app display name |
-| `NEXT_PUBLIC_CSPRCLICK_APP_ID` | `blockops` | CSPR.click app identifier |
+| `NEXT_PUBLIC_CSPRCLICK_APP_NAME` | `CasperOPs` | CSPR.click app display name |
+| `NEXT_PUBLIC_CSPRCLICK_APP_ID` | `casperops` | CSPR.click app identifier |
 | `NEXT_PUBLIC_SENTRY_DSN` | `''` | Optional error tracking |
 | `NEXT_PUBLIC_AI_AGENT_BACKEND_URL` | `http://localhost:8000` | AI workflow backend |
 | `NEXT_PUBLIC_AI_WORKFLOW_BACKEND_URL` | `http://localhost:8001` | AI workflow backend |
@@ -253,7 +253,7 @@ cd n8n_agent_backend && uvicorn mcp_server_sse:app --port 8080  # MCP
 | `CASPER_EXPLORER_BASE_URL` | `https://testnet.cspr.live` | Optional |
 | `REDIS_URL` | `redis://localhost:6379/0` | Optional |
 | `POSTGRES_DSN` | `''` (falls back to DATABASE_URL) | Optional |
-| `BLOCKOPS_BACKEND_URL` | `http://localhost:3000` | Optional |
+| `CASPEROPS_BACKEND_URL` | `http://localhost:3000` | Optional |
 | `METRICS_TOKEN` | `''` | Optional |
 
 ---
@@ -264,9 +264,9 @@ Passed automatically from host shell or `.env`:
 
 | Variable | Default |
 |---|---|
-| `POSTGRES_USER` | `blockops` |
-| `POSTGRES_PASSWORD` | `blockops` |
-| `POSTGRES_DB` | `blockops` |
+| `POSTGRES_USER` | `casperops` |
+| `POSTGRES_PASSWORD` | `casperops` |
+| `POSTGRES_DB` | `casperops` |
 | All backend env vars above | — |
 | All frontend vars prefixed `NEXT_PUBLIC_*` | — |
 

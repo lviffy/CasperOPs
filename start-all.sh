@@ -75,7 +75,7 @@ wait_for_port() {
   return 1
 }
 
-echo "🚀 Starting BlockOps services from $ROOT_DIR..."
+echo "🚀 Starting CasperOPs services from $ROOT_DIR..."
 
 kill_matching_processes "next dev --port $FRONTEND_PORT" "frontend"
 kill_matching_processes "npm run dev --port $FRONTEND_PORT" "frontend"

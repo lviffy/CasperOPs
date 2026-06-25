@@ -3,7 +3,7 @@
  *
  * Run with:
  *   k6 run tests/load/baseline.js
- *   k6 run tests/load/baseline.js --env BASE_URL=https://api.blockops.example
+ *   k6 run tests/load/baseline.js --env BASE_URL=https://api.casperops.example
  *
  * Targets:
  *   • 100 VUs sustained for 60 s
@@ -30,11 +30,11 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 const MASTER_API_KEY = __ENV.MASTER_API_KEY || 'local-dev-master-key-change-me';
 
 // Custom metrics so we can graph cache hit rates in the k6 summary.
-const cacheHits = new Counter('blockops_cache_hits');
-const cacheMisses = new Counter('blockops_cache_misses');
-const errorRate = new Rate('blockops_errors');
-const balanceLatency = new Trend('blockops_get_balance_latency_ms', true);
-const priceLatency = new Trend('blockops_fetch_price_latency_ms', true);
+const cacheHits = new Counter('casperops_cache_hits');
+const cacheMisses = new Counter('casperops_cache_misses');
+const errorRate = new Rate('casperops_errors');
+const balanceLatency = new Trend('casperops_get_balance_latency_ms', true);
+const priceLatency = new Trend('casperops_fetch_price_latency_ms', true);
 
 export const options = {
   scenarios: {
@@ -47,7 +47,7 @@ export const options = {
   },
   thresholds: {
     http_req_duration: ['p(95)<500'],
-    blockops_errors: ['rate<0.01'],
+    casperops_errors: ['rate<0.01'],
     http_req_failed: ['rate<0.01'],
   },
 };

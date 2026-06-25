@@ -1,6 +1,6 @@
-# BlockOps Performance & Load Testing
+# CasperOPs Performance & Load Testing
 
-This document covers the **performance budget** for the BlockOps
+This document covers the **performance budget** for the CasperOPs
 backend, MCP server, and v1 tool surface. For incident response see
 [`RUNBOOK.md`](./RUNBOOK.md); for component status see
 [`STATUS.md`](./STATUS.md).
@@ -33,11 +33,11 @@ hitting Casper RPC:
 
 The cache is **best-effort**: if Redis is unreachable the fetcher is
 called directly and the failure is recorded on
-`blockops_cache_operations_total{result="error"}`. A circuit breaker
+`casperops_cache_operations_total{result="error"}`. A circuit breaker
 disables a cache after 10 consecutive failures for 30 s so a Redis
 outage doesn't keep hammering the failing endpoint.
 
-Key naming: `blockops:v1:<cache>:<sha256(params-json)>` — bounded
+Key naming: `casperops:v1:<cache>:<sha256(params-json)>` — bounded
 cardinality, no PII leak into Redis.
 
 ## Rate limiting (Phase 27)
@@ -85,20 +85,20 @@ k6 run tests/load/workflow-execute.js
 
 # Override base URL + master key for staging runs
 k6 run tests/load/baseline.js \
-  --env BASE_URL=https://api.staging.blockops.example \
-  --env MASTER_API_KEY=$BLOCKOPS_MASTER_KEY
+  --env BASE_URL=https://api.staging.casperops.example \
+  --env MASTER_API_KEY=$CASPEROPS_MASTER_KEY
 ```
 
 The scripts publish custom metrics alongside the k6 default set:
 
-- `blockops_cache_hits` / `blockops_cache_misses` — rough heuristic
+- `casperops_cache_hits` / `casperops_cache_misses` — rough heuristic
   (latency < 80 ms = hit, ≥ 80 ms = miss) so the summary shows cache
   effectiveness
-- `blockops_x402_challenges` / `blockops_x402_verified` — paid-tools
+- `casperops_x402_challenges` / `casperops_x402_verified` — paid-tools
   test exposes the conversion rate
-- `blockops_workflows_started` / `blockops_workflows_completed` —
+- `casperops_workflows_started` / `casperops_workflows_completed` —
   workflow-execute test exposes end-to-end success rate
-- `blockops_errors` — true error rate across all tests
+- `casperops_errors` — true error rate across all tests
 
 ## Baseline results (Phase 27 synthetic run)
 

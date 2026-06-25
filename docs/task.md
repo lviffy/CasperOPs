@@ -1,4 +1,4 @@
-# BlockOps — Casper Hackathon Project
+# CasperOPs — Casper Hackathon Project
 
 A fully production-ready, Casper-native automation platform. Smart contracts,
 backend API, frontend visual builder, AI agent MCP server, x402 payment protocol,
@@ -300,7 +300,7 @@ phase makes it demo-ready for the hackathon.
 
 ## Phase 34: Casper Innovation Track Alignment (AI + DeFi + RWA)
 
-To fully align BlockOps with the **Casper Innovation Track** requirements (combining Agentic AI, DeFi, and RWA), the following tasks will be prioritized:
+To fully align CasperOPs with the **Casper Innovation Track** requirements (combining Agentic AI, DeFi, and RWA), the following tasks will be prioritized:
 
 - [x] **RWA Valuation & Oracle Feeds**
   - [x] Implement `x402-Feed-Gateway` integration on the backend to buy/sell off-chain asset appraisals.
@@ -336,7 +336,7 @@ To fully align BlockOps with the **Casper Innovation Track** requirements (combi
   - [x] Implement a Redis-backed pub-sub event pool allowing agents in a workflow to listen to event triggers from other agents.
   - [x] Design an Odra `MessageBoard` contract for public agent-to-agent notifications and state logs.
 - [x] **CSPR.fans Community Voting Integration**
-  - [x] Embed a "Vote for BlockOps on CSPR.fans" badge and social share prompt directly in the builder dashboard.
+  - [x] Embed a "Vote for CasperOPs on CSPR.fans" badge and social share prompt directly in the builder dashboard.
   - [x] Build a bot daemon that queries the CSPR.fans voting API and pushes live updates/thank-yous to the Telegram bot channel on receiving new votes.
 
 ---
@@ -387,7 +387,7 @@ To secure the Qualification Round community vote and wow the jury, the following
 - [x] **One-Click Sandbox Demo Mode**
   - [x] Build a landing page toggle button to enter "Sandbox Mode".
   - [x] Simulate the CSPR.click sign flow and step-by-step visual execution of the *RWA Yield & Collateral Fund* template without requiring funded testnet keys.
-  - [x] Add the glowing "Vote for BlockOps on CSPR.fans" modal at the end of the simulation.
+  - [x] Add the glowing "Vote for CasperOPs on CSPR.fans" modal at the end of the simulation.
 - [x] **Live Reasoning Terminal & Step Trace**
   - [x] Set up SSE streaming channels in `/v1/conversations/` to push step-by-step LLM execution traces directly to the browser.
   - [x] Implement the UI Reasoning Terminal component, styling Casper-specific steps in brand colors and linking to testnet explorers.

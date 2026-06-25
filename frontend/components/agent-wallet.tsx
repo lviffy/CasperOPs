@@ -271,7 +271,7 @@ export function AgentWalletModal({ open, onOpenChange, hideButton = false }: Age
               Agent Wallet
             </DialogTitle>
             <DialogDescription>
-              Sign and broadcast Casper deploys via CSPR.click. Your wallet stays in your browser — BlockOps only stores the public key.
+              Sign and broadcast Casper deploys via CSPR.click. Your wallet stays in your browser — CasperOPs only stores the public key.
             </DialogDescription>
           </DialogHeader>
 

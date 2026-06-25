@@ -74,14 +74,14 @@ The **x402 Protocol** is an HTTP-native payment standard (modeled after the `402
   3. The agent signs the template using its wallet/key and broadcasts it to the Casper network.
   4. The agent retries the API call with the `X-Casper-Payment-Deploy-Hash` header.
   5. The backend validates the payment on-chain via Casper RPC before executing the requested action.
-* **BlockOps Integration:** BlockOps implements this protocol for 11 paid tools (such as `register_agent`, `attest_agent`, `yield_rebalance`, `deploy_cep18`, and `deploy_cep78`), allowing a seamless client-retry mechanism integrated with CSPR.click.
-* **Spec Details:** See [docs/x402.md](file:///home/lviffy/Projects/casper/BlockOPS/docs/x402.md) for full implementation details.
+* **CasperOPs Integration:** CasperOPs implements this protocol for 11 paid tools (such as `register_agent`, `attest_agent`, `yield_rebalance`, `deploy_cep18`, and `deploy_cep78`), allowing a seamless client-retry mechanism integrated with CSPR.click.
+* **Spec Details:** See [docs/x402.md](file:///home/lviffy/Projects/casper/CasperOPs/docs/x402.md) for full implementation details.
 
 ### 2. Model Context Protocol (MCP) Servers
 Model Context Protocol is an open standard that allows LLMs to interact securely with external tools and data sources. Casper provides specific MCP servers (e.g., Casper MCP Server, CSPR.trade MCP) giving AI agents direct capabilities to query the blockchain, query DEX pool states, perform trades, and manage portfolios.
 
-* **Exposing Tools:** MCP servers act as standard gateways. In BlockOps, the `n8n_agent_backend` implements an MCP server using stdio and HTTP/SSE transports to expose 22 distinct Casper tools (like transfers, token deploy, and reputation checks) to frameworks like LangGraph and CrewAI.
-* **Setup Guide:** See the [MCP Server Guide](file:///home/lviffy/Projects/casper/BlockOPS/n8n_agent_backend/README.md) for execution details.
+* **Exposing Tools:** MCP servers act as standard gateways. In CasperOPs, the `n8n_agent_backend` implements an MCP server using stdio and HTTP/SSE transports to expose 22 distinct Casper tools (like transfers, token deploy, and reputation checks) to frameworks like LangGraph and CrewAI.
+* **Setup Guide:** See the [MCP Server Guide](file:///home/lviffy/Projects/casper/CasperOPs/n8n_agent_backend/README.md) for execution details.
 
 ### 3. CSPR.click AI Agent Skill
 The **CSPR.click AI Agent Skill** is an installable execution bundle that grants AI agents the ability to securely manage wallets, prompt users for transaction signatures, and access underlying Casper Network API systems.
@@ -94,7 +94,7 @@ The **CSPR.click AI Agent Skill** is an installable execution bundle that grants
 ### 5. Odra Framework
 **Odra Framework** is a developer-friendly smart contract development environment for Rust on the Casper Network.
 * **AI-Ready Documentation (`llms.txt`):** Odra integrates built-in support for `llms.txt`, providing structured, LLM-optimized documentation so that AI agents can autonomously generate, compile, and deploy correct smart contracts.
-* **BlockOps Smart Contracts:** BlockOps uses Odra for its four core contracts: `AgentFactory`, `Reputation`, `Escrow`, and `Compliance`.
+* **CasperOPs Smart Contracts:** CasperOPs uses Odra for its four core contracts: `AgentFactory`, `Reputation`, `Escrow`, and `Compliance`.
 
 ---
 
@@ -113,7 +113,7 @@ The buildathon suggests four specific tracks matching the convergence of AI, DeF
 * **Goal:** A trust-minimized oracle agent that collects real-world data off-chain, conducts risk-assessment, and updates Casper smart contracts.
 * **Architecture:**
   * Uses the native **x402 Protocol** to pay/be paid for data delivery per API request.
-  * The agent maintains a persistent, reputation-scored on-chain identity (e.g., using the BlockOps `Reputation` contract).
+  * The agent maintains a persistent, reputation-scored on-chain identity (e.g., using the CasperOPs `Reputation` contract).
   * Data submissions are cryptographically signed, ensuring auditable historical data accuracy.
 
 ### 3. Multi-Agent DAO Governance & Execution

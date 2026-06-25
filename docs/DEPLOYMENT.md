@@ -1,6 +1,6 @@
 # Production Deployment Runbook
 
-This document covers shipping the BlockOps Casper stack to production.
+This document covers shipping the CasperOPs Casper stack to production.
 The repo is built so each service runs in its own container with health
 checks, env validation on boot, and a deployable unit per host.
 
@@ -42,7 +42,7 @@ The three services are decoupled by URL:
   vars baked into the build.
 - **Backend** talks to Supabase (managed), the Casper RPC (public), and
   the MCP service over HTTPS.
-- **MCP** talks to the backend (`BLOCKOPS_BACKEND_URL`) and to Redis +
+- **MCP** talks to the backend (`CASPEROPS_BACKEND_URL`) and to Redis +
   Postgres when configured.
 
 ---
@@ -83,7 +83,7 @@ close to the Casper testnet/mainnet RPC.
 ```bash
 brew install flyctl          # or curl -L https://fly.io/install.sh | sh
 fly auth signup              # or `fly auth login`
-fly org create blockops      # if you don't have one yet
+fly org create casperops      # if you don't have one yet
 ```
 
 ### Per-service files
@@ -97,7 +97,7 @@ backend's `PORT=3000`).
 Create `backend/fly.toml` (not committed; one per environment):
 
 ```toml
-app = "blockops-backend"
+app = "casperops-backend"
 primary_region = "iad"   # close to Casper RPC
 
 [build]
@@ -170,9 +170,9 @@ fly deploy --config backend/fly.toml --dockerfile backend/Dockerfile
 
 ```bash
 fly status
-curl https://blockops-backend.fly.dev/health/ready
+curl https://casperops-backend.fly.dev/health/ready
 # Expect: { "status": "ok", "kind": "ready", "requiredOk": true, ... }
-curl https://blockops-backend.fly.dev/health/live
+curl https://casperops-backend.fly.dev/health/live
 # Expect: { "status": "ok", "kind": "live", "uptimeMs": ... }
 ```
 
@@ -233,7 +233,7 @@ used when deploying to Vercel.
 
 ### Custom domain
 
-In Vercel: **Settings → Domains → Add** `app.blockops.in`. Vercel will
+In Vercel: **Settings → Domains → Add** `app.casperops.in`. Vercel will
 issue the Let's Encrypt cert automatically.
 
 ---
@@ -259,7 +259,7 @@ and a free Postgres tier.
 
 | Name | Notes |
 |------|-------|
-| `BLOCKOPS_BACKEND_URL` | Public URL of the backend (e.g. `https://blockops-backend.fly.dev`) |
+| `CASPEROPS_BACKEND_URL` | Public URL of the backend (e.g. `https://casperops-backend.fly.dev`) |
 | `CASPER_RPC_URL` | Same as backend |
 | `CSPR_CLOUD_API_URL` | Same as backend |
 | `CSPR_CLOUD_API_KEY` | Optional |
@@ -287,10 +287,10 @@ Manual:
 ### Verify
 
 ```bash
-curl https://blockops-mcp.onrender.com/health
-# Expect: { "status": "ok", "service": "blockops-mcp", "tools": 19 }
+curl https://casperops-mcp.onrender.com/health
+# Expect: { "status": "ok", "service": "casperops-mcp", "tools": 19 }
 
-curl https://blockops-mcp.onrender.com/mcp/tools | jq '.tools | length'
+curl https://casperops-mcp.onrender.com/mcp/tools | jq '.tools | length'
 # Expect: 19
 ```
 
@@ -305,7 +305,7 @@ Before merging any change that touches deployment, verify the local
 cp .env.example .env       # edit secrets
 docker compose up -d --build
 docker compose ps          # all 5 services healthy
-docker compose logs -f backend | grep "🚀 BlockOps"
+docker compose logs -f backend | grep "🚀 CasperOPs"
 
 # Probe the running stack
 curl http://localhost:3000/health/ready
@@ -334,7 +334,7 @@ docker compose down -v      # -v also wipes the named volumes
 If a deploy breaks something:
 
 1. **Backend** — `fly releases rollback <version>`. Verify with
-   `curl https://blockops-backend.fly.dev/health/ready`.
+   `curl https://casperops-backend.fly.dev/health/ready`.
 2. **Frontend** — Vercel keeps every deploy; **Deployments → Promote
    previous** in the dashboard.
 3. **MCP** — Render keeps the previous image as "Rollback" in the
@@ -351,9 +351,9 @@ If a deploy breaks something:
 |----------|--------------|
 | Deploy fails health check | `fly logs` / `vercel logs` / Render **Logs** — look for the `[validateEnv]` boot banner |
 | RPC outage | The backend probes `/health/ready` returns 503; deploy a build with `CASPER_RPC_URL` pointed at a backup (CSPR.cloud has a JSON-RPC fallback) |
-| Sentry spike | `https://sentry.io/organizations/blockops/issues/` — check whether the spike correlates with a deploy |
+| Sentry spike | `https://sentry.io/organizations/casperops/issues/` — check whether the spike correlates with a deploy |
 | Stuck deploy (pending) | Casper deploys may take 90 s to finalize. The frontend polls RPC; the toast should transition automatically. If it doesn't, link the user to https://testnet.cspr.live/deploy/<hash> |
-| Bot Telegram 502 | The webhook is at `POST /telegram/webhook` (public, no API key). Re-set the webhook with `curl -F "url=https://blockops-backend.fly.dev/telegram/webhook" https://api.telegram.org/bot<TOKEN>/setWebhook` |
+| Bot Telegram 502 | The webhook is at `POST /telegram/webhook` (public, no API key). Re-set the webhook with `curl -F "url=https://casperops-backend.fly.dev/telegram/webhook" https://api.telegram.org/bot<TOKEN>/setWebhook` |
 
 ---
 

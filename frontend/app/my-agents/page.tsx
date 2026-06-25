@@ -300,13 +300,13 @@ export default function MyAgents() {
               </div>
               <div className="text-left">
                 <h4 className="text-xs font-semibold text-pink-700 dark:text-pink-400 uppercase tracking-wider">CSPR.fans Community Vote</h4>
-                <h3 className="text-sm font-semibold text-foreground mt-0.5">Vote for BlockOps on CSPR.fans!</h3>
+                <h3 className="text-sm font-semibold text-foreground mt-0.5">Vote for CasperOPs on CSPR.fans!</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Help us win the Qualification Round by casting a vote for our Casper Automation Platform.</p>
               </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
               <Button asChild size="sm" variant="outline" className="h-8 text-xs border-pink-500/20 hover:bg-pink-500/5 hover:text-pink-600 dark:hover:text-pink-400">
-                <a href="https://cspr.fans/project/blockops" target="_blank" rel="noopener noreferrer">
+                <a href="https://cspr.fans/project/casperops" target="_blank" rel="noopener noreferrer">
                   Vote Now
                 </a>
               </Button>

@@ -1,4 +1,4 @@
-# BlockOps — Deploy to Testnet Checklist
+# CasperOPs — Deploy to Testnet Checklist
 
 ## 1. Generate signer + fund it
 

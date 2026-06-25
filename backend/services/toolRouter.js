@@ -1,5 +1,5 @@
 /**
- * Tool router for the BlockOps AI agent.
+ * Tool router for the CasperOPs AI agent.
  *
  * Maps the 22 Casper-native tools (CSPR transfers, CEP-18 / CEP-78 deploys,
  * agent registry, reputation, escrow, market data, utilities) to their
@@ -21,7 +21,7 @@ const { logger } = require('../utils/logger');
 const log = logger.child({ component: 'toolRouter' });
 
 /**
- * Casper-native tools exposed by the BlockOps AI agent.
+ * Casper-native tools exposed by the CasperOPs AI agent.
  * Replaces the legacy EVM (Flow / Arbitrum / Ethereum) toolset.
  */
 const AVAILABLE_TOOLS = {
@@ -59,7 +59,7 @@ const AVAILABLE_TOOLS = {
     name: 'deploy_cep78',
     description: 'Deploys a CEP-78 NFT collection (ERC-721 equivalent) on Casper Testnet.',
     parameters: ['name', 'symbol', 'totalTokenSupply'],
-    examples: ['Deploy a CEP-78 NFT collection called BlockOpsAvatars'],
+    examples: ['Deploy a CEP-78 NFT collection called CasperOPsAvatars'],
   },
   mint_nft: {
     name: 'mint_nft',
@@ -233,7 +233,7 @@ function buildRoutingPrompt({ userMessage, conversationHistory, toolsList, chain
     conversationContext = `\n\nRecent conversation (last ${recentMessages.length} messages):\n${recentMessages.map((m) => `${m.role}: ${m.content}`).join('\n')}${entitySummary}`;
   }
 
-  return `You are an intelligent tool routing system for BlockOps, an autonomous agent platform on the Casper Network. Your PRIMARY job is to create COMPLETE execution plans that resolve the user's request in a single pass, WITHOUT asking the user for information that your tools can fetch.
+  return `You are an intelligent tool routing system for CasperOPs, an autonomous agent platform on the Casper Network. Your PRIMARY job is to create COMPLETE execution plans that resolve the user's request in a single pass, WITHOUT asking the user for information that your tools can fetch.
 
 ## Your Responsibilities
 1. Determine if the request is blockchain / Casper-related.

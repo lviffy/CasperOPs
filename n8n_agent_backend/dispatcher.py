@@ -1,14 +1,14 @@
 """
-BlockOps MCP unified dispatcher.
+CasperOPs MCP unified dispatcher.
 
-Single source of truth for the 19 backend tools exposed via the BlockOps
+Single source of truth for the 19 backend tools exposed via the CasperOPs
 MCP server. Both transports (stdio `mcp_server.py`, HTTP/SSE
 `mcp_server_sse.py`) call into this module.
 
 How it works:
     1. The catalog is loaded from `tools/schema.json` at import time.
     2. Each tool is classified into one of three handler types:
-         - "proxy"  → forward to the BlockOps backend `/v1/tools/:toolId`
+         - "proxy"  → forward to the CasperOPs backend `/v1/tools/:toolId`
                       endpoint (built in Phase 20). The proxy surfaces
                       x402 challenges back to the agent so it can sign a
                       payment deploy via CSPR.click and retry.
@@ -65,7 +65,7 @@ except Exception:  # pragma: no cover - metrics are an opt-in dep
 
 
 SCHEMA_PATH = Path(__file__).parent / "tools" / "schema.json"
-BLOCKOPS_BACKEND_URL = _ENV["BLOCKOPS_BACKEND_URL"]
+CASPEROPS_BACKEND_URL = _ENV["CASPEROPS_BACKEND_URL"]
 CASPER_RPC_URL = _ENV["CASPER_RPC_URL"]
 CSPR_CLOUD_API_URL = _ENV["CSPR_CLOUD_API_URL"]
 CSPR_CLOUD_API_KEY = _ENV["CSPR_CLOUD_API_KEY"]
@@ -126,7 +126,7 @@ RPC_TOOLS = {
     "semantic_lookup",
 }
 
-# Everything else (write tools, paid tools) proxies to the BlockOps backend
+# Everything else (write tools, paid tools) proxies to the CasperOPs backend
 # `/v1/tools/:toolId` endpoint that Phase 20 wired up.
 
 
@@ -144,7 +144,7 @@ def classify(tool: str) -> str:
 # Phase 30: `rpc()` now tries the fallback RPC URL before giving up.
 # Order is: primary → fallback → (raise). Reads only — writes still
 # must never double-broadcast, so they go straight to `_proxy()` to
-# the BlockOps backend which handles deploy submission.
+# the CasperOPs backend which handles deploy submission.
 # ---------------------------------------------------------------------------
 PRIMARY_RPC_URL = _ENV["CASPER_RPC_URL"]
 FALLBACK_RPC_URL = _ENV.get("CASPER_RPC_URL_FALLBACK") or _ENV.get("CSPR_CLOUD_API_URL") or ""
@@ -439,7 +439,7 @@ async def _rpc_explain_contract_state(params: Dict[str, Any]) -> Dict[str, Any]:
         md.append("  - `ratings`: Dictionary mapping agent addresses to their reputation scores (0-100).")
         md.append("  - `success_counts`: Dictionary mapping agent addresses to successful executions.")
         md.append("  - `failure_counts`: Dictionary mapping agent addresses to failed executions.")
-        md.append("- **Governance**: Owner restricted to the primary BlockOps backend administrator.")
+        md.append("- **Governance**: Owner restricted to the primary CasperOPs backend administrator.")
     elif is_mock_factory:
         md.append("### Contract Type: Odra Agent Factory")
         md.append("- **Description**: Coordinates agent deployments, registry, and ownership allocation.")
@@ -552,7 +552,7 @@ RPC_HANDLERS: Dict[str, Callable[[Dict[str, Any]], Awaitable[Dict[str, Any]]]] =
 # ---------------------------------------------------------------------------
 async def _proxy(tool: str, params: Dict[str, Any],
                  headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """Forward to the BlockOps backend `/v1/tools/:toolId`.
+    """Forward to the CasperOPs backend `/v1/tools/:toolId`.
 
     The proxy transparently passes any x402 payment headers the caller
     supplied so the client can sign a deploy and retry without re-plumbing.
@@ -568,7 +568,7 @@ async def _proxy(tool: str, params: Dict[str, Any],
             if v:
                 forward_headers[h] = v
 
-    url = f"{BLOCKOPS_BACKEND_URL.rstrip('/')}/v1/tools/{tool}"
+    url = f"{CASPEROPS_BACKEND_URL.rstrip('/')}/v1/tools/{tool}"
     try:
         async with httpx.AsyncClient() as client:
             r = await client.post(url, json=params or {}, headers=forward_headers, timeout=30.0)
@@ -667,5 +667,5 @@ __all__ = [
     "classify",
     "dispatch",
     "rpc", "cspr_cloud", "safe_calculate",
-    "BLOCKOPS_BACKEND_URL",
+    "CASPEROPS_BACKEND_URL",
 ]

@@ -50,7 +50,7 @@ done
 RPC_URL="${CASPER_MAINNET_RPC_URL:-https://rpc.mainnet.casperlabs.io/rpc}"
 
 echo "═════════════════════════════════════════════════════════════"
-echo "  BlockOps Casper mainnet deploy — v1.0.0"
+echo "  CasperOPs Casper mainnet deploy — v1.0.0"
 echo "═════════════════════════════════════════════════════════════"
 echo
 echo "  RPC:        $RPC_URL"

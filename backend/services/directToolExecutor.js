@@ -1477,8 +1477,8 @@ async function add_delegated_key({ public_key, delegate_key, weight, daily_limit
       deployment_threshold: 1,
       payment_motes: '300000000', // 0.30 CSPR
       csprclick_action: 'add_associated_key',
-      // Metadata stored in BlockOps for enforcement
-      blockops_meta: {
+      // Metadata stored in CasperOPs for enforcement
+      casperops_meta: {
         daily_limit_motes: daily_limit_motes || null,
         expires_at: expires_at || null,
         delegated_to: delegate_key,

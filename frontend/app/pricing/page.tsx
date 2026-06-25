@@ -212,8 +212,8 @@ export default function PricingPage() {
         </p>
         <p className="mt-2">
           Questions?{" "}
-          <Link href="mailto:sales@blockops.example" className="underline">
-            sales@blockops.example
+          <Link href="mailto:sales@casperops.example" className="underline">
+            sales@casperops.example
           </Link>
         </p>
       </footer>

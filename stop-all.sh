@@ -60,7 +60,7 @@ kill_port_if_busy() {
   fi
 }
 
-echo "🛑 Stopping BlockOps services from $ROOT_DIR..."
+echo "🛑 Stopping CasperOPs services from $ROOT_DIR..."
 
 echo "🐳 Stopping AI_workflow_backend..."
 (

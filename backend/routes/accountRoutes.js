@@ -100,7 +100,7 @@ router.post('/account/update-weights', async (req, res) => {
 
 /**
  * GET /account/:publicKey/delegated-keys
- * Returns active delegated keys for a Casper account from BlockOps metadata.
+ * Returns active delegated keys for a Casper account from CasperOPs metadata.
  */
 router.get('/account/:publicKey/delegated-keys', async (req, res) => {
   const { publicKey } = req.params;

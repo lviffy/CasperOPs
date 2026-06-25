@@ -192,7 +192,7 @@ function buildFallbackManifest(agent: {
     name: agent.name,
     version: "1.0.0",
     description: agent.description,
-    author: "BlockOps",
+    author: "CasperOPs",
     erc8004: {
       identityRegistry: `casper:${CASPER_NETWORK}:contract:${AGENT_REGISTRY_CONTRACT_HASH}`,
       reputationRegistry: `casper:${CASPER_NETWORK}:contract:${REPUTATION_CONTRACT_HASH}`,
@@ -332,7 +332,7 @@ export default function MarketplacePage() {
                 capabilities.length > 0
                   ? `${capabilities.length} capability${capabilities.length === 1 ? "" : "ies"} available`
                   : localAgentId
-                    ? "Registered BlockOps agent"
+                    ? "Registered CasperOPs agent"
                     : "On-chain registered agent"
 
               return {
@@ -394,7 +394,7 @@ export default function MarketplacePage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground text-background">
                 <Bot className="h-5 w-5" />
               </div>
-              <span className="text-lg font-semibold tracking-tight">BlockOps</span>
+              <span className="text-lg font-semibold tracking-tight">CasperOPs</span>
             </Link>
             <Separator orientation="vertical" className="mx-2 h-6" />
             <Badge variant="outline" className="text-xs font-medium">

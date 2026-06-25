@@ -1,4 +1,4 @@
-# BlockOPs
+# CasperOPs
 
 ### No-Code Platform for Trustworthy Agentic DeFi & RWA on Casper
 
@@ -8,7 +8,7 @@
 
 > **Build. Trust. Deploy. Let Agents Do the Work.**
 
-BlockOPs is a no-code / low-code visual platform that lets developers and
+CasperOPs is a no-code / low-code visual platform that lets developers and
 non-technical users build, deploy, and manage trustworthy autonomous AI
 agents for DeFi and Real-World Assets (RWA) on the **Casper Network**.
 
@@ -36,8 +36,8 @@ agents for DeFi and Real-World Assets (RWA) on the **Casper Network**.
 
 ```bash
 # 1. Clone & install
-git clone https://github.com/your-org/BlockOPS.git
-cd BlockOPS
+git clone https://github.com/your-org/CasperOPs.git
+cd CasperOPs
 
 # 2. Run the full dev stack (frontend + backend + MCP)
 ./scripts/dev.sh up

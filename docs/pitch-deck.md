@@ -1,4 +1,4 @@
-# BlockOps — Trustworthy Agentic DeFi & RWA on Casper
+# CasperOPs — Trustworthy Agentic DeFi & RWA on Casper
 
 > Casper Agentic Buildathon 2026 Submission
 
@@ -14,7 +14,7 @@
 
 ---
 
-## Slide 2: The Solution — BlockOps
+## Slide 2: The Solution — CasperOPs
 
 | | |
 |---|---|
@@ -63,7 +63,7 @@
 
 | Step | What happens | User sees |
 |---|---|---|
-| 1 | Open BlockOps in browser | Visual canvas with pre-loaded Yield Optimizer template |
+| 1 | Open CasperOPs in browser | Visual canvas with pre-loaded Yield Optimizer template |
 | 2 | Connect CSPR.click wallet | Public key appears in header, wallet badge turns green |
 | 3 | Drag "register_agent" tool onto canvas, connect to "transfer", click Run | x402 payment popup (0.5 CSPR) |
 | 4 | Sign with CSPR.click | Toast shows deploy hash + CSPR.live link |
@@ -86,8 +86,8 @@
 
 ## Links
 
-- **GitHub**: https://github.com/your-org/BlockOPS (private during contest)
-- **Live demo**: https://blockops.dev (public staging)
-- **Telegram bot**: https://t.me/BlockOPSBot
+- **GitHub**: https://github.com/your-org/CasperOPs (private during contest)
+- **Live demo**: https://casperops.dev (public staging)
+- **Telegram bot**: https://t.me/CasperOPsBot
 - **Contracts (testnet)**: See `docs/testnet-validation.md`
 - **x402 spec**: `docs/x402.md`

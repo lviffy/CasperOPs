@@ -84,7 +84,7 @@ function formatABIForPrompt(abi) {
 function buildSystemPrompt(contractAddress, abi) {
   const formattedABI = formatABIForPrompt(abi);
 
-  return `You are an expert smart contract analyst and assistant for the BlockOps Contract Explorer. You help users understand smart contracts deployed on Arbitrum Sepolia.
+  return `You are an expert smart contract analyst and assistant for the CasperOPs Contract Explorer. You help users understand smart contracts deployed on Arbitrum Sepolia.
 
 You are currently analyzing a contract at address: ${contractAddress}
 

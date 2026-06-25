@@ -1,7 +1,7 @@
 /**
  * Casper wallet helpers built on top of @make-software/csprclick-core-client.
  *
- * BlockOps uses CSPR.click as the canonical session/wallet connector.
+ * CasperOPs uses CSPR.click as the canonical session/wallet connector.
  * All helpers gracefully handle the case where CSPR.click is not yet
  * initialized (return `null`/empty data so callers can render a "Connect"
  * prompt instead of throwing).
@@ -26,7 +26,7 @@ export type ConnectedAccount = {
  */
 function getCsprClickConfig() {
   return {
-    appName: process.env.NEXT_PUBLIC_CSPRCLICK_APP_NAME || "BlockOps",
+    appName: process.env.NEXT_PUBLIC_CSPRCLICK_APP_NAME || "CasperOPs",
     appId: process.env.NEXT_PUBLIC_CSPRCLICK_APP_ID || "csprclick-template",
     providers: ["casper-wallet", "casper-signer", "ledger", "metamask-snap", "walletconnect"],
     chainName: CHAIN_CONFIGS[DEFAULT_CHAIN_ID].chainName,
@@ -313,7 +313,7 @@ export function casperDeployUrl(deployHash: string) {
 
 // =============================================================================
 // ⚠️  LEGACY STUBS — EVM / Lit PKP helpers that used to live here.
-// BlockOps now signs Casper deploys via CSPR.click. The functions below throw
+// CasperOPs now signs Casper deploys via CSPR.click. The functions below throw
 // helpful errors if anything still calls them; callers should migrate to the
 // CSPR.click helpers above (connectWallet, getActiveAccount, sendDeploy, …).
 // =============================================================================
@@ -323,7 +323,7 @@ export function casperDeployUrl(deployHash: string) {
  */
 export function createWallet(): { address: string; privateKey: string } {
   throw new Error(
-    "createWallet() is no longer supported — BlockOps uses CSPR.click. " +
+    "createWallet() is no longer supported — CasperOPs uses CSPR.click. " +
       "Call connectWallet() to bring a Casper wallet into the browser.",
   );
 }
@@ -333,7 +333,7 @@ export function createWallet(): { address: string; privateKey: string } {
  */
 export function getAddressFromPrivateKey(_privateKey: string): string {
   throw new Error(
-    "getAddressFromPrivateKey() is no longer supported — BlockOps uses CSPR.click. " +
+    "getAddressFromPrivateKey() is no longer supported — CasperOPs uses CSPR.click. " +
       "Read the active account's public key via getActiveAccount().",
   );
 }

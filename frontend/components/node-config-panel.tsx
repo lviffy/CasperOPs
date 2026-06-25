@@ -10,7 +10,7 @@ import { toast } from "@/components/ui/use-toast"
 import type { WorkflowNode } from "@/lib/types"
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000"
-const DEFAULT_EMAIL_RECIPIENT_KEY = "blockops.defaultEmailRecipient"
+const DEFAULT_EMAIL_RECIPIENT_KEY = "casperops.defaultEmailRecipient"
 
 interface NodeConfigPanelProps {
   node: WorkflowNode

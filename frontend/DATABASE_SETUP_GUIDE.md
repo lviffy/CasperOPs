@@ -8,7 +8,7 @@ This guide will help you set up the payment system database schema in Supabase.
 
 - ✅ Supabase project created
 - ✅ Database connection established
-- ✅ Existing BlockOps schema (users, agents tables)
+- ✅ Existing CasperOPs schema (users, agents tables)
 
 ## Quick Setup
 

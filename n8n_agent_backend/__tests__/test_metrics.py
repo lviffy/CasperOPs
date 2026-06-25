@@ -5,7 +5,7 @@ Coverage:
   - GET /metrics is unauthenticated when METRICS_TOKEN is unset
   - GET /metrics refuses with 401 when METRICS_TOKEN is set + wrong bearer
   - GET /metrics serves prometheus text when METRICS_TOKEN matches
-  - /metrics output contains the documented blockops_mcp_* series
+  - /metrics output contains the documented casperops_mcp_* series
   - the dispatcher increments the tool-calls counter after every dispatch
   - the dispatcher increments the proxy counter for proxy-kind tools
   - the dispatcher increments the rpc counter for rpc-kind tools
@@ -119,12 +119,12 @@ class MetricsEndpointTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         body = r.text
         for name in (
-            "blockops_mcp_tool_calls_total",
-            "blockops_mcp_tool_latency_seconds",
-            "blockops_mcp_active_sessions",
-            "blockops_mcp_session_messages_total",
-            "blockops_mcp_backend_proxy_duration_seconds",
-            "blockops_mcp_rpc_call_duration_seconds",
+            "casperops_mcp_tool_calls_total",
+            "casperops_mcp_tool_latency_seconds",
+            "casperops_mcp_active_sessions",
+            "casperops_mcp_session_messages_total",
+            "casperops_mcp_backend_proxy_duration_seconds",
+            "casperops_mcp_rpc_call_duration_seconds",
         ):
             self.assertIn(name, body, f"missing series {name} in /metrics output")
 
@@ -149,7 +149,7 @@ class MetricsEndpointTests(unittest.TestCase):
                 base, headers={"Authorization": f"Bearer {token}"}, timeout=5.0
             )
             self.assertEqual(r.status_code, 200)
-            self.assertIn("blockops_mcp_tool_calls_total", r.text)
+            self.assertIn("casperops_mcp_tool_calls_total", r.text)
             # 4. X-Metrics-Token header → 200
             r = httpx.get(
                 base, headers={"X-Metrics-Token": token}, timeout=5.0
@@ -194,7 +194,7 @@ class DispatcherMetricsTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('tool_name="get_reputation"', body)
         self.assertIn('kind="rpc"', body)
         # The RPC helper also records under RPC_CALL_DURATION.
-        self.assertIn("blockops_mcp_rpc_call_duration_seconds", body)
+        self.assertIn("casperops_mcp_rpc_call_duration_seconds", body)
 
     async def test_x402_status_label(self) -> None:
         mcp_metrics._reset_for_tests()
@@ -206,7 +206,7 @@ class DispatcherMetricsTests(unittest.IsolatedAsyncioTestCase):
         # and assert it has one of the three valid status values.
         import re
         match = re.search(
-            r'blockops_mcp_tool_calls_total\{[^}]*tool_name="register_agent"[^}]*\}',
+            r'casperops_mcp_tool_calls_total\{[^}]*tool_name="register_agent"[^}]*\}',
             body,
         )
         self.assertIsNotNone(match, "register_agent counter line not found")
@@ -222,10 +222,10 @@ class SessionGaugeTests(unittest.TestCase):
         mcp_metrics.record_session_opened()
         body = mcp_metrics.render().decode("utf-8")
         # After two opens the gauge should read 2.
-        self.assertIn("blockops_mcp_active_sessions 2.0", body)
+        self.assertIn("casperops_mcp_active_sessions 2.0", body)
         mcp_metrics.record_session_closed()
         body = mcp_metrics.render().decode("utf-8")
-        self.assertIn("blockops_mcp_active_sessions 1.0", body)
+        self.assertIn("casperops_mcp_active_sessions 1.0", body)
 
 
 if __name__ == "__main__":

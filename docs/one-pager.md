@@ -1,4 +1,4 @@
-# BlockOps
+# CasperOPs
 
 ## No-Code Trustworthy AI Agents on Casper
 
@@ -19,10 +19,10 @@
 - CSPR.click wallet — no seed phrases, no EVM bridge
 
 ### Live Demo
-**https://blockops.dev**
+**https://casperops.dev**
 
 ### Telegram Bot
-**https://t.me/BlockOPSBot**
+**https://t.me/CasperOPsBot**
 
 ### Stack
 Next.js + Express + Odra (Rust→WASM) + Casper Testnet + CSPR.cloud

@@ -15,7 +15,7 @@
  *   agent.message      – inbound chat message to an agent
  *
  * Delivery:
- *   - HMAC-SHA256 signature on every payload (X-BlockOps-Signature header)
+ *   - HMAC-SHA256 signature on every payload (X-CasperOPs-Signature header)
  *   - 3 attempts with exponential backoff: 1s → 5s → 30s
  *   - All attempts logged to Supabase webhook_delivery_logs
  */
@@ -92,10 +92,10 @@ async function deliverWithRetry(webhook, eventType, payload) {
         timeout: DELIVERY_TIMEOUT_MS,
         headers: {
           'Content-Type': 'application/json',
-          'X-BlockOps-Signature': signature,
-          'X-BlockOps-Event': eventType,
-          'X-BlockOps-Delivery': crypto.randomUUID(),
-          'User-Agent': 'BlockOps-Webhooks/1.0'
+          'X-CasperOPs-Signature': signature,
+          'X-CasperOPs-Event': eventType,
+          'X-CasperOPs-Delivery': crypto.randomUUID(),
+          'User-Agent': 'CasperOPs-Webhooks/1.0'
         }
       });
 
@@ -263,7 +263,7 @@ async function testWebhook(webhookId, agentId) {
     event: 'test',
     agentId,
     timestamp: new Date().toISOString(),
-    data: { message: 'This is a test delivery from BlockOps', webhookId }
+    data: { message: 'This is a test delivery from CasperOPs', webhookId }
   };
 
   const bodyStr = JSON.stringify(testPayload);
@@ -274,10 +274,10 @@ async function testWebhook(webhookId, agentId) {
       timeout: DELIVERY_TIMEOUT_MS,
       headers: {
         'Content-Type': 'application/json',
-        'X-BlockOps-Signature': signature,
-        'X-BlockOps-Event': 'test',
-        'X-BlockOps-Delivery': crypto.randomUUID(),
-        'User-Agent': 'BlockOps-Webhooks/1.0'
+        'X-CasperOPs-Signature': signature,
+        'X-CasperOPs-Event': 'test',
+        'X-CasperOPs-Delivery': crypto.randomUUID(),
+        'User-Agent': 'CasperOPs-Webhooks/1.0'
       }
     });
     return { success: true, statusCode: response.status };

@@ -6,9 +6,9 @@ import { initCsprClick } from '@/lib/wallet'
 import { initSentryBrowser } from '@/lib/sentry'
 
 /**
- * Root providers for the BlockOps app.
+ * Root providers for the CasperOPs app.
  *
- * BlockOps now uses CSPR.click for wallet session management, so the provider
+ * CasperOPs now uses CSPR.click for wallet session management, so the provider
  * tree only needs to:
  *   1. Eagerly initialise the CSPR.click SDK on the client (so the first hook
  *      that calls `initCsprClick()` doesn't pay the cost of bootstrapping

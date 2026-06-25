@@ -75,7 +75,7 @@ describe('stripeService.createCheckoutSession', () => {
     const r = await stripeService.createCheckoutSession({ tier: 'enterprise', userId: 'u1' });
     assert.equal(r.ok, true);
     assert.equal(r.enterprise, true);
-    assert.match(r.url, /^mailto:sales@blockops\.example/);
+    assert.match(r.url, /^mailto:sales@casperops\.example/);
   });
 
   it('returns mocked checkout URL for pro tier when STRIPE_DISABLED=1', async () => {

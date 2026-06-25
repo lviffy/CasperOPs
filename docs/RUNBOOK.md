@@ -1,6 +1,6 @@
-# BlockOps Incident Response Runbook
+# CasperOPs Incident Response Runbook
 
-This runbook covers the **top 8 incidents** the BlockOps Casper stack
+This runbook covers the **top 8 incidents** the CasperOPs Casper stack
 is expected to encounter in production. Each incident has:
 
 - **Symptoms** — how you'll notice it (alert / dashboard / user report)
@@ -13,7 +13,7 @@ For component status, dependency map, and what's where, see
 [`OPERATIONS.md`](./OPERATIONS.md).
 
 > **On-call checklist (always):**
-> 1. Open the relevant Grafana dashboard (`blockops-backend` / `blockops-mcp`)
+> 1. Open the relevant Grafana dashboard (`casperops-backend` / `casperops-mcp`)
 > 2. Check the last deploy timestamp (deploys within the last 30 min are
 >    the leading cause of fresh incidents)
 > 3. Check Sentry for the matching error spike
@@ -27,7 +27,7 @@ For component status, dependency map, and what's where, see
 **Symptoms**
 - Sentry alert: "Deploy stuck pending > 5 min"
 - User report: "I signed the payment but my tool never ran"
-- Grafana: `rate(blockops_deploy_stuck_total[5m]) > 0`
+- Grafana: `rate(casperops_deploy_stuck_total[5m]) > 0`
 
 **Diagnosis**
 1. Grab the deploy hash from the Sentry alert or from the user's
@@ -72,7 +72,7 @@ For component status, dependency map, and what's where, see
 
 **Symptoms**
 - User report: "My LangGraph agent disconnected"
-- Grafana: `blockops_mcp_active_sessions` goes to 0 unexpectedly
+- Grafana: `casperops_mcp_active_sessions` goes to 0 unexpectedly
 - Sentry: spike in `client_disconnect` errors on `/mcp/sse`
 
 **Diagnosis**
@@ -82,7 +82,7 @@ For component status, dependency map, and what's where, see
    long as the server process).
 3. Test a fresh SSE connection:
    ```bash
-   curl -N https://mcp.blockops.example/mcp/sse
+   curl -N https://mcp.casperops.example/mcp/sse
    ```
    You should see `event: ready` then periodic `event: ping`.
 
@@ -146,7 +146,7 @@ For component status, dependency map, and what's where, see
 **Symptoms**
 - Sentry alert: "RPC p95 > 3 s" sustained 5 min
 - User report: "Tool calls hanging"
-- Grafana: `histogram_quantile(0.95, blockops_rpc_call_duration_seconds)`
+- Grafana: `histogram_quantile(0.95, casperops_rpc_call_duration_seconds)`
   climbs above 3 s
 
 **Diagnosis**
@@ -184,8 +184,8 @@ For component status, dependency map, and what's where, see
 
 **Symptoms**
 - User report: "I signed the deploy but my tool never ran"
-- Sentry: spike in `blockops_x402_challenges_total` but no
-  corresponding `blockops_tool_executions_total{status="ok"}`
+- Sentry: spike in `casperops_x402_challenges_total` but no
+  corresponding `casperops_tool_executions_total{status="ok"}`
 - The X-Casper-Payment-Deploy-Hash header is in the request but
   the tool still returned 402
 
@@ -222,7 +222,7 @@ For component status, dependency map, and what's where, see
 
 **Symptoms**
 - Sentry: any incident alert, "issue spike" alert
-- Slack: #blockops-oncall notification
+- Slack: #casperops-oncall notification
 
 **Diagnosis**
 1. Open the Sentry issue page.
@@ -254,7 +254,7 @@ For component status, dependency map, and what's where, see
 **Symptoms**
 - Sentry: `429` from Supabase, with `retry-after` header
 - User report: "Save failed"
-- Grafana: spike in `blockops_http_requests_total{status_code="429",route="/agents"}`
+- Grafana: spike in `casperops_http_requests_total{status_code="429",route="/agents"}`
 
 **Diagnosis**
 1. Open the Supabase dashboard → API → Logs.
@@ -281,7 +281,7 @@ For component status, dependency map, and what's where, see
 
 **Symptoms**
 - User report: "Bot not responding"
-- Sentry: spike in `blockops_http_requests_total{status_code="502",route="/telegram/webhook"}`
+- Sentry: spike in `casperops_http_requests_total{status_code="502",route="/telegram/webhook"}`
 - Telegram dashboard: webhook deliveries failing
 
 **Diagnosis**
@@ -295,7 +295,7 @@ For component status, dependency map, and what's where, see
 **Mitigation**
 - **Stale URL:** re-register via:
   ```bash
-  curl -F "url=https://api.blockops.example/telegram/webhook" \
+  curl -F "url=https://api.casperops.example/telegram/webhook" \
        https://api.telegram.org/bot<TOKEN>/setWebhook
   ```
 - **Backend returning 502:** this is a bug — the bot always

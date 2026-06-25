@@ -31,7 +31,7 @@ const challengeBody = {
     },
     chainName: "casper-test",
   },
-  memo: "BlockOps tool payment: register_agent",
+  memo: "CasperOPs tool payment: register_agent",
 }
 
 beforeEach(() => {

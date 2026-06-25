@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test"
 
 /**
- * Playwright config for the BlockOps frontend E2E suite (Phase 25).
+ * Playwright config for the CasperOPs frontend E2E suite (Phase 25).
  *
  * Run modes:
  *   npm run test:e2e              # both chromium + webkit against `npm run start`

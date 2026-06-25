@@ -1,9 +1,9 @@
-# BlockOps API Reference
+# CasperOPs API Reference
 
 This document covers all 22 backend tool endpoints. Each endpoint accepts
 JSON, enforces x402 payment for paid tools, and returns a JSON response.
 
-Base URL: `https://api.blockops.dev` (production) /
+Base URL: `https://api.casperops.dev` (production) /
 `http://localhost:3000/api` (development)
 
 All paid endpoints require:
@@ -57,7 +57,7 @@ Content-Type: application/json
 {
   "recipient": "010101…",
   "amount_motes": "1000000000",
-  "memo": "blockops transfer"
+  "memo": "casperops transfer"
 }
 ```
 
@@ -100,7 +100,7 @@ POST /v1/tools/deploy_cep18
 Content-Type: application/json
 
 {
-  "name": "BlockOps Test Token",
+  "name": "CasperOPs Test Token",
   "symbol": "BTT",
   "decimals": 9,
   "total_supply": "1000000000000000000"
@@ -113,7 +113,7 @@ Content-Type: application/json
 {
   "deploy_hash": "…",
   "contract_hash": "hash-…",
-  "token": { "name": "BlockOps Test Token", "symbol": "BTT", "decimals": 9, "total_supply": "1000000000000000000" }
+  "token": { "name": "CasperOPs Test Token", "symbol": "BTT", "decimals": 9, "total_supply": "1000000000000000000" }
 }
 ```
 
@@ -126,7 +126,7 @@ POST /v1/tools/deploy_cep78
 Content-Type: application/json
 
 {
-  "name": "BlockOps Sample Collection",
+  "name": "CasperOPs Sample Collection",
   "symbol": "BOSC",
   "total_supply": 1000
 }
@@ -296,7 +296,7 @@ Returns CSPR price in USD + 24h change.
 POST /v1/tools/send_email
 {
   "to": "user@example.com",
-  "subject": "BlockOps",
+  "subject": "CasperOPs",
   "body": "Your agent just completed a task."
 }
 ```
@@ -335,7 +335,7 @@ See [`docs/x402.md`](./x402.md) for the full 402 challenge shape.
 
 ## Odra contract surface (v1.0)
 
-The 19 BlockOps tool endpoints above call into the six Odra contracts deployed
+The 19 CasperOPs tool endpoints above call into the six Odra contracts deployed
 via `cd contract && cargo odra build` (see `contract/scripts/deploy.js`). The
 tool router keeps these as constants in
 [`frontend/lib/contracts.ts`](../frontend/lib/contracts.ts); the entry-point

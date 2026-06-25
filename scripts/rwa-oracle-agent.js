@@ -1,5 +1,5 @@
 /**
- * BlockOps Casper RWA Oracle Agent Prototype.
+ * CasperOPs Casper RWA Oracle Agent Prototype.
  * 
  * Demonstrates the end-to-end flow of an autonomous agent:
  * 1. Querying the RWA Valuation Tool for a property appraisal.
@@ -24,7 +24,7 @@ async function runRwaOracleFlow() {
 
   try {
     // Step 1: Query the RWA valuation tool
-    console.log(`1. Requesting certified property valuation from BlockOps API...`);
+    console.log(`1. Requesting certified property valuation from CasperOPs API...`);
     
     // We call the protected HTTP endpoint
     const response = await axios.post(`${BACKEND_URL}/rwa/property-valuation`, {

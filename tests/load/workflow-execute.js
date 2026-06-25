@@ -4,7 +4,7 @@
  *
  * Run with:
  *   k6 run tests/load/workflow-execute.js
- *   k6 run tests/load/workflow-execute.js --env BASE_URL=https://api.blockops.example
+ *   k6 run tests/load/workflow-execute.js --env BASE_URL=https://api.casperops.example
  *
  * Workflow exercised (per VU cycle):
  *   1. GET  /v1/tools                 (catalog)
@@ -32,9 +32,9 @@ import { SharedArray } from 'k6/data';
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 const MASTER_API_KEY = __ENV.MASTER_API_KEY || 'local-dev-master-key-change-me';
 
-const workflowsStarted = new Counter('blockops_workflows_started');
-const workflowsCompleted = new Counter('blockops_workflows_completed');
-const workflowFailure = new Rate('blockops_workflow_failure');
+const workflowsStarted = new Counter('casperops_workflows_started');
+const workflowsCompleted = new Counter('casperops_workflows_completed');
+const workflowFailure = new Rate('casperops_workflow_failure');
 
 export const options = {
   scenarios: {
@@ -46,7 +46,7 @@ export const options = {
     },
   },
   thresholds: {
-    blockops_workflow_failure: ['rate<0.05'],
+    casperops_workflow_failure: ['rate<0.05'],
     http_req_failed: ['rate<0.05'],
   },
 };

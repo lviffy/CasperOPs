@@ -1,9 +1,9 @@
-# BlockOps Demo Walkthrough (3 min)
+# CasperOPs Demo Walkthrough (3 min)
 
 ## Opening (0:00–0:15)
-> *Screen: browser at https://blockops.dev*
+> *Screen: browser at https://casperops.dev*
 
-"Hi, I'm [name]. BlockOps is a no-code platform for building trustworthy autonomous AI agents on the Casper Network. Let me show you how it works."
+"Hi, I'm [name]. CasperOPs is a no-code platform for building trustworthy autonomous AI agents on the Casper Network. Let me show you how it works."
 
 ## 1. Visual Builder + Templates (0:15–0:45)
 > *Screen: canvas shows pre-loaded Yield Optimizer template*
@@ -38,7 +38,7 @@
 
 > *Click "Hire via Escrow" → modal with 5/10 CSPR quick-fill → confirm*
 
-"You can hire any agent via escrow. The CSPR is held in the Escrow smart contract until the work is complete. This is how BlockOps makes autonomous agents trustworthy — the funds are only released when both parties agree."
+"You can hire any agent via escrow. The CSPR is held in the Escrow smart contract until the work is complete. This is how CasperOPs makes autonomous agents trustworthy — the funds are only released when both parties agree."
 
 > *Green "Escrow Active" badge + CSPR.live link*
 
@@ -47,7 +47,7 @@
 ## 4. Telegram Bot (1:45–2:15)
 > *Screen: switch to Telegram app*
 
-"BlockOps also has a Telegram bot for quick actions."
+"CasperOPs also has a Telegram bot for quick actions."
 
 > *Type /balance → shows CSPR balance*
 
@@ -66,7 +66,7 @@
 ## 5. Architecture Close (2:15–3:00)
 > *Screen: architecture diagram from pitch deck*
 
-"Under the hood, BlockOps is built on:
+"Under the hood, CasperOPs is built on:
 - **6 Odra smart contracts** on Casper testnet — AgentFactory, Reputation, Escrow, Compliance, CEP-18, CEP-78
 - **19 Casper-native tool endpoints** with x402 pay-per-call pricing
 - **MCP server** so LangGraph/CrewAI agents can use all tools via stdio or HTTP/SSE
@@ -74,9 +74,9 @@
 
 The result: a complete no-code platform where autonomous agents are accountable, transactions are verifiable, and users never give up custody of their keys."
 
-> *End screen: https://blockops.dev | GitHub QR code*
+> *End screen: https://casperops.dev | GitHub QR code*
 
-"Check it out at blockops.dev. Thanks for watching!"
+"Check it out at casperops.dev. Thanks for watching!"
 
 ---
 

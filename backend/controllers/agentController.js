@@ -355,7 +355,7 @@ async function getAgentManifest(req, res) {
         name: agent.name,
         version: '1.0.0',
         description: agent.description,
-        author: 'BlockOps',
+        author: 'CasperOPs',
         casper: {
           agentFactory: casperHashes.agentFactory,
           reputation: casperHashes.reputation,

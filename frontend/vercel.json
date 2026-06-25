@@ -12,7 +12,7 @@
     "NEXT_PUBLIC_REPUTATION_HASH": "@next_public_reputation_hash",
     "NEXT_PUBLIC_ESCROW_HASH": "@next_public_escrow_hash",
     "NEXT_PUBLIC_COMPLIANCE_HASH": "@next_public_compliance_hash",
-    "NEXT_PUBLIC_AGENT_BACKEND_URL": "https://api.blockops.dev",
+    "NEXT_PUBLIC_AGENT_BACKEND_URL": "https://api.casperops.dev",
     "NEXT_PUBLIC_SENTRY_DSN": "@next_public_sentry_dsn"
   },
   "github": {

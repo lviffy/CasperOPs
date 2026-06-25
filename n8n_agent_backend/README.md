@@ -1,6 +1,6 @@
-# BlockOps MCP Server
+# CasperOPs MCP Server
 
-The BlockOps MCP (Model Context Protocol) server exposes the 19 Casper-native
+The CasperOPs MCP (Model Context Protocol) server exposes the 19 Casper-native
 backend tools to LangGraph, CrewAI, n8n, and any other MCP-compatible agent
 runtime over a single tool surface.
 
@@ -19,14 +19,14 @@ runtime over a single tool surface.
     `GET /mcp/tools`.
 - **Unified dispatcher** (`dispatcher.py`) — every tool is classified as
   `local` (compute in-process), `rpc` (Casper RPC + CSPR.cloud), or
-  `proxy` (forward to the BlockOps backend `/v1/tools/:toolId`). Adding a
+  `proxy` (forward to the CasperOPs backend `/v1/tools/:toolId`). Adding a
   new tool is a one-line classification change.
 - **Stateful sessions** — Redis (1-hour TTL) for short-term session
   metadata + Postgres for long-term tool-call history. Both are optional;
   the server runs without them.
 - **x402 payment protocol** — paid tools require an
   `X-Casper-Payment-Deploy-Hash` header on the underlying tool call. The
-  MCP layer is a passthrough — payment is enforced by the BlockOps backend
+  MCP layer is a passthrough — payment is enforced by the CasperOPs backend
   middleware.
 
 ## Architecture
@@ -39,7 +39,7 @@ runtime over a single tool surface.
     LangGraph ─► │            │      │   source of  │  ┌──────────────┐
     (SSE)    ──► │ mcp_server │      │    truth)    │─►│ Casper RPC   │
                  │  _sse.py   │      │              │  │ CSPR.cloud   │
-    CrewAI  ───► │            │      └──────┬───────┘  │ BlockOps API │
+    CrewAI  ───► │            │      └──────┬───────┘  │ CasperOPs API │
                  └─────┬──────┘             │          └──────────────┘
                        │                    │
                   ┌────▼─────┐         ┌────▼─────┐
@@ -172,7 +172,7 @@ retry — no special handling required on the client.
 | `CASPER_RPC_URL`          | no       | `https://rpc.testnet.casper.live/rpc`            | JSON-RPC endpoint                                  |
 | `CSPR_CLOUD_API_URL`      | no       | `https://api.testnet.cspr.cloud`                 | Used for balance + token lookups                   |
 | `CSPR_CLOUD_API_KEY`      | no       | (empty)                                          | Bearer token for higher rate limits                |
-| `BLOCKOPS_BACKEND_URL`    | no       | `http://localhost:3000`                          | Where `/v1/tools/:toolId` lives (Phase 20)         |
+| `CASPEROPS_BACKEND_URL`    | no       | `http://localhost:3000`                          | Where `/v1/tools/:toolId` lives (Phase 20)         |
 | `REDIS_URL`               | no       | `redis://localhost:6379/0`                      | Session state; server runs without it              |
 | `POSTGRES_DSN`            | no       | (empty)                                          | Tool-call history; server runs without it          |
 | `CASPER_REPUTATION_HASH`  | no       | (empty)                                          | Required for `get_reputation` on-chain lookups     |
@@ -218,7 +218,7 @@ The suite boots the FastAPI app in a background thread, exercises every
 canonical endpoint, spawns the stdio server as a subprocess, and asserts
 the unified dispatcher classifies + executes the documented tools. 17
 tests, ~1 second runtime, no external services required (Redis/Postgres
-are skipped if absent, the BlockOps backend is treated as optional).
+are skipped if absent, the CasperOPs backend is treated as optional).
 
 ## Deployment
 
@@ -240,8 +240,8 @@ Recommended add-ons:
 A `Dockerfile` is included. Build and run:
 
 ```bash
-docker build -t blockops-mcp .
-docker run -p 8080:8080 -e CASPER_RPC_URL=https://rpc.testnet.casper.live/rpc blockops-mcp
+docker build -t casperops-mcp .
+docker run -p 8080:8080 -e CASPER_RPC_URL=https://rpc.testnet.casper.live/rpc casperops-mcp
 ```
 
 ## Schema reference
@@ -259,7 +259,7 @@ Add a new tool:
 2. Classify the tool in `dispatcher.py`:
    - `LOCAL_TOOLS` — pure computation, no network.
    - `RPC_TOOLS` — read-only Casper RPC + CSPR.cloud lookups.
-   - Default → `proxy` to the BlockOps backend `/v1/tools/:toolId`.
+   - Default → `proxy` to the CasperOPs backend `/v1/tools/:toolId`.
 3. Implement the handler in `dispatcher.py` (for `local` / `rpc`).
 4. Add an entry to `backend/utils/chains.js TOOL_PRICING` (free or paid
    with a `priceMotes`).

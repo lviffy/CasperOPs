@@ -11,14 +11,14 @@
 #   4. Inserts a known-fresh row (with a current timestamp).
 #   5. Re-runs the restore and verifies the row is still there.
 #   6. If any step fails, posts a Sentry alert + sends a Slack ping
-#      to #blockops-oncall via the existing webhook infra.
+#      to #casperops-oncall via the existing webhook infra.
 #
 # Env vars:
 #   SUPABASE_PROJECT_REF   (e.g. abcdefgh.supabase.co)
 #   SUPABASE_DB_URL        (postgres://postgres:<pw>@db.<ref>.supabase.co:5432/postgres)
 #   SUPABASE_SERVICE_KEY   (for the REST backup endpoint)
 #   SENTRY_DSN             (for the alert)
-#   BACKUP_WEBHOOK_URL     (Slack-compatible webhook URL for #blockops-oncall)
+#   BACKUP_WEBHOOK_URL     (Slack-compatible webhook URL for #casperops-oncall)
 #   BACKUP_VERIFY_KEEP     (set to "1" to keep the throwaway container
 #                            after the script for manual inspection;
 #                            default 0 = always delete)
@@ -34,8 +34,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TS="$(date -u +'%Y%m%dT%H%M%SZ')"
-BACKUP_FILE="/tmp/blockops-backup-${TS}.sql"
-THROWAWAY_DB="blockops_backup_verify_${TS//-/}"
+BACKUP_FILE="/tmp/casperops-backup-${TS}.sql"
+THROWAWAY_DB="casperops_backup_verify_${TS//-/}"
 KEEP=0
 [[ "${BACKUP_VERIFY_KEEP:-0}" == "1" ]] && KEEP=1
 
@@ -121,7 +121,7 @@ echo "verified_at=$TS backup_size=$SIZE table=$KNOWN_TABLE marker=$MARKER" \
 if [ -n "${BACKUP_WEBHOOK_URL:-}" ]; then
   # Fire-and-forget Slack ping so the on-call channel sees daily proof.
   curl -fsS -X POST -H 'Content-Type: application/json' \
-    -d "{\"text\":\"✅ BlockOps Supabase backup verified ($TS, ${SIZE} bytes)\"}" \
+    -d "{\"text\":\"✅ CasperOPs Supabase backup verified ($TS, ${SIZE} bytes)\"}" \
     "$BACKUP_WEBHOOK_URL" >/dev/null 2>&1 || true
 fi
 

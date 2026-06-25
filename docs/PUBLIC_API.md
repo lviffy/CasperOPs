@@ -1,6 +1,6 @@
-# BlockOps Public API (v1.0)
+# CasperOPs Public API (v1.0)
 
-> **Audience:** external developers integrating with BlockOps.
+> **Audience:** external developers integrating with CasperOPs.
 > For the full internal reference (admin endpoints, debugging hooks),
 > see [`API.md`](./API.md).
 
@@ -10,9 +10,9 @@ land in major releases.
 
 ## Conventions
 
-- **Base URL:** `https://api.blockops.example`
+- **Base URL:** `https://api.casperops.example`
 - **Auth:** send `x-api-key: <your-key>` on every request (mint one
-  at [/api-keys](https://blockops.example/api-keys) after signing in
+  at [/api-keys](https://casperops.example/api-keys) after signing in
   with CSPR.click)
 - **Content-Type:** `application/json` on every request with a body
 - **Request IDs:** every response echoes `X-Request-Id`; include it
@@ -29,7 +29,7 @@ land in major releases.
 Returns the canonical tool catalog. **Free, no auth required.**
 
 ```bash
-curl https://api.blockops.example/v1/tools
+curl https://api.casperops.example/v1/tools
 ```
 
 ```json
@@ -50,8 +50,8 @@ Invoke any tool. **Auth required.** Returns 200 (success), 400
 5xx (server error).
 
 ```bash
-curl -X POST https://api.blockops.example/v1/tools/get_balance \
-  -H "x-api-key: $BLOCKOPS_API_KEY" \
+curl -X POST https://api.casperops.example/v1/tools/get_balance \
+  -H "x-api-key: $CASPEROPS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"params": {"address": "010101…01"}}'
 ```
@@ -204,14 +204,14 @@ The API is versioned via the URL prefix (`/v1/`). We follow SemVer:
 
 ## SDKs
 
-- TypeScript: `@blockops/sdk` (planned for Q+1)
-- Python: `blockops` (planned for Q+1)
+- TypeScript: `@casperops/sdk` (planned for Q+1)
+- Python: `casperops` (planned for Q+1)
 - Raw HTTP works for any language — the JSON shapes are stable
 
 ## Support
 
-- Discord: `https://discord.gg/blockops` (community)
-- Email: `support@blockops.example` (Pro tier, 24 h SLA)
+- Discord: `https://discord.gg/casperops` (community)
+- Email: `support@casperops.example` (Pro tier, 24 h SLA)
 - Slack Connect: included for Enterprise tier
 
 ## Changelog

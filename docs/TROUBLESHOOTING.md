@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Common issues + fixes for the BlockOps Casper stack.
+Common issues + fixes for the CasperOPs Casper stack.
 
 ## Frontend
 

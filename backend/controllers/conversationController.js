@@ -688,7 +688,7 @@ async function chat(req, res) {
       }
 
       // Convert routing plan to agent format
-      // Phase 23: removed BlockOpsAgentRuntime (ERC-8004 PEVD loop). The
+      // Phase 23: removed CasperOPsAgentRuntime (ERC-8004 PEVD loop). The
       // Casper tool router + direct execution are the only supported paths
       // now. The legacy runtime used to call an external `localhost:8000`
       // agent backend over HTTP, which has been retired. We always execute
@@ -737,7 +737,7 @@ async function chat(req, res) {
       console.log('[Chat] Simple conversation, using direct AI');
       
       const defaultSystemPrompt = systemPrompt || 
-        `You are a specialized blockchain operations assistant for BlockOps with Flow EVM Testnet as the default execution chain and Arbitrum Sepolia available for legacy tools. You help with: cryptocurrency prices, wallet operations, automation, smart contracts, blockchain transactions, and email notifications.
+        `You are a specialized blockchain operations assistant for CasperOPs with Flow EVM Testnet as the default execution chain and Arbitrum Sepolia available for legacy tools. You help with: cryptocurrency prices, wallet operations, automation, smart contracts, blockchain transactions, and email notifications.
         
         CRITICAL: If the user asks a question that requires blockchain data (prices, balances, calculations), and you don't have tools available, tell them what you would need to look up and suggest they ask directly (e.g., "fetch price of ETH", "check balance of 0x..."). 
         

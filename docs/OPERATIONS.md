@@ -1,6 +1,6 @@
-# BlockOps Operations Runbook
+# CasperOPs Operations Runbook
 
-This document covers the **observability stack** that backs the BlockOps
+This document covers the **observability stack** that backs the CasperOPs
 backend + MCP server: Sentry alert rules, uptime monitoring, and the
 structured log shipping pipeline. For incident response procedures see
 [`RUNBOOK.md`](./RUNBOOK.md); for the public component status page see
@@ -14,58 +14,58 @@ Both services expose Prometheus-format `/metrics`:
 
 | Service    | URL                                                | Auth                            |
 |------------|----------------------------------------------------|---------------------------------|
-| Backend    | `https://api.blockops.example/metrics`             | `METRICS_TOKEN` + CIDR allowlist |
-| MCP        | `https://mcp.blockops.example/metrics`             | `METRICS_TOKEN` (optional)       |
+| Backend    | `https://api.casperops.example/metrics`             | `METRICS_TOKEN` + CIDR allowlist |
+| MCP        | `https://mcp.casperops.example/metrics`             | `METRICS_TOKEN` (optional)       |
 
 ### Backend scrape configuration
 
 ```yaml
 # prometheus.yml
 scrape_configs:
-  - job_name: blockops-backend
+  - job_name: casperops-backend
     metrics_path: /metrics
     scheme: https
     authorization:
       type: Bearer
       credentials: ${env:METRICS_TOKEN}
     static_configs:
-      - targets: [api.blockops.example]
-  - job_name: blockops-mcp
+      - targets: [api.casperops.example]
+  - job_name: casperops-mcp
     metrics_path: /metrics
     scheme: https
     authorization:
       type: Bearer
       credentials: ${env:METRICS_TOKEN}
     static_configs:
-      - targets: [mcp.blockops.example]
+      - targets: [mcp.casperops.example]
 ```
 
 ### Series catalogue (backend)
 
 | Series | Type | Labels | Meaning |
 |--------|------|--------|---------|
-| `blockops_http_requests_total` | counter | `method`, `route`, `status_code` | Every request handled |
-| `blockops_http_request_duration_seconds` | histogram | `method`, `route`, `status_code` | Request latency |
-| `blockops_tool_executions_total` | counter | `tool_id`, `kind`, `status` | v1 tool runs (`status` ∈ `ok`/`error`/`x402`) |
-| `blockops_tool_duration_seconds` | histogram | `tool_id`, `kind` | Per-tool wall-clock time |
-| `blockops_x402_challenges_total` | counter | `tool_id`, `tier` | 402 challenges emitted |
-| `blockops_x402_refunds_total` | counter | `tool_id`, `status` | Refund deploy outcomes |
-| `blockops_cache_operations_total` | counter | `cache`, `op`, `result` | Reserved for Phase 27 Redis |
-| `blockops_deploy_stuck_total` | counter | `tool_id` | Deploys stuck past SLA |
-| `blockops_active_sessions` | gauge | — | Mirrored MCP SSE sessions |
-| `blockops_rpc_call_duration_seconds` | histogram | `method`, `result` | Casper RPC + CSPR.cloud calls |
-| `blockops_node_*` | various | — | Default `prom-client` process / GC / event-loop |
+| `casperops_http_requests_total` | counter | `method`, `route`, `status_code` | Every request handled |
+| `casperops_http_request_duration_seconds` | histogram | `method`, `route`, `status_code` | Request latency |
+| `casperops_tool_executions_total` | counter | `tool_id`, `kind`, `status` | v1 tool runs (`status` ∈ `ok`/`error`/`x402`) |
+| `casperops_tool_duration_seconds` | histogram | `tool_id`, `kind` | Per-tool wall-clock time |
+| `casperops_x402_challenges_total` | counter | `tool_id`, `tier` | 402 challenges emitted |
+| `casperops_x402_refunds_total` | counter | `tool_id`, `status` | Refund deploy outcomes |
+| `casperops_cache_operations_total` | counter | `cache`, `op`, `result` | Reserved for Phase 27 Redis |
+| `casperops_deploy_stuck_total` | counter | `tool_id` | Deploys stuck past SLA |
+| `casperops_active_sessions` | gauge | — | Mirrored MCP SSE sessions |
+| `casperops_rpc_call_duration_seconds` | histogram | `method`, `result` | Casper RPC + CSPR.cloud calls |
+| `casperops_node_*` | various | — | Default `prom-client` process / GC / event-loop |
 
 ### Series catalogue (MCP)
 
 | Series | Type | Labels | Meaning |
 |--------|------|--------|---------|
-| `blockops_mcp_tool_calls_total` | counter | `tool_name`, `kind`, `status` | Tool invocations |
-| `blockops_mcp_tool_latency_seconds` | histogram | `tool_name`, `kind` | Dispatch latency |
-| `blockops_mcp_active_sessions` | gauge | — | Currently-open SSE sessions |
-| `blockops_mcp_session_messages_total` | counter | `kind` (`inbound`/`outbound`) | JSON-RPC traffic |
-| `blockops_mcp_backend_proxy_duration_seconds` | histogram | `tool_name`, `result` | Proxy round-trips |
-| `blockops_mcp_rpc_call_duration_seconds` | histogram | `method`, `result` | Direct RPC + CSPR.cloud calls |
+| `casperops_mcp_tool_calls_total` | counter | `tool_name`, `kind`, `status` | Tool invocations |
+| `casperops_mcp_tool_latency_seconds` | histogram | `tool_name`, `kind` | Dispatch latency |
+| `casperops_mcp_active_sessions` | gauge | — | Currently-open SSE sessions |
+| `casperops_mcp_session_messages_total` | counter | `kind` (`inbound`/`outbound`) | JSON-RPC traffic |
+| `casperops_mcp_backend_proxy_duration_seconds` | histogram | `tool_name`, `result` | Proxy round-trips |
+| `casperops_mcp_rpc_call_duration_seconds` | histogram | `method`, `result` | Direct RPC + CSPR.cloud calls |
 
 ---
 
@@ -73,30 +73,30 @@ scrape_configs:
 
 Configure these in Sentry → Alerts → "Metric Alerts" or "Issue Alerts"
 depending on the trigger type. PagerDuty / Slack integration should route
-to `#blockops-oncall`.
+to `#casperops-oncall`.
 
 ### 2.1 5xx rate > 1% over 5 minutes
 
 ```
 Type:        Metric Alert (backend series)
-Query:       sum(rate(blockops_http_requests_total{status_code=~"5.."}[5m]))
+Query:       sum(rate(casperops_http_requests_total{status_code=~"5.."}[5m]))
              /
-             sum(rate(blockops_http_requests_total[5m]))
+             sum(rate(casperops_http_requests_total[5m]))
 Threshold:   > 0.01 (1 %)
 Window:      5 min
 Severity:    P3
-Notify:      #blockops-oncall, PagerDuty (low)
+Notify:      #casperops-oncall, PagerDuty (low)
 ```
 
 ### 2.2 Deploy stuck pending > 5 minutes
 
 ```
 Type:        Metric Alert
-Query:       rate(blockops_deploy_stuck_total[5m]) > 0
+Query:       rate(casperops_deploy_stuck_total[5m]) > 0
 Threshold:   any increase
 Window:      5 min
 Severity:    P2
-Notify:      #blockops-oncall, PagerDuty (high)
+Notify:      #casperops-oncall, PagerDuty (high)
 Runbook:     RUNBOOK.md §1
 ```
 
@@ -105,11 +105,11 @@ Runbook:     RUNBOOK.md §1
 ```
 Type:        Metric Alert
 Query:       histogram_quantile(0.95,
-                sum(rate(blockops_rpc_call_duration_seconds_bucket[5m])) by (le, method))
+                sum(rate(casperops_rpc_call_duration_seconds_bucket[5m])) by (le, method))
 Threshold:   > 3
 Window:      5 min
 Severity:    P3
-Notify:      #blockops-oncall
+Notify:      #casperops-oncall
 Runbook:     RUNBOOK.md §4
 ```
 
@@ -120,7 +120,7 @@ Sentry does not natively scrape Redis. Wire this as an alert on the
 
 ```
 Type:        Issue Alert (Sentry)
-Filter:      logger == "blockops-backend" AND msg contains "redis" AND level == "error"
+Filter:      logger == "casperops-backend" AND msg contains "redis" AND level == "error"
 Threshold:   > 10 in 1 min
 Window:      1 min
 Severity:    P3
@@ -131,9 +131,9 @@ Runbook:     RUNBOOK.md §3
 
 ```
 Type:        Metric Alert
-Query:       sum(rate(blockops_tool_executions_total{status="error"}[5m]))
+Query:       sum(rate(casperops_tool_executions_total{status="error"}[5m]))
              /
-             sum(rate(blockops_tool_executions_total[5m]))
+             sum(rate(casperops_tool_executions_total[5m]))
 Threshold:   > 0.10 (10 %)
 Window:      5 min
 Severity:    P3
@@ -150,10 +150,10 @@ generous free tiers and Slack / PagerDuty integrations.
 
 | Component        | URL                                          | Probe interval | Timeout |
 |------------------|----------------------------------------------|----------------|---------|
-| Backend live     | `https://api.blockops.example/health/live`   | 30 s           | 5 s     |
-| Backend ready    | `https://api.blockops.example/health/ready`  | 60 s           | 10 s    |
-| MCP server       | `https://mcp.blockops.example/health`        | 30 s           | 5 s     |
-| Frontend         | `https://blockops.example/`                  | 60 s           | 10 s    |
+| Backend live     | `https://api.casperops.example/health/live`   | 30 s           | 5 s     |
+| Backend ready    | `https://api.casperops.example/health/ready`  | 60 s           | 10 s    |
+| MCP server       | `https://mcp.casperops.example/health`        | 30 s           | 5 s     |
+| Frontend         | `https://casperops.example/`                  | 60 s           | 10 s    |
 
 `/health/ready` is the canonical "is the backend safe to take
 traffic?" probe. Configure uptime checks to alert when it returns
@@ -163,7 +163,7 @@ Supabase hiccup).
 ### Credentials
 
 Store monitoring API keys in the team password manager under
-`BlockOps / Monitoring`. The README in this repo intentionally does
+`CasperOPs / Monitoring`. The README in this repo intentionally does
 not include live tokens.
 
 ---
@@ -190,7 +190,7 @@ integration is installed; no extra config needed beyond env vars.
 ```yaml
 # promtail-config.yaml
 scrape_configs:
-  - job_name: blockops
+  - job_name: casperops
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
     relabel_configs:
@@ -214,15 +214,15 @@ scrape_configs:
 # datadog-agent.yaml
 logs:
   - type: docker
-    service: blockops-backend
+    service: casperops-backend
     source: nodejs
     path: /var/lib/docker/containers/*/*.log
     exclude_paths:
       - /var/lib/docker/containers/*/*.log
     log_processing_rules:
       - type: include_at_match
-        name: include_blockops
-        pattern: '"service":"blockops-backend"'
+        name: include_casperops
+        pattern: '"service":"casperops-backend"'
 ```
 
 ### 4.4 JSON log shape
@@ -234,8 +234,8 @@ Every line written by pino is a single-line JSON object:
   "level": 30,
   "time": 1748200000000,
   "pid": 17,
-  "hostname": "blockops-backend-7d4b",
-  "service": "blockops-backend",
+  "hostname": "casperops-backend-7d4b",
+  "service": "casperops-backend",
   "requestId": "8b3e1d2f-7c4a-4a59-b6e2-3e8e2c2d5d44",
   "toolId": "transfer",
   "msg": "request completed",
@@ -253,7 +253,7 @@ labels for queryability:
 
 | Label        | Source field   | Use                              |
 |--------------|----------------|----------------------------------|
-| `service`    | `service`      | `blockops-backend` / `blockops-mcp` |
+| `service`    | `service`      | `casperops-backend` / `casperops-mcp` |
 | `level`      | `level`        | `info`/`warn`/`error`/`debug`    |
 | `requestId`  | `requestId`    | Trace a single request           |
 | `toolId`     | `toolId`       | Filter to a single tool          |
@@ -285,7 +285,7 @@ Use it to triage without SSH'ing onto the box:
 
 ```bash
 curl -fsS -H "Authorization: Bearer $ADMIN_SECRET" \
-  https://api.blockops.example/health/diag | jq .
+  https://api.casperops.example/health/diag | jq .
 ```
 
 ---
@@ -295,14 +295,14 @@ curl -fsS -H "Authorization: Bearer $ADMIN_SECRET" \
 Recommended Grafana dashboard panels (one dashboard for backend, one
 for MCP):
 
-1. **HTTP traffic** — `rate(blockops_http_requests_total[1m])` stacked by `route`
+1. **HTTP traffic** — `rate(casperops_http_requests_total[1m])` stacked by `route`
 2. **Latency heatmap** — `histogram_quantile(0.95, …)` per route
-3. **Tool mix** — `blockops_tool_executions_total` pie by `tool_id`
+3. **Tool mix** — `casperops_tool_executions_total` pie by `tool_id`
 4. **x402 conversion** — ratio of challenges → verified payments
-5. **Refunds** — `blockops_x402_refunds_total` stacked by `status`
-6. **Active MCP sessions** — `blockops_mcp_active_sessions`
+5. **Refunds** — `casperops_x402_refunds_total` stacked by `status`
+6. **Active MCP sessions** — `casperops_mcp_active_sessions`
 7. **RPC p95** — `histogram_quantile(0.95, …)` per Casper RPC method
-8. **Deploy stuck** — `rate(blockops_deploy_stuck_total[5m])`
+8. **Deploy stuck** — `rate(casperops_deploy_stuck_total[5m])`
 
 Import the JSON dashboards in `infra/grafana/` (added in a future
 phase) once they're committed.

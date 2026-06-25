@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * BlockOps Casper Testnet End-to-End Agent Flow
+ * CasperOPs Casper Testnet End-to-End Agent Flow
  *
  * Executes the canonical agent lifecycle + the v1.0 hardening checks
  * against a live Casper testnet (or against an in-memory mock when run
@@ -390,7 +390,7 @@ function createMockStateMachine() {
 // Main
 // ---------------------------------------------------------------------------
 (async () => {
-  log(`# BlockOps Testnet End-to-End Run${DRYRUN ? " (DRYRUN)" : ""}`);
+  log(`# CasperOPs Testnet End-to-End Run${DRYRUN ? " (DRYRUN)" : ""}`);
   log(`Deployer: \`${DEPLOYER}\` (${ALGO})`);
   if (!DRYRUN) {
     log(`RPC: ${RPC}`);
@@ -433,7 +433,7 @@ function createMockStateMachine() {
   const attestArgs = {
     agent_id: stringArg(agentId),
     score: u8Arg(85),
-    evidence_uri: stringArg("ipfs://blockops/test/attestation.json"),
+    evidence_uri: stringArg("ipfs://casperops/test/attestation.json"),
     attester: keyArg(keys ? keys.publicKey : DEPLOYER),
   };
   await sendDeploy({
@@ -510,7 +510,7 @@ function createMockStateMachine() {
     args: {
       agent: complianceAgent,
       verified: boolArg(true),
-      uri: stringArg("ipfs://blockops/phase22/attest.json"),
+      uri: stringArg("ipfs://casperops/phase22/attest.json"),
     },
     label: "compliance_attest(verified=true)",
   });
@@ -523,7 +523,7 @@ function createMockStateMachine() {
     args: {
       agent: complianceAgent,
       verified: boolArg(false),
-      uri: stringArg("ipfs://blockops/phase22/revoke.json"),
+      uri: stringArg("ipfs://casperops/phase22/revoke.json"),
     },
     label: "compliance_revoke(verified=false)",
   });

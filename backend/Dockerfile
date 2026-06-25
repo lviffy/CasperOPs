@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# BlockOps Casper backend — multi-stage production image.
+# CasperOPs Casper backend — multi-stage production image.
 #
 # Stage 1 (deps):   npm ci with dev deps so c8 / nodemon are available for the
 #                   test stage. Only production deps get copied into the

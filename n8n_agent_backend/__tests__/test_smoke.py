@@ -1,5 +1,5 @@
 """
-Smoke tests for the BlockOps MCP server (HTTP/SSE + stdio).
+Smoke tests for the CasperOPs MCP server (HTTP/SSE + stdio).
 
 Boots the FastAPI app in a background thread via uvicorn, hits the
 canonical endpoints, and asserts the surface stays stable:
@@ -192,7 +192,7 @@ class HttpSseSmokeTests(unittest.TestCase):
 
     # ----- Paid tool: register_agent -----------------------------------------
     def test_20_paid_register_agent_proxy(self):
-        """register_agent is a paid tool that proxies to the BlockOps backend.
+        """register_agent is a paid tool that proxies to the CasperOPs backend.
 
         We don't require the backend to be running in CI; the dispatcher
         should respond with either:

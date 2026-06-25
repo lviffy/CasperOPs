@@ -70,7 +70,7 @@ async function withFakeRedis(fn) {
       return n;
     },
     async scan(cursor, _type, pattern, _count) {
-      // Convert glob to regex. Pattern is like `blockops:v1:foo:*`.
+      // Convert glob to regex. Pattern is like `casperops:v1:foo:*`.
       const escaped = pattern
         .replace(/[.+^${}()|[\]\\]/g, '\\$&')
         .replace(/\*/g, '.*');
@@ -176,7 +176,7 @@ describe('cacheService — getOrFetch happy path', () => {
       // The cache helper writes with EX <ttl>. We verify by reading
       // back with a TTL inspection.
       const keys = [...store.keys()];
-      assert.ok(keys[0].startsWith('blockops:v1:get_balance:'));
+      assert.ok(keys[0].startsWith('casperops:v1:get_balance:'));
       // DEFAULT_TTLS[get_balance] is 30.
       assert.equal(DEFAULT_TTLS.get_balance, 30);
     });
@@ -230,7 +230,7 @@ describe('cacheService — invalidatePattern()', () => {
       for (let i = 0; i < 10; i += 1) {
         await new Promise((r) => setImmediate(r));
       }
-      const deleted = await svc.invalidatePattern('blockops:v1:get_balance:*');
+      const deleted = await svc.invalidatePattern('casperops:v1:get_balance:*');
       assert.equal(deleted, 2, 'both get_balance entries should be deleted');
       // get_token_info should survive — verify with a fresh fetcher
       // that is NOT called (because the cache still has v3).

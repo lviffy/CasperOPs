@@ -339,7 +339,7 @@ async function archiveToolExecutionLogs({
       }
     };
 
-    // Filecoin archival was removed when BlockOps migrated off EVM/RWA.
+    // Filecoin archival was removed when CasperOPs migrated off EVM/RWA.
     // The audit log itself is persisted to Supabase below.
     const dbRecord = {
       agent_id: String(agentId),

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BlockOps dev stack: one command to install, build, and run everything.
+# CasperOPs dev stack: one command to install, build, and run everything.
 #
 # Usage:
 #   ./scripts/dev.sh up            # install + build contracts + run all 3 services
@@ -74,7 +74,7 @@ build_contracts() {
 }
 
 run_up() {
-  echo "→ starting BlockOps dev stack (logs in $LOG_DIR)"
+  echo "→ starting CasperOPs dev stack (logs in $LOG_DIR)"
   run_in_bg backend "(cd $ROOT/backend && npm run dev)"
   run_in_bg frontend "(cd $ROOT/frontend && npm run dev)"
   if command -v uvicorn >/dev/null 2>&1; then
@@ -92,7 +92,7 @@ run_up() {
 }
 
 run_down() {
-  echo "→ stopping BlockOps dev stack"
+  echo "→ stopping CasperOPs dev stack"
   stop_bg backend
   stop_bg frontend
   stop_bg mcp
@@ -141,7 +141,7 @@ run_docker() {
   echo "  Backend  → http://localhost:3000/health/ready"
   echo "  Frontend → http://localhost:3001/"
   echo "  MCP      → http://localhost:8080/health"
-  echo "  Postgres → localhost:5432  (user/pass: blockops/blockops)"
+  echo "  Postgres → localhost:5432  (user/pass: casperops/casperops)"
   echo "  Redis    → localhost:6379"
   echo
   echo "Tail logs:   docker compose logs -f"

@@ -38,7 +38,7 @@ import type { Agent } from "@/lib/supabase"
 import { signDeploy, sendDeploy, casperDeployUrl } from "@/lib/wallet"
 import { CHAIN_CONFIGS, getChainConfig, getStoredChain, type SupportedChainId } from "@/lib/chains"
 
-const DEFAULT_EMAIL_RECIPIENT_KEY = "blockops.defaultEmailRecipient"
+const DEFAULT_EMAIL_RECIPIENT_KEY = "casperops.defaultEmailRecipient"
 const AUDIT_LOG_FETCH_LIMIT = 200
 
 type StorageFilter = "all" | "stored" | "pending" | "failed" | "not_configured"
@@ -1659,7 +1659,7 @@ export default function AgentChatPage() {
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="text-[10px] p-2 max-w-[200px]">
                         <p className="font-semibold mb-1">On-Chain Identity Verified</p>
-                        <p className="text-muted-foreground mb-2">This agent is registered in the BlockOps Identity Registry with ID #{agent.on_chain_id}.</p>
+                        <p className="text-muted-foreground mb-2">This agent is registered in the CasperOPs Identity Registry with ID #{agent.on_chain_id}.</p>
                         <p className="text-primary hover:underline cursor-pointer">Click to view manifest</p>
                       </TooltipContent>
                     </Tooltip>

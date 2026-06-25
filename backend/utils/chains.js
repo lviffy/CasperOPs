@@ -1,6 +1,6 @@
 /**
  * Casper Network chain utilities.
- * The BlockOps backend is Casper-only — there is no Arbitrum or Flow support.
+ * The CasperOPs backend is Casper-only — there is no Arbitrum or Flow support.
  */
 
 const CASPER_CHAIN_ID = 'casper-test';

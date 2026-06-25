@@ -1,7 +1,7 @@
 /**
  * Telegram Bot Service
  *
- * Bridges Telegram messages into the existing BlockOps AI chat pipeline.
+ * Bridges Telegram messages into the existing CasperOPs AI chat pipeline.
  * Uses the Telegram Bot API (long-polling for dev, webhook for prod).
  *
  * Features:
@@ -478,7 +478,7 @@ async function handleStart(chatId, user) {
     firstName: user.first_name
   });
   await sendWithKeyboard(chatId,
-    `👋 Welcome to *BlockOps* on *Casper*!\n\n` +
+    `👋 Welcome to *CasperOPs* on *Casper*!\n\n` +
     `I'm your on-chain AI assistant. Here's what I can do:\n\n` +
     `💰 /balance \`<address>\` — check CSPR balance\n` +
     `💸 /transfer \`<to> <amount>\` — send CSPR\n` +
@@ -495,7 +495,7 @@ async function handleStart(chatId, user) {
 
 async function handleHelp(chatId) {
   await sendWithKeyboard(chatId,
-    `*BlockOps Bot Commands*\n\n` +
+    `*CasperOPs Bot Commands*\n\n` +
     `*Casper-native:*\n` +
     `/balance \`<address>\` — CSPR balance for an address\n` +
     `/transfer \`<to> <amount>\` — send CSPR tokens\n` +
@@ -644,8 +644,8 @@ async function handleAgents(chatId, _args) {
     );
     const events = eventsData?.data ?? eventsData?.events ?? [];
     if (events.length === 0) {
-      return sendWithKeyboard(chatId, '🤖 No agents registered on-chain yet.\n\nCreate one at blockops.in/agents',
-        [[{ text: '🤖 Create Agent', url: 'https://blockops.in/agents' }]]
+      return sendWithKeyboard(chatId, '🤖 No agents registered on-chain yet.\n\nCreate one at casperops.in/agents',
+        [[{ text: '🤖 Create Agent', url: 'https://casperops.in/agents' }]]
       );
     }
     const lines = events.slice(0, 10).map((ev, i) => {
@@ -695,7 +695,7 @@ async function handleConnect(chatId, args) {
   if (args.length < 2) {
     return sendMessage(chatId,
       '❌ Usage: `/connect <agent-id> <api-key>`\n\n' +
-      'Get your agent ID and API key from https://blockops.in/agents'
+      'Get your agent ID and API key from https://casperops.in/agents'
     );
   }
 
@@ -758,7 +758,7 @@ async function handleDisconnect(chatId) {
     return sendMessage(chatId,
       'ℹ️ You\'re not connected to any agent. You\'re in generic mode.\n\n' +
       'To connect to a custom agent:\n' +
-      '1. Create one at https://blockops.in/agents\n' +
+      '1. Create one at https://casperops.in/agents\n' +
       '2. Type: /connect <agent-id> <api-key>'
     );
   }
@@ -798,13 +798,13 @@ async function handleAgent(chatId) {
   if (!telegramUser?.linked_agent_id) {
     return sendMessage(chatId,
       'ℹ️ *Generic Mode* (default)\n\n' +
-      'You\'re using the standard BlockOps assistant with:\n' +
+      'You\'re using the standard CasperOPs assistant with:\n' +
       '• All 19 Casper tools enabled\n' +
       '• Default system prompt\n' +
       '• No wallet pre-configured\n\n' +
       '━━━━━━━━━━━━━━━━━━━━\n\n' +
       '🤖 *Want a custom agent?*\n' +
-      '1. Create one at https://blockops.in/agents\n' +
+      '1. Create one at https://casperops.in/agents\n' +
       '2. Copy your Agent ID and API Key\n' +
       '3. Type: /connect <agent-id> <api-key>'
     );
@@ -1118,7 +1118,7 @@ function startCsprFansVoteDaemon() {
 
   _voteDaemonInterval = setInterval(async () => {
     try {
-      const response = await axios.get('https://api.cspr.fans/projects/blockops/votes', { timeout: 5000 })
+      const response = await axios.get('https://api.cspr.fans/projects/casperops/votes', { timeout: 5000 })
         .catch(() => ({ data: { success: true, vote_count: _lastVoteCount + (Math.random() > 0.85 ? 1 : 0) } }));
       
       const currentVotes = response.data?.vote_count ?? _lastVoteCount;
@@ -1135,7 +1135,7 @@ function startCsprFansVoteDaemon() {
             for (const user of users) {
               await sendMessage(
                 user.chat_id,
-                `💖 *New Vote for BlockOps on CSPR.fans!*\n\n` +
+                `💖 *New Vote for CasperOPs on CSPR.fans!*\n\n` +
                 `We just received a new vote from the community! We are now at *${currentVotes}* votes.\n\n` +
                 `Thank you for supporting Casper-native agent automation!`
               ).catch(() => {});

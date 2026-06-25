@@ -1,6 +1,6 @@
-# BlockOps Architecture
+# CasperOPs Architecture
 
-This document describes the end-to-end architecture of the BlockOps stack
+This document describes the end-to-end architecture of the CasperOPs stack
 after the Casper migration.
 
 ## High-level diagram
@@ -249,7 +249,7 @@ with JSON Schema validation. The agent:
 
 1. Calls `tools/list` to discover the 22 tools.
 2. Calls `tools/call` with a tool name + JSON params.
-3. The MCP server forwards to the BlockOps backend `/v1/tools/:toolId`
+3. The MCP server forwards to the CasperOPs backend `/v1/tools/:toolId`
    (x402 payment is enforced by the backend, not the MCP layer).
 
 For stateful agents, the MCP server persists session metadata in Redis

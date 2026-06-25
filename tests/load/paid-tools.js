@@ -3,7 +3,7 @@
  *
  * Run with:
  *   k6 run tests/load/paid-tools.js
- *   k6 run tests/load/paid-tools.js --env BASE_URL=https://api.blockops.example
+ *   k6 run tests/load/paid-tools.js --env BASE_URL=https://api.casperops.example
  *
  * Targets:
  *   • 20 VUs sustained for 60 s
@@ -32,10 +32,10 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 const MASTER_API_KEY = __ENV.MASTER_API_KEY || 'local-dev-master-key-change-me';
 const SIGN_DEPLOYS = __ENV.SIGN_DEPLOYS === 'true';
 
-const x402Challenges = new Counter('blockops_x402_challenges');
-const x402Verified = new Counter('blockops_x402_verified');
-const errorRate = new Rate('blockops_errors');
-const latency = new Trend('blockops_paid_tool_latency_ms', true);
+const x402Challenges = new Counter('casperops_x402_challenges');
+const x402Verified = new Counter('casperops_x402_verified');
+const errorRate = new Rate('casperops_errors');
+const latency = new Trend('casperops_paid_tool_latency_ms', true);
 
 export const options = {
   scenarios: {
@@ -48,7 +48,7 @@ export const options = {
   },
   thresholds: {
     http_req_duration: ['p(95)<1500'],
-    blockops_errors: ['rate<0.05'],
+    casperops_errors: ['rate<0.05'],
   },
 };
 

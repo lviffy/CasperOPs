@@ -191,7 +191,7 @@ function tierRateLimiter() {
         error: `Rate limit exceeded for ${label} tier`,
         tier,
         limit: maxPerMin,
-        upgradeUrl: tier === 'free' ? 'https://blockops.example/pricing' : undefined,
+        upgradeUrl: tier === 'free' ? 'https://casperops.example/pricing' : undefined,
         retryAfter: Math.ceil((bucket.resetAt - now) / 1000),
       });
     }

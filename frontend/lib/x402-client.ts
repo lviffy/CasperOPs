@@ -5,7 +5,7 @@
  *
  * Usage:
  *   import { x402Fetch } from "@/lib/x402-client";
- *   const response = await x402Fetch("https://api.blockops.dev/v1/tools/register_agent", {
+ *   const response = await x402Fetch("https://api.casperops.dev/v1/tools/register_agent", {
  *     method: "POST",
  *     body: JSON.stringify({ agentId: "agent-1" }),
  *   });

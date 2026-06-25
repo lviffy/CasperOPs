@@ -1,12 +1,12 @@
-# BlockOps: Unified Agentic Scenarios & Practical Use Cases on Casper
+# CasperOPs: Unified Agentic Scenarios & Practical Use Cases on Casper
 
-This document describes how BlockOps bridges and combines the Casper Agentic Buildathon tracks (Yield Routing, RWA Oracles, DAO Governance, and ZK Compliance) into **unified, real-world agentic workflows**. By orchestrating these technologies into single end-to-end architectures, BlockOps establishes itself as the premier trust and execution platform for autonomous on-chain finance.
+This document describes how CasperOPs bridges and combines the Casper Agentic Buildathon tracks (Yield Routing, RWA Oracles, DAO Governance, and ZK Compliance) into **unified, real-world agentic workflows**. By orchestrating these technologies into single end-to-end architectures, CasperOPs establishes itself as the premier trust and execution platform for autonomous on-chain finance.
 
 ---
 
-## 🎯 The BlockOps Vision: Orchestrating the Agent Economy
+## 🎯 The CasperOPs Vision: Orchestrating the Agent Economy
 
-Standalone AI agents are useful for simple tasks, but complex DeFi and RWA applications require **multi-agent orchestration, trust verification, compliance enforcement, and micropayment-backed tooling**. BlockOps provides the visual canvas and runtime middleware to orchestrate these components seamlessly.
+Standalone AI agents are useful for simple tasks, but complex DeFi and RWA applications require **multi-agent orchestration, trust verification, compliance enforcement, and micropayment-backed tooling**. CasperOPs provides the visual canvas and runtime middleware to orchestrate these components seamlessly.
 
 ```
                   ┌────────────────────────────────────────┐
@@ -16,7 +16,7 @@ Standalone AI agents are useful for simple tasks, but complex DeFi and RWA appli
                                       │
                                       ▼
                   ┌────────────────────────────────────────┐
-                  │        BlockOps Agent Orchestrator      │
+                  │        CasperOPs Agent Orchestrator      │
                   │   (Coordinates and executes actions)   │
                   └───────┬───────────────┬───────────┬────┘
                           │               │           │
@@ -37,7 +37,7 @@ Standalone AI agents are useful for simple tasks, but complex DeFi and RWA appli
 ### The Unified Flow
 1. **Compliance Check (ZK-KYC):**
    * Before capital enters the fund, a **Compliance Agent** verifies the user's credentials off-chain and issues a Zero-Knowledge proof.
-   * The proof is validated by BlockOps' Odra-based `Compliance Contract` to add the user to a secure whitelist without exposing private identities.
+   * The proof is validated by CasperOPs' Odra-based `Compliance Contract` to add the user to a secure whitelist without exposing private identities.
 2. **Oracle Data Gathering (RWA Oracle + x402):**
    * An **RWA Oracle Agent** tracks the valuation and interest payouts of off-chain tokenized treasury bills.
    * To fetch the latest certified financial indexing data, the oracle agent executes pay-per-call API requests powered by the **x402 Micropayments Protocol** (which validates Casper Testnet deploys in real-time).
@@ -57,7 +57,7 @@ Standalone AI agents are useful for simple tasks, but complex DeFi and RWA appli
 1. **Collateral Valuation (RWA Oracle):**
    * A physical property is tokenized (using Casper's CEP-78 NFT standard).
    * An **Oracle Agent** writes updated appraisal data on-chain. It pays for land registry API requests using **x402 micropayments**.
-   * The oracle's accuracy is registered in the BlockOps `Reputation Contract` to ensure data feed reliability.
+   * The oracle's accuracy is registered in the CasperOPs `Reputation Contract` to ensure data feed reliability.
 2. **LTV Ratio Monitoring (MCP & CSPR.cloud):**
    * A **Risk Monitor Agent** runs in the background. It continuously queries the collateral's current value and outstanding loan balance via **MCP tool calls** targeting CSPR.cloud.
 3. **Margin Attestation (Compliance & Governance):**
@@ -69,8 +69,8 @@ Standalone AI agents are useful for simple tasks, but complex DeFi and RWA appli
 
 ---
 
-## 🛠️ Key Developer Tools BlockOps Can Build
-To support these high-value scenarios, the BlockOps ecosystem can build and package the following tool configurations:
+## 🛠️ Key Developer Tools CasperOPs Can Build
+To support these high-value scenarios, the CasperOPs ecosystem can build and package the following tool configurations:
 
 ### 1. The `x402-Feed-Gateway`
 * **Purpose:** Enables external data providers to easily monetize their APIs for Casper AI agents.
@@ -91,6 +91,6 @@ To support these high-value scenarios, the BlockOps ecosystem can build and pack
 ---
 
 ## 🌟 Why this matters for the Casper Buildathon
-By wrapping Casper's core toolkit components (**x402, MCP, CSPR.click, CSPR.cloud, Odra**) into a visual, drag-and-drop workflow canvas, BlockOps shifts developer attention from writing repetitive connection code to designing **business logic**.
+By wrapping Casper's core toolkit components (**x402, MCP, CSPR.click, CSPR.cloud, Odra**) into a visual, drag-and-drop workflow canvas, CasperOPs shifts developer attention from writing repetitive connection code to designing **business logic**.
 
 Developers can spin up compliant, reputation-backed, micropayment-driven workflows in minutes, proving the Casper Network is the ultimate trust layer for the emerging AI Agent economy.

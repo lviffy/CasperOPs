@@ -1,5 +1,5 @@
 /**
- * Zod-based input validation middleware for the 22 BlockOps tools.
+ * Zod-based input validation middleware for the 22 CasperOPs tools.
  *
  * Each tool has a zod schema. The middleware:
  *   1. Coerces query / path / body params into the schema.

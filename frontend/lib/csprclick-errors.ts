@@ -1,6 +1,6 @@
 /**
  * CSPR.click error mapper. Translates raw wallet errors into friendly,
- * actionable messages the UI can show. The BlockOps frontend uses this in
+ * actionable messages the UI can show. The CasperOPs frontend uses this in
  * every code path that calls `connectWallet`, `signDeploy`, `signMessage`,
  * and `sendDeploy`.
  */

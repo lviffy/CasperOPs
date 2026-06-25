@@ -1,12 +1,12 @@
 """
 Sample LangGraph agent that registers an agent + attests it + reads the
-reputation via the BlockOps MCP server.
+reputation via the CasperOPs MCP server.
 
 Pipeline (deterministic — no LLM needed):
     register_agent → attest_agent → get_reputation
 
 The graph uses `langgraph.graph.StateGraph` with `ToolNode` from
-`langgraph.prebuilt`. Each BlockOps MCP tool is wrapped as a
+`langgraph.prebuilt`. Each CasperOPs MCP tool is wrapped as a
 `langchain_core.tools.StructuredTool` whose `coroutine` calls the MCP
 HTTP/SSE transport via JSON-RPC.
 
@@ -19,7 +19,7 @@ Run with:
 
 Environment:
     MCP_HTTP_URL    default http://localhost:8080/mcp
-    BLOCKOPS_AGENT_ID  default demo-langgraph-agent
+    CASPEROPS_AGENT_ID  default demo-langgraph-agent
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ import dispatcher  # noqa: E402
 # MCP HTTP client (JSON-RPC over HTTP).
 # ---------------------------------------------------------------------------
 class McpHttpClient:
-    """Tiny JSON-RPC client that talks to the BlockOps MCP HTTP/SSE server.
+    """Tiny JSON-RPC client that talks to the CasperOPs MCP HTTP/SSE server.
 
     It uses `/mcp/message` for synchronous request/reply so the example
     works without an open SSE stream. If the SSE stream is already open
@@ -110,7 +110,7 @@ def _json_schema_to_pydantic(name: str, schema: Dict[str, Any]):
     """Convert a JSON-Schema object property map into a minimal pydantic
     model the StructuredTool can use for input validation.
 
-    We only need the simple cases used by the BlockOps tool catalog
+    We only need the simple cases used by the CasperOPs tool catalog
     (string / integer / number / array-of-objects with required fields).
     Anything fancier is passed through as a dict and the MCP server
     validates it.
@@ -246,7 +246,7 @@ async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mcp-url", default=os.getenv("MCP_HTTP_URL",
                                                      "http://localhost:8080/mcp"))
-    parser.add_argument("--agent-id", default=os.getenv("BLOCKOPS_AGENT_ID",
+    parser.add_argument("--agent-id", default=os.getenv("CASPEROPS_AGENT_ID",
                                                       "demo-langgraph-agent"))
     parser.add_argument("--metadata-uri", default="ipfs://demo-langgraph")
     parser.add_argument("--score", type=int, default=90)

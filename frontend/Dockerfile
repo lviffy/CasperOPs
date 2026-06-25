@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# BlockOps frontend — multi-stage Next.js standalone build.
+# CasperOPs frontend — multi-stage Next.js standalone build.
 #
 # Stage 1 (deps):       install full deps for the build (need typescript,
 #                       tailwind, etc.).

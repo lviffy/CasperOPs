@@ -103,7 +103,7 @@ function buildChallenge({
     chainName,
     rpcUrl: CASPER_NETWORK_CONFIG.rpcUrl,
     deployTemplate,
-    memo: `BlockOps tool payment: ${toolId}`,
+    memo: `CasperOPs tool payment: ${toolId}`,
     instructions: isTokenTransfer
       ? 'Sign the deployTemplate via CSPR.click and broadcast with sendDeploy(). Retry this request with X-Casper-Payment-Deploy-Hash set to the resulting deploy hash.'
       : 'Native CSPR transfer: sign the deploy via CSPR.click using a transfer deploy with the recipient + amount above. Retry this request with X-Casper-Payment-Deploy-Hash set to the resulting deploy hash.',

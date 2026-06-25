@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BlockOps MCP deploy wrapper (Render).
+# CasperOPs MCP deploy wrapper (Render).
 #
 # Usage:
 #   ./scripts/deploy-mcp.sh           # trigger deploy via Render API

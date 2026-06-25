@@ -115,7 +115,7 @@ export default function ApiKeysPage() {
           <KeyRound className="h-7 w-7" /> API keys
         </h1>
         <p className="text-muted-foreground mt-2">
-          Mint, rotate, and revoke keys for the BlockOps API. Your keys are
+          Mint, rotate, and revoke keys for the CasperOPs API. Your keys are
           stored hashed — we can&apos;t recover them after creation.
         </p>
       </header>

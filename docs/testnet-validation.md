@@ -1,6 +1,6 @@
 # Casper Testnet Validation Log
 
-This document captures every BlockOps testnet deployment and end-to-end run, including
+This document captures every CasperOPs testnet deployment and end-to-end run, including
 deploy costs, deploy times, and gotchas. New runs are appended below; do not delete
 historical entries.
 
@@ -51,7 +51,7 @@ historical entries.
 
 ## CEP-18 / CEP-78 deploys
 
-BlockOps ships sample CEP-18 (test CSPR) and CEP-78 (test NFT) token contracts in
+CasperOPs ships sample CEP-18 (test CSPR) and CEP-78 (test NFT) token contracts in
 [`contract/contracts/cep78-token`](../contract/contracts/cep78-token) and
 [`contract/contracts/cep18-token`](../contract/contracts/cep18-token). Deploy them with
 the same `node scripts/deploy.js` flow (add a `CONTRACTS` entry pointing at the WASM).
@@ -230,7 +230,7 @@ row below so the audit trail is complete.
 | _populate_ | Compliance (hash-…)  | `RevokeAttestation`  | `https://api.testnet.cspr.cloud/contracts-events?…&event_name=RevokeAttestation` | _to be filled_        |
 | _populate_ | Cep18Token (hash-…)  | `Burn`               | `https://api.testnet.cspr.cloud/contracts-events?…&event_name=Burn`              | _to be filled_        |
 | _populate_ | Cep78Nft (hash-…)    | `Burn`               | `https://api.testnet.cspr.cloud/contracts-events?…&event_name=Burn`              | _to be filled_        |
-2026-06-22T19:31:11.715Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:31:11.715Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:31:11.715Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:31:11.715Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:31:11.715Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -301,7 +301,7 @@ row below so the audit trail is complete.
 2026-06-22T19:31:12.717Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:31:12.717Z  
 2026-06-22T19:31:12.717Z  Run finished.
-2026-06-22T19:31:33.351Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:31:33.351Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:31:33.351Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:31:33.351Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:31:33.351Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -372,7 +372,7 @@ row below so the audit trail is complete.
 2026-06-22T19:31:34.354Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:31:34.354Z  
 2026-06-22T19:31:34.354Z  Run finished.
-2026-06-22T19:32:06.332Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:32:06.332Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:32:06.333Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:32:06.333Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:32:06.333Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -443,7 +443,7 @@ row below so the audit trail is complete.
 2026-06-22T19:32:07.336Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:32:07.336Z  
 2026-06-22T19:32:07.336Z  Run finished.
-2026-06-22T19:33:11.607Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:33:11.607Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:33:11.607Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:33:11.607Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:33:11.607Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -514,7 +514,7 @@ row below so the audit trail is complete.
 2026-06-22T19:33:12.609Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:33:12.609Z  
 2026-06-22T19:33:12.609Z  Run finished.
-2026-06-22T19:33:24.492Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:33:24.492Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:33:24.492Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:33:24.492Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:33:24.492Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -585,7 +585,7 @@ row below so the audit trail is complete.
 2026-06-22T19:33:25.495Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:33:25.495Z  
 2026-06-22T19:33:25.495Z  Run finished.
-2026-06-22T19:33:39.545Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:33:39.545Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:33:39.546Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:33:39.546Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:33:39.546Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -656,7 +656,7 @@ row below so the audit trail is complete.
 2026-06-22T19:33:40.550Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:33:40.550Z  
 2026-06-22T19:33:40.550Z  Run finished.
-2026-06-22T19:33:52.877Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:33:52.877Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:33:52.877Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:33:52.877Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:33:52.877Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -727,7 +727,7 @@ row below so the audit trail is complete.
 2026-06-22T19:33:53.880Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:33:53.880Z  
 2026-06-22T19:33:53.880Z  Run finished.
-2026-06-22T19:34:23.999Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:34:23.999Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:34:23.999Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:34:24.000Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:34:24.000Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -798,7 +798,7 @@ row below so the audit trail is complete.
 2026-06-22T19:34:25.001Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:34:25.001Z  
 2026-06-22T19:34:25.001Z  Run finished.
-2026-06-22T19:34:37.306Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:34:37.306Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:34:37.306Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:34:37.306Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:34:37.306Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -869,7 +869,7 @@ row below so the audit trail is complete.
 2026-06-22T19:34:38.308Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:34:38.308Z  
 2026-06-22T19:34:38.308Z  Run finished.
-2026-06-22T19:34:50.129Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:34:50.129Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:34:50.130Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:34:50.130Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:34:50.130Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -940,7 +940,7 @@ row below so the audit trail is complete.
 2026-06-22T19:34:51.132Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:34:51.132Z  
 2026-06-22T19:34:51.132Z  Run finished.
-2026-06-22T19:35:02.364Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:35:02.364Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:35:02.365Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:35:02.365Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:35:02.365Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -1011,7 +1011,7 @@ row below so the audit trail is complete.
 2026-06-22T19:35:03.371Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:35:03.371Z  
 2026-06-22T19:35:03.371Z  Run finished.
-2026-06-22T19:35:37.315Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:35:37.315Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:35:37.315Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:35:37.315Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:35:37.315Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -1082,7 +1082,7 @@ row below so the audit trail is complete.
 2026-06-22T19:35:38.318Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:35:38.318Z  
 2026-06-22T19:35:38.318Z  Run finished.
-2026-06-22T19:35:54.335Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:35:54.335Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:35:54.335Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:35:54.335Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:35:54.335Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -1153,7 +1153,7 @@ row below so the audit trail is complete.
 2026-06-22T19:35:55.338Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:35:55.338Z  
 2026-06-22T19:35:55.338Z  Run finished.
-2026-06-22T19:36:17.243Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:36:17.243Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:36:17.244Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:36:17.244Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:36:17.244Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -1224,7 +1224,7 @@ row below so the audit trail is complete.
 2026-06-22T19:36:18.247Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:36:18.247Z  
 2026-06-22T19:36:18.247Z  Run finished.
-2026-06-22T19:36:51.484Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:36:51.484Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:36:51.485Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:36:51.485Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:36:51.485Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -1295,7 +1295,7 @@ row below so the audit trail is complete.
 2026-06-22T19:36:52.489Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:36:52.489Z  
 2026-06-22T19:36:52.489Z  Run finished.
-2026-06-22T19:57:02.892Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:57:02.892Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:57:02.892Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:57:02.892Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:57:02.892Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -1366,7 +1366,7 @@ row below so the audit trail is complete.
 2026-06-22T19:57:03.895Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:57:03.895Z  
 2026-06-22T19:57:03.895Z  Run finished.
-2026-06-22T19:58:49.966Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T19:58:49.966Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T19:58:49.966Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T19:58:49.966Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T19:58:49.966Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -1437,7 +1437,7 @@ row below so the audit trail is complete.
 2026-06-22T19:58:50.969Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T19:58:50.969Z  
 2026-06-22T19:58:50.969Z  Run finished.
-2026-06-22T20:01:59.007Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T20:01:59.007Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T20:01:59.008Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T20:01:59.008Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T20:01:59.008Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -1508,7 +1508,7 @@ row below so the audit trail is complete.
 2026-06-22T20:02:00.011Z    📡  Emitted events (mock): {"Attest":2,"RevokeAttestation":1,"Burn":2}
 2026-06-22T20:02:00.011Z  
 2026-06-22T20:02:00.011Z  Run finished.
-2026-06-22T23:26:54.121Z  # BlockOps Testnet End-to-End Run (DRYRUN)
+2026-06-22T23:26:54.121Z  # CasperOPs Testnet End-to-End Run (DRYRUN)
 2026-06-22T23:26:54.121Z  Deployer: `010101010101010101010101010101010101010101010101010101010101010101` (ed25519 (mock))
 2026-06-22T23:26:54.121Z  Mode: in-memory mock (no live RPC, no CSPR.cloud)
 2026-06-22T23:26:54.121Z  Factory:   hash-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

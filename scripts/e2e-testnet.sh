@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end Casper testnet validation for BlockOps.
+# End-to-end Casper testnet validation for CasperOPs.
 #
 # Runs the canonical agent flow against the live Casper testnet:
 #   1. register_agent

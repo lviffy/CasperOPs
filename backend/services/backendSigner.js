@@ -1,5 +1,5 @@
 /**
- * BlockOps backend Casper signer.
+ * CasperOPs backend Casper signer.
  *
  * Loads the deployer keypair from `CASPER_SECRET_KEY` (hex, ed25519 or secp256k1)
  * once per process and caches it in memory. Callers sign deploys either as raw

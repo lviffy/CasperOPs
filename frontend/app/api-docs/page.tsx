@@ -34,7 +34,7 @@ export default function ApiDocs() {
             API Documentation
           </h1>
           <p className="text-muted-foreground text-lg">
-            Learn how to integrate BlockOps agents into your applications
+            Learn how to integrate CasperOPs agents into your applications
           </p>
         </div>
 
@@ -44,7 +44,7 @@ export default function ApiDocs() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold">Getting Started</h2>
             <p className="text-muted-foreground">
-              To use your BlockOps agent via API, you'll need your agent's API key. 
+              To use your CasperOPs agent via API, you'll need your agent's API key. 
               You can find this by going to <Link href="/my-agents" className="text-blue-500 hover:underline">My Agents</Link>, 
               clicking on an agent, and selecting "Export".
             </p>

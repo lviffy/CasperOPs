@@ -1,7 +1,7 @@
 -- ============================================
 -- SAFE MIGRATION: add PKP wallet columns to an existing users table
 -- ============================================
--- Run this in the Supabase SQL editor for an already-running BlockOps app.
+-- Run this in the Supabase SQL editor for an already-running CasperOPs app.
 -- It is additive and does NOT drop your existing data.
 
 -- 1. Ensure the users table exists with the base columns

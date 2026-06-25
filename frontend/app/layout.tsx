@@ -51,8 +51,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BlockOps Agent Builder",
-  description: "Build your own BlockOps agents with ease.",
+  title: "CasperOPs Agent Builder",
+  description: "Build your own CasperOPs agents with ease.",
   icons: {
     icon: "/logo.jpeg",
   },
@@ -77,7 +77,7 @@ export default function RootLayout({
           {`window.clickUIOptions = { showTopBar: false, csprclickSdk: '/csprclick-sdk-1.11.js', rootAppElement: '#csprclick-navbar' };
             var clickUIOptions = window.clickUIOptions;
             window.clickSDKOptions = {
-              appName: "BlockOps",
+              appName: "CasperOPs",
               appId: "csprclick-template",
               providers: ["casper-wallet", "casper-signer", "ledger", "metamask-snap", "walletconnect"],
               chainName: "casper-test",

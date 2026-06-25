@@ -22,17 +22,17 @@
 #   CASPER_RPC_URL          primary RPC to blackhole (default https://rpc.testnet.casper.live/rpc)
 #   CASPER_RPC_URL_FALLBACK fallback to verify (default https://api.testnet.cspr.cloud)
 #   BACKEND_HEALTH_URL      URL to probe (default http://localhost:3000/health/ready)
-#   DRILL_LOG               log file (default /tmp/blockops-rpc-drill.log)
+#   DRILL_LOG               log file (default /tmp/casperops-rpc-drill.log)
 
 set -euo pipefail
 
 RPC_URL="${CASPER_RPC_URL:-https://rpc.testnet.casper.live/rpc}"
 FALLBACK_URL="${CASPER_RPC_URL_FALLBACK:-https://api.testnet.cspr.cloud}"
 HEALTH_URL="${BACKEND_HEALTH_URL:-http://localhost:3000/health/ready}"
-LOG="${DRILL_LOG:-/tmp/blockops-rpc-drill.log}"
+LOG="${DRILL_LOG:-/tmp/casperops-rpc-drill.log}"
 
 HOSTS=/etc/hosts
-MARKER="# BLOCKOPS_RPC_DRILL_MARKER"
+MARKER="# CASPEROPS_RPC_DRILL_MARKER"
 
 ts() { date -u +'%Y-%m-%dT%H:%M:%SZ'; }
 log() { printf '[rpc-outage %s] %s\n' "$(ts)" "$*" | tee -a "$LOG"; }

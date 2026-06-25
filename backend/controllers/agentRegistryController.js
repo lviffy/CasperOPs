@@ -220,7 +220,7 @@ async function upsertAgentRegistry(req, res) {
     };
 
     const filecoin = await archiveJsonToFilecoin(registryPayload, {
-      namespace: 'blockops-agent-registry',
+      namespace: 'casperops-agent-registry',
       name: `agent-registry-${agentId}-v${nextVersion}`,
       metadata: { agentId, userId }
     });

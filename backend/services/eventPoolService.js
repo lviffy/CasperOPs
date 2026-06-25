@@ -1,5 +1,5 @@
 /**
- * Redis-backed pub-sub coordination event pool for BlockOps agents.
+ * Redis-backed pub-sub coordination event pool for CasperOPs agents.
  * Enables real-time message broadcasting and event coordination.
  */
 

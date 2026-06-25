@@ -14,7 +14,7 @@
 # Env vars:
 #   REDIS_URL         (e.g. redis://default:<pw>@<host>.flycast:6379/0)
 #   BACKEND_HEALTH_URL (default http://localhost:3000/health/ready)
-#   DRILL_LOG          (default /tmp/blockops-redis-drill.log)
+#   DRILL_LOG          (default /tmp/casperops-redis-drill.log)
 #
 # The drill is reversible: the cache will repopulate from the next
 # user-facing read within the TTL (Phase 27: 5-60 s depending on the
@@ -25,7 +25,7 @@ set -euo pipefail
 
 REDIS_URL="${REDIS_URL:-}"
 HEALTH_URL="${BACKEND_HEALTH_URL:-http://localhost:3000/health/ready}"
-LOG="${DRILL_LOG:-/tmp/blockops-redis-drill.log}"
+LOG="${DRILL_LOG:-/tmp/casperops-redis-drill.log}"
 
 ts() { date -u +'%Y-%m-%dT%H:%M:%SZ'; }
 log() { printf '[redis-flush %s] %s\n' "$(ts)" "$*" | tee -a "$LOG"; }

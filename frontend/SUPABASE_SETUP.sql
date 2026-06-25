@@ -1,5 +1,5 @@
 -- ============================================
--- Supabase Setup for BlockOps (Quick Setup)
+-- Supabase Setup for CasperOPs (Quick Setup)
 -- Run this in Supabase SQL Editor
 -- 
 -- NOTE: For complete schema with all optional tables,

@@ -1,6 +1,6 @@
 from .config import BACKEND_URL
 
-# Casper-native Tool Definitions for the BlockOps AI Agent
+# Casper-native Tool Definitions for the CasperOPs AI Agent
 TOOL_DEFINITIONS = {
     # ── CSPR Transfers ────────────────────────────────────────────────
     "transfer": {

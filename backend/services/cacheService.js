@@ -1,16 +1,16 @@
 /**
- * Redis-backed read-through cache for the BlockOps backend.
+ * Redis-backed read-through cache for the CasperOPs backend.
  *
  * Wraps expensive Casper RPC + CSPR.cloud reads with a short TTL so the
  * same query doesn't blast the chain on every request. The cache layer
  * is **best-effort**: if Redis is down or times out, every call falls
  * through to the underlying fetcher and the cache miss is recorded so
- * the operator can see it on the `blockops_cache_operations_total`
+ * the operator can see it on the `casperops_cache_operations_total`
  * metric.
  *
  * Key naming
  * ──────────
- *   blockops:v1:<cache>:<key-hash>
+ *   casperops:v1:<cache>:<key-hash>
  *
  *   • `cache` ∈ {get_balance, get_token_info, lookup_deploy,
  *     lookup_block, fetch_price, get_reputation, get_token_balance}
@@ -66,7 +66,7 @@ const COOLDOWN_SECONDS = 30;
 class CacheService {
   constructor({
     url = process.env.REDIS_URL || null,
-    keyPrefix = 'blockops:v1:',
+    keyPrefix = 'casperops:v1:',
     connectTimeoutMs = 1500,
     commandTimeoutMs = 500,
     lazyConnect = true,

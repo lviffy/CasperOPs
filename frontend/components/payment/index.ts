@@ -1,7 +1,7 @@
 /**
  * x402 Payment System Components
  * 
- * Complete set of UI components for the BlockOps payment system
+ * Complete set of UI components for the CasperOPs payment system
  */
 
 // New implementations

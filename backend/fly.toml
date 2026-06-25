@@ -1,5 +1,5 @@
-# fly.toml for BlockOps backend
-app = "blockops-backend"
+# fly.toml for CasperOPs backend
+app = "casperops-backend"
 
 [build]
   dockerfile = "Dockerfile"

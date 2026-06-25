@@ -3,7 +3,7 @@
  *
  * Coverage:
  *   - registry exposes the documented series names
- *   - default Node process metrics are present (prefix blockops_node_)
+ *   - default Node process metrics are present (prefix casperops_node_)
  *   - HTTP counter + histogram are incremented by the requestContext middleware
  *   - x402 challenge counter ticks up when the middleware emits a 402
  *   - x402 refund counter ticks up when broadcastRefund returns/skips/fails
@@ -44,6 +44,19 @@ const {
   x402ChallengesTotal,
   x402RefundsTotal,
 } = require('../utils/metrics');
+
+let defaultMetricsStop = null;
+before(() => {
+  const client = require('prom-client');
+  defaultMetricsStop = client.collectDefaultMetrics({ register, prefix: 'casperops_node_' });
+});
+
+after(() => {
+  if (typeof defaultMetricsStop === 'function') {
+    defaultMetricsStop();
+  }
+  register.clear();
+});
 
 // ── helpers ────────────────────────────────────────────────────────────
 
@@ -87,19 +100,19 @@ describe('metrics — registry contents', () => {
     // Touch a few series so they appear in the output
     httpRequestsTotal.inc({ method: 'GET', route: '/health/live', status_code: '200' });
     const text = await render();
-    assert.match(text, /blockops_http_requests_total/);
-    assert.match(text, /blockops_http_request_duration_seconds/);
-    assert.match(text, /blockops_tool_executions_total/);
-    assert.match(text, /blockops_tool_duration_seconds/);
-    assert.match(text, /blockops_x402_challenges_total/);
-    assert.match(text, /blockops_x402_refunds_total/);
-    assert.match(text, /blockops_active_sessions/);
-    assert.match(text, /blockops_rpc_call_duration_seconds/);
+    assert.match(text, /casperops_http_requests_total/);
+    assert.match(text, /casperops_http_request_duration_seconds/);
+    assert.match(text, /casperops_tool_executions_total/);
+    assert.match(text, /casperops_tool_duration_seconds/);
+    assert.match(text, /casperops_x402_challenges_total/);
+    assert.match(text, /casperops_x402_refunds_total/);
+    assert.match(text, /casperops_active_sessions/);
+    assert.match(text, /casperops_rpc_call_duration_seconds/);
   });
 
-  it('includes default Node process metrics with the blockops_node_ prefix', async () => {
+  it('includes default Node process metrics with the casperops_node_ prefix', async () => {
     const text = await render();
-    assert.match(text, /blockops_node_/);
+    assert.match(text, /casperops_node_/);
   });
 
   it('routeLabel returns the express route template when req.route is set', () => {
@@ -130,7 +143,7 @@ describe('metrics — registry contents', () => {
     // For labelled counters prom-client emits one line per labelset with the
     // cumulative value. Filter for our specific labelset and parse it.
     const lines = text.split('\n').filter((l) =>
-      l.startsWith('blockops_http_requests_total{')
+      l.startsWith('casperops_http_requests_total{')
     );
     const matching = lines.find((l) =>
       l.includes('method="GET"') && l.includes('route="/x"') && l.includes('status_code="200"')
@@ -171,8 +184,8 @@ describe('metrics — requestContext middleware records HTTP metrics', () => {
 
     const text = await render();
     // Either with the templated route or coarse bucket — both are valid
-    assert.match(text, /blockops_http_requests_total\{[^}]*status_code="200"/);
-    assert.match(text, /blockops_http_request_duration_seconds_count\{[^}]*status_code="200"/);
+    assert.match(text, /casperops_http_requests_total\{[^}]*status_code="200"/);
+    assert.match(text, /casperops_http_request_duration_seconds_count\{[^}]*status_code="200"/);
   });
 
   it('records the 5xx status code on error responses', async () => {
@@ -211,7 +224,7 @@ describe('metrics — /metrics route gating', () => {
     const res = await callMetricsRoute(mw, makeReq());
     assert.equal(res.statusCode, 200);
     assert.match(res.headers['Content-Type'] || '', /text\/plain/);
-    assert.match(res.body, /blockops_http_requests_total/);
+    assert.match(res.body, /casperops_http_requests_total/);
   });
 
   it('/metrics/health is unauthenticated and always returns ok:true', async () => {
@@ -437,11 +450,11 @@ describe('metrics — x402 + tool counters wire correctly', () => {
     // We can't easily require app.js (long-running timers), so we
     // exercise the metric directly the same way the middleware does.
     const before = await render();
-    const beforeCount = (before.match(/blockops_x402_challenges_total\{[^}]*tool_id="transfer"/) || [''])[0];
+    const beforeCount = (before.match(/casperops_x402_challenges_total\{[^}]*tool_id="transfer"/) || [''])[0];
     x402ChallengesTotal.inc({ tool_id: 'transfer', tier: 'paid' });
     const after = await render();
     assert.notEqual(before, after);
-    assert.match(after, /blockops_x402_challenges_total\{[^}]*tool_id="transfer"/);
+    assert.match(after, /casperops_x402_challenges_total\{[^}]*tool_id="transfer"/);
   });
 
   it('x402RefundsTotal increments on each terminal state (skipped/broadcast/failed)', async () => {
@@ -449,9 +462,9 @@ describe('metrics — x402 + tool counters wire correctly', () => {
     x402RefundsTotal.inc({ tool_id: 'register_agent', status: 'broadcast' });
     x402RefundsTotal.inc({ tool_id: 'register_agent', status: 'failed' });
     const text = await render();
-    assert.match(text, /blockops_x402_refunds_total\{[^}]*status="skipped"/);
-    assert.match(text, /blockops_x402_refunds_total\{[^}]*status="broadcast"/);
-    assert.match(text, /blockops_x402_refunds_total\{[^}]*status="failed"/);
+    assert.match(text, /casperops_x402_refunds_total\{[^}]*status="skipped"/);
+    assert.match(text, /casperops_x402_refunds_total\{[^}]*status="broadcast"/);
+    assert.match(text, /casperops_x402_refunds_total\{[^}]*status="failed"/);
   });
 
   it('toolExecutionsTotal increments through the v1 handler path', async () => {
@@ -461,8 +474,8 @@ describe('metrics — x402 + tool counters wire correctly', () => {
     toolExecutionsTotal.inc({ tool_id: 'transfer', kind: 'proxy', status: 'x402' });
     toolExecutionsTotal.inc({ tool_id: 'calculate', kind: 'local', status: 'error' });
     const text = await render();
-    assert.match(text, /blockops_tool_executions_total\{[^}]*tool_id="transfer"[^}]*kind="proxy"[^}]*status="ok"/);
-    assert.match(text, /blockops_tool_executions_total\{[^}]*tool_id="transfer"[^}]*status="x402"/);
-    assert.match(text, /blockops_tool_executions_total\{[^}]*tool_id="calculate"[^}]*kind="local"[^}]*status="error"/);
+    assert.match(text, /casperops_tool_executions_total\{[^}]*tool_id="transfer"[^}]*kind="proxy"[^}]*status="ok"/);
+    assert.match(text, /casperops_tool_executions_total\{[^}]*tool_id="transfer"[^}]*status="x402"/);
+    assert.match(text, /casperops_tool_executions_total\{[^}]*tool_id="calculate"[^}]*kind="local"[^}]*status="error"/);
   });
 });

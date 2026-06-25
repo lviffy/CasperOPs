@@ -138,13 +138,13 @@ export default function Home() {
               <div className="w-8 h-8 sm:w-9 sm:h-9 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
                 <Image 
                   src="/logo.jpeg" 
-                  alt="BlockOps Logo" 
+                  alt="CasperOPs Logo" 
                   fill
                   priority
                   className="object-cover"
                 />
               </div>
-              <span className="text-lg sm:text-xl font-semibold text-slate-900">BlockOps</span>
+              <span className="text-lg sm:text-xl font-semibold text-slate-900">CasperOPs</span>
             </Link>
 
             {/* Desktop Nav Links */}
@@ -308,7 +308,7 @@ export default function Home() {
 
           {/* Subheading */}
           <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed px-4">
-            At BlockOps, we believe automation should be simple, scalable, and accessible creating a experience where ideas thrive and boundaries fade.
+            At CasperOPs, we believe automation should be simple, scalable, and accessible creating a experience where ideas thrive and boundaries fade.
           </p>
 
           {/* CTA Buttons */}
@@ -376,7 +376,7 @@ export default function Home() {
           <div className="w-full max-w-3xl mx-auto px-4">
             <Image
               src="/hero-diagram.png"
-              alt="BlockOps Platform"
+              alt="CasperOPs Platform"
               width={1200}
               height={700}
               className="w-full h-auto"
@@ -630,7 +630,7 @@ export default function Home() {
               </div>
               
               <p className="text-base sm:text-lg text-gray-300 leading-relaxed max-w-xl">
-                BlockOps transforms complex blockchain operations into simple, automated workflows. Build powerful AI agents with our visual builder, connect to any smart contract, and let your agents handle everything from DeFi strategies to NFT operations—no coding required.
+                CasperOPs transforms complex blockchain operations into simple, automated workflows. Build powerful AI agents with our visual builder, connect to any smart contract, and let your agents handle everything from DeFi strategies to NFT operations—no coding required.
               </p>
               
               <button className="inline-flex items-center gap-2 bg-black hover:bg-gray-900 text-white px-6 py-3.5 rounded-lg font-medium transition-all duration-200 hover:gap-3 mt-4">
@@ -667,12 +667,12 @@ export default function Home() {
                 <div className="w-8 h-8 sm:w-9 sm:h-9 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
                   <Image 
                     src="/logo.jpeg" 
-                    alt="BlockOps Logo" 
+                    alt="CasperOPs Logo" 
                     fill
                     className="object-cover"
                   />
                 </div>
-                <span className="text-base sm:text-lg font-semibold">BlockOps</span>
+                <span className="text-base sm:text-lg font-semibold">CasperOPs</span>
               </Link>
               <p className="text-slate-400 text-sm leading-relaxed">
                 Building the future of blockchain automation.
@@ -703,7 +703,7 @@ export default function Home() {
             <div>
               <h4 className="font-semibold mb-3 sm:mb-4 text-sm">Company</h4>
               <ul className="space-y-2 sm:space-y-3">
-                <li><a href="mailto:contact@blockops.com" className="text-slate-400 hover:text-white transition-colors text-sm">Contact</a></li>
+                <li><a href="mailto:contact@casperops.com" className="text-slate-400 hover:text-white transition-colors text-sm">Contact</a></li>
               </ul>
             </div>
           </div>
@@ -711,7 +711,7 @@ export default function Home() {
           {/* Bottom Bar */}
           <div className="border-t border-slate-800 pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-slate-400 text-xs sm:text-sm text-center sm:text-left">
-              © 2025 BlockOps. All rights reserved.
+              © 2025 CasperOPs. All rights reserved.
             </p>
             <div className="flex gap-5 sm:gap-6">
               <a href="#" className="text-slate-400 hover:text-white transition-colors">

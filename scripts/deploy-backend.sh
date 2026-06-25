@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BlockOps backend deploy wrapper (Fly.io).
+# CasperOPs backend deploy wrapper (Fly.io).
 #
 # Usage:
 #   ./scripts/deploy-backend.sh           # deploy to production (Fly.io)
@@ -22,7 +22,7 @@ cd "$ROOT/backend"
 
 case "$TARGET" in
   prod)
-    APP_NAME="${FLY_APP_NAME:-blockops-backend}"
+    APP_NAME="${FLY_APP_NAME:-casperops-backend}"
     flyctl deploy \
       --config backend/fly.toml \
       --dockerfile backend/Dockerfile \
@@ -34,7 +34,7 @@ case "$TARGET" in
     curl -fsS "$URL/health/ready" | head -1 || echo "(health probe failed; investigate with flyctl logs)"
     ;;
   staging)
-    APP_NAME="${FLY_STAGING_APP_NAME:-blockops-backend-staging}"
+    APP_NAME="${FLY_STAGING_APP_NAME:-casperops-backend-staging}"
     FLY_APP_NAME="$APP_NAME" flyctl deploy \
       --config backend/fly.toml \
       --dockerfile backend/Dockerfile \
@@ -42,7 +42,7 @@ case "$TARGET" in
     echo "✓ Staging deployed: https://${APP_NAME}.fly.dev"
     ;;
   logs)
-    APP_NAME="${FLY_APP_NAME:-blockops-backend}"
+    APP_NAME="${FLY_APP_NAME:-casperops-backend}"
     flyctl logs --app "$APP_NAME"
     ;;
   *)

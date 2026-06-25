@@ -1,5 +1,5 @@
 /**
- * Health endpoints for the BlockOps backend.
+ * Health endpoints for the CasperOPs backend.
  *
  * Three distinct probes that map cleanly to the orchestrator's lifecycle:
  *
@@ -299,7 +299,7 @@ router.get('/diag', (req, res) => {
       cwd: process.cwd(),
     },
     app: {
-      name: pkg.name || 'blockops-backend',
+      name: pkg.name || 'casperops-backend',
       version: pkg.version || 'unknown',
       dependencies: {
         express: pkg.dependencies?.express || 'unknown',

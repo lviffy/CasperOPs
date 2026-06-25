@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# BlockOps MCP server — single-stage python:3.14-slim runtime.
+# CasperOPs MCP server — single-stage python:3.14-slim runtime.
 #
 # Boots `uvicorn mcp_server_sse:app` (the HTTP/SSE transport added in
 # Phase 21) on port 8080. The stdio transport (`mcp_server.py`) is also

@@ -23,8 +23,8 @@
  *   STRIPE_SECRET_KEY         e.g. sk_test_...  / sk_live_...
  *   STRIPE_WEBHOOK_SECRET     e.g. whsec_...
  *   STRIPE_PRICE_PRO_MONTHLY  e.g. price_1ABC...
- *   STRIPE_SUCCESS_URL        default https://blockops.example/billing?status=success
- *   STRIPE_CANCEL_URL         default https://blockops.example/billing?status=cancelled
+ *   STRIPE_SUCCESS_URL        default https://casperops.example/billing?status=success
+ *   STRIPE_CANCEL_URL         default https://casperops.example/billing?status=cancelled
  *   STRIPE_DISABLED=1         skip all Stripe calls (CI)
  */
 
@@ -71,7 +71,7 @@ function shouldMock() {
  * `tier` is one of 'pro' (Stripe Checkout) or 'enterprise' (returns
  * a special URL pointing to the sales contact form).
  *
- * `userId` is the BlockOps user — embedded in the session metadata
+ * `userId` is the CasperOPs user — embedded in the session metadata
  * so the webhook handler knows which row to update on
  * `checkout.session.completed`.
  */
@@ -94,7 +94,7 @@ async function createCheckoutSession({
   if (tier === 'enterprise') {
     return {
       ok: true,
-      url: 'mailto:sales@blockops.example?subject=BlockOps%20Enterprise%20inquiry',
+      url: 'mailto:sales@casperops.example?subject=CasperOPs%20Enterprise%20inquiry',
       mock: isMocked,
       enterprise: true,
     };
@@ -110,7 +110,7 @@ async function createCheckoutSession({
   if (shouldMock()) {
     return {
       ok: true,
-      url: `${successUrl || 'https://blockops.example/billing'}?mock=1`,
+      url: `${successUrl || 'https://casperops.example/billing'}?mock=1`,
       mock: true,
       sessionId: `mock_sess_${crypto.randomBytes(8).toString('hex')}`,
     };
@@ -131,8 +131,8 @@ async function createCheckoutSession({
         client_reference_id: userId,
         metadata: { userId, tier: 'pro' },
         subscription_data: { metadata: { userId, tier: 'pro' } },
-        success_url: successUrl || process.env.STRIPE_SUCCESS_URL || 'https://blockops.example/billing?status=success',
-        cancel_url: cancelUrl || process.env.STRIPE_CANCEL_URL || 'https://blockops.example/billing?status=cancelled',
+        success_url: successUrl || process.env.STRIPE_SUCCESS_URL || 'https://casperops.example/billing?status=success',
+        cancel_url: cancelUrl || process.env.STRIPE_CANCEL_URL || 'https://casperops.example/billing?status=cancelled',
         allow_promotion_codes: true,
       },
       { idempotencyKey: idempotencyKey || `co_${userId}_${Date.now()}` },

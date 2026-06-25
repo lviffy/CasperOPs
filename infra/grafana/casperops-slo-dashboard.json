@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "BlockOps Casper backend + MCP SLO dashboard (Phase 30). Every panel reads from the metrics exposed on /metrics by prom-client (backend) and prometheus_client (MCP). Query reference: docs/observability/slo-queries.md",
+  "description": "CasperOPs Casper backend + MCP SLO dashboard (Phase 30). Every panel reads from the metrics exposed on /metrics by prom-client (backend) and prometheus_client (MCP). Query reference: docs/observability/slo-queries.md",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -41,7 +41,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (route, method) (rate(blockops_http_requests_total[1m]))",
+          "expr": "sum by (route, method) (rate(casperops_http_requests_total[1m]))",
           "legendFormat": "{{method}} {{route}}",
           "refId": "A"
         }
@@ -62,7 +62,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(blockops_http_request_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(casperops_http_request_duration_seconds_bucket[5m])))",
           "legendFormat": "p95 {{route}}",
           "refId": "A"
         }
@@ -90,7 +90,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(blockops_http_requests_total{status_code=~\"5..\"}[5m])) / sum(rate(blockops_http_requests_total[5m]))",
+          "expr": "sum(rate(casperops_http_requests_total{status_code=~\"5..\"}[5m])) / sum(rate(casperops_http_requests_total[5m]))",
           "refId": "A"
         }
       ]
@@ -117,7 +117,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "rate(blockops_deploy_stuck_total[5m])",
+          "expr": "rate(casperops_deploy_stuck_total[5m])",
           "refId": "A"
         }
       ]
@@ -144,7 +144,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(blockops_rpc_call_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(casperops_rpc_call_duration_seconds_bucket[5m])))",
           "refId": "A"
         }
       ]
@@ -170,7 +170,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "blockops_mcp_active_sessions",
+          "expr": "casperops_mcp_active_sessions",
           "refId": "A"
         }
       ]
@@ -190,7 +190,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (tool_id) (rate(blockops_tool_executions_total[5m]))",
+          "expr": "sum by (tool_id) (rate(casperops_tool_executions_total[5m]))",
           "legendFormat": "{{tool_id}}",
           "refId": "A"
         }
@@ -211,12 +211,12 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(blockops_x402_challenges_total[5m])) * 60",
+          "expr": "sum(rate(casperops_x402_challenges_total[5m])) * 60",
           "legendFormat": "challenges",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(blockops_tool_executions_total{status=\"ok\", kind=\"proxy\"}[5m])) * 60",
+          "expr": "sum(rate(casperops_tool_executions_total{status=\"ok\", kind=\"proxy\"}[5m])) * 60",
           "legendFormat": "ok proxy",
           "refId": "B"
         }
@@ -237,7 +237,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (cache, result) (rate(blockops_cache_operations_total[5m]))",
+          "expr": "sum by (cache, result) (rate(casperops_cache_operations_total[5m]))",
           "legendFormat": "{{cache}} {{result}}",
           "refId": "A"
         }
@@ -258,7 +258,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (kind) (rate(blockops_mcp_session_messages_total[5m]))",
+          "expr": "sum by (kind) (rate(casperops_mcp_session_messages_total[5m]))",
           "legendFormat": "{{kind}}",
           "refId": "A"
         }
@@ -279,12 +279,12 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "rate(blockops_node_nodejs_eventloop_lag_seconds[1m])",
+          "expr": "rate(casperops_node_nodejs_eventloop_lag_seconds[1m])",
           "legendFormat": "event loop lag",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.99, rate(blockops_node_nodejs_gc_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.99, rate(casperops_node_nodejs_gc_duration_seconds_bucket[5m]))",
           "legendFormat": "gc p99",
           "refId": "B"
         }
@@ -294,13 +294,13 @@
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["blockops", "slo", "production"],
+  "tags": ["casperops", "slo", "production"],
   "templating": { "list": [] },
   "time": { "from": "now-6h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "BlockOps SLO",
-  "uid": "blockops-slo",
+  "title": "CasperOPs SLO",
+  "uid": "casperops-slo",
   "version": 1,
   "weekStart": ""
 }

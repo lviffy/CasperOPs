@@ -139,7 +139,7 @@ describe('validateToolRequest middleware', () => {
         body: {
           recipient: VALID_KEY,
           amount_motes: '2500000000',
-          memo: 'blockops test',
+          memo: 'casperops test',
         },
       });
       const res = makeRes();
@@ -149,7 +149,7 @@ describe('validateToolRequest middleware', () => {
           assert.equal(req.validated.toolId, 'transfer');
           assert.equal(req.validated.params.recipient, VALID_KEY);
           assert.equal(req.validated.params.amount_motes, '2500000000');
-          assert.equal(req.validated.params.memo, 'blockops test');
+          assert.equal(req.validated.params.memo, 'casperops test');
           done();
         } catch (err) {
           done(err);

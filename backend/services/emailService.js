@@ -42,7 +42,7 @@ function getTransporter() {
 async function sendTextEmail({ to, subject, text, cc, bcc, replyTo }) {
   const transport = getTransporter();
   const mailOptions = {
-    from: `"BlockOps" <${process.env.GMAIL_USER}>`,
+    from: `"CasperOPs" <${process.env.GMAIL_USER}>`,
     to: Array.isArray(to) ? to.join(', ') : to,
     subject,
     text,
@@ -72,7 +72,7 @@ async function sendTextEmail({ to, subject, text, cc, bcc, replyTo }) {
 async function sendHtmlEmail({ to, subject, html, text, cc, bcc, replyTo, attachments }) {
   const transport = getTransporter();
   const mailOptions = {
-    from: `"BlockOps" <${process.env.GMAIL_USER}>`,
+    from: `"CasperOPs" <${process.env.GMAIL_USER}>`,
     to: Array.isArray(to) ? to.join(', ') : to,
     subject,
     html,
@@ -104,7 +104,7 @@ async function sendHtmlEmail({ to, subject, html, text, cc, bcc, replyTo, attach
 async function sendEmailWithAttachments({ to, subject, text, html, attachments, cc, bcc, replyTo }) {
   const transport = getTransporter();
   const mailOptions = {
-    from: `"BlockOps" <${process.env.GMAIL_USER}>`,
+    from: `"CasperOPs" <${process.env.GMAIL_USER}>`,
     to: Array.isArray(to) ? to.join(', ') : to,
     subject,
     ...(text && { text }),

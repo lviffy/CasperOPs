@@ -1,11 +1,11 @@
 /**
- * Casper Network chain metadata for the BlockOps frontend.
- * BlockOps is Casper-only — Arbitrum and Flow have been removed.
+ * Casper Network chain metadata for the CasperOPs frontend.
+ * CasperOPs is Casper-only — Arbitrum and Flow have been removed.
  */
 
 export type SupportedChainId = "casper-test"
 
-export const CHAIN_STORAGE_KEY = "blockops.selectedChain"
+export const CHAIN_STORAGE_KEY = "casperops.selectedChain"
 
 export const DEFAULT_CHAIN_ID: SupportedChainId = "casper-test"
 
@@ -38,7 +38,7 @@ export const CHAIN_CONFIGS: Record<SupportedChainId, ChainConfig> = {
 /**
  * Normalize an inbound chain string. Anything Casper-shaped resolves to
  * `casper-test`; legacy EVM chain ids (flow-testnet, arbitrum-sepolia, 545,
- * 421614, …) are silently mapped to Casper Testnet since BlockOps no longer
+ * 421614, …) are silently mapped to Casper Testnet since CasperOPs no longer
  * supports them.
  */
 export function normalizeChainId(chain?: string | null): SupportedChainId {

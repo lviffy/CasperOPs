@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Tuple
 
 # (name, default, required_in_prod, validator)
 _DEFS: List[Tuple[str, Any, bool, Any]] = [
-    ("BLOCKOPS_BACKEND_URL", "http://localhost:3000", False, str),
+    ("CASPEROPS_BACKEND_URL", "http://localhost:3000", False, str),
     ("CASPER_RPC_URL", "https://rpc.testnet.casper.live/rpc", False, str),
     ("CASPER_RPC_URL_FALLBACK", "", False, str),  # Phase 30: optional secondary RPC
     ("CSPR_CLOUD_API_URL", "https://api.testnet.cspr.cloud", False, str),
@@ -97,7 +97,7 @@ def validate_env(strict: bool | None = None) -> Dict[str, Any]:
 
     if missing or bad:
         banner = "=" * 72
-        lines = [f"\n{banner}\n  BlockOps MCP boot aborted — invalid environment\n{banner}"]
+        lines = [f"\n{banner}\n  CasperOPs MCP boot aborted — invalid environment\n{banner}"]
         if missing:
             lines.append("\nMissing required variables:")
             for n in missing:

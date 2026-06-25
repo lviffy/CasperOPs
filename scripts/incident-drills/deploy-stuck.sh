@@ -5,7 +5,7 @@
 #   1. POSTing a fake `lookup_deploy` with a non-existent deploy hash
 #      (so the backend returns "unknown" — the same condition a stuck
 #      pending deploy produces)
-#   2. Asserting `blockops_deploy_stuck_total` ticks up
+#   2. Asserting `casperops_deploy_stuck_total` ticks up
 #   3. Asserting the Sentry alert fires
 #   4. Walking the on-call through RUNBOOK.md §1 "Deploy stuck pending
 #      > 5 minutes" step by step
@@ -21,13 +21,13 @@
 # Env vars:
 #   BACKEND_URL          (default http://localhost:3000)
 #   METRICS_TOKEN        (optional; required if backend /metrics is gated)
-#   DRILL_LOG            (default /tmp/blockops-deploy-drill.log)
+#   DRILL_LOG            (default /tmp/casperops-deploy-drill.log)
 
 set -euo pipefail
 
 BACKEND_URL="${BACKEND_URL:-http://localhost:3000}"
 METRICS_TOKEN="${METRICS_TOKEN:-}"
-LOG="${DRILL_LOG:-/tmp/blockops-deploy-drill.log}"
+LOG="${DRILL_LOG:-/tmp/casperops-deploy-drill.log}"
 
 ts() { date -u +'%Y-%m-%dT%H:%M:%SZ'; }
 log() { printf '[deploy-stuck %s] %s\n' "$(ts)" "$*" | tee -a "$LOG"; }
@@ -55,7 +55,7 @@ METRICS=$(curl -fsS "${METRICS_HEADERS[@]}" --max-time 5 "$METRICS_URL" 2>&1) ||
   log "  ERROR: /metrics unreachable (gate is probably configured for prod only)"
   exit 1
 }
-if echo "$METRICS" | grep -q 'blockops_deploy_stuck_total'; then
+if echo "$METRICS" | grep -q 'casperops_deploy_stuck_total'; then
   log "  ✅ deploy_stuck_total exposed"
 else
   log "  ⚠️  deploy_stuck_total not in /metrics output yet — expected after a real stuck deploy"
@@ -72,7 +72,7 @@ cat <<'EOF'
      - executed-with-error → the deploy landed but failed; check args
   3. Trigger refund middleware (POST /v1/tools/<toolId> with the same
      payment deploy hash re-broadcasts the refund on next 5xx)
-  4. If the refund didn't fire, audit blockops_x402_refunds_total{status="failed"}
+  4. If the refund didn't fire, audit casperops_x402_refunds_total{status="failed"}
 EOF
 log "  (Walkthrough complete — on-call should be able to do each step)"
 

@@ -1,6 +1,6 @@
 # Filecoin Audit Logging Setup
 
-BlockOps uses Filecoin Calibration and Synapse SDK to store immutable tool execution logs. Every audited tool run can produce a Filecoin-backed JSON record plus a matching row in Supabase for fast lookup inside the product.
+CasperOPs uses Filecoin Calibration and Synapse SDK to store immutable tool execution logs. Every audited tool run can produce a Filecoin-backed JSON record plus a matching row in Supabase for fast lookup inside the product.
 
 ## What We Implemented
 
@@ -25,7 +25,7 @@ Add these to `backend/.env`:
 
 ```bash
 FILECOIN_WALLET_PRIVATE_KEY=your_calibration_private_key
-SYNAPSE_SOURCE=blockops-agent-audit
+SYNAPSE_SOURCE=casperops-agent-audit
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your_service_role_key
 ```
@@ -46,7 +46,7 @@ Notes:
 
 ## Network and Storage Model
 
-BlockOps uses:
+CasperOPs uses:
 
 - Filecoin Calibration for storage settlement and retrieval
 - Synapse SDK for `prepare()` and `upload()`
@@ -140,7 +140,7 @@ The `/content` endpoint returns the exact archived envelope together with conven
 
 ## Why Filecoin Matters Here
 
-Filecoin gives BlockOps a durable audit layer for autonomous agents:
+Filecoin gives CasperOPs a durable audit layer for autonomous agents:
 
 - tool activity is preserved outside the app database
 - audit records are portable and inspectable

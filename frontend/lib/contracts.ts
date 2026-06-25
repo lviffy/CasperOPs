@@ -1,5 +1,5 @@
 /**
- * BlockOps Casper contract addresses.
+ * CasperOPs Casper contract addresses.
  *
  * All hashes are `hash-<64hex>` Casper contract-hash format. The defaults are
  * placeholders — replace them with the real hashes produced by
@@ -45,7 +45,7 @@ export const CEP78_CONTRACT_HASH: `hash-${string}` =
 
 /**
  * The Casper account (public key, hex with 0x/01 prefix) that receives x402
- * tool payments. Defaults to a BlockOps-controlled testnet key; override
+ * tool payments. Defaults to a CasperOPs-controlled testnet key; override
  * with `NEXT_PUBLIC_PAYMENT_RECIPIENT_PUBLIC_KEY` for production.
  */
 export const PAYMENT_RECIPIENT_PUBLIC_KEY: string =

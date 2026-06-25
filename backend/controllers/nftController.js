@@ -79,7 +79,7 @@ async function mintNFT(req, res) {
     
     const args = RuntimeArgs.fromMap({
       token_owner: CLValueBuilder.key(CLPublicKey.fromHex(toAddress)),
-      token_meta_data: CLValueBuilder.string('{"name":"BlockOps Agent Asset"}')
+      token_meta_data: CLValueBuilder.string('{"name":"CasperOPs Agent Asset"}')
     });
     
     const payment = DeployUtil.standardPayment(5_000_000_000); // 5 CSPR

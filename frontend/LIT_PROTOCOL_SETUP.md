@@ -1,10 +1,10 @@
 # Lit Protocol Setup
 
-BlockOps uses Lit Protocol V1 (Naga) for decentralized key management. The app supports both PKP-based wallets and Lit-encrypted traditional wallets, so users can create a seedless agent wallet or continue using an imported EOA without storing raw private keys in plaintext.
+CasperOPs uses Lit Protocol V1 (Naga) for decentralized key management. The app supports both PKP-based wallets and Lit-encrypted traditional wallets, so users can create a seedless agent wallet or continue using an imported EOA without storing raw private keys in plaintext.
 
 ## Feature Context
 
-BlockOps is built around decentralized key management for autonomous AI agents. The core user experience shift is from "paste your private key into the app" to "create a seedless programmable wallet where key material is never exposed."
+CasperOPs is built around decentralized key management for autonomous AI agents. The core user experience shift is from "paste your private key into the app" to "create a seedless programmable wallet where key material is never exposed."
 
 This setup supports a hybrid wallet model that keeps compatibility with imported EOAs while making PKP the default and recommended path.
 
@@ -43,7 +43,7 @@ This setup supports a hybrid wallet model that keeps compatibility with imported
 - `backend/services/telegramService.js`
 - `frontend/MIGRATION_FIX.sql`
 
-## Wallet Modes in BlockOps
+## Wallet Modes in CasperOPs
 
 ### 1. PKP Wallet Mode
 
@@ -107,7 +107,7 @@ LIT_PKP_ID=your_default_lit_pkp_id
 LIT_PKP_CONTROLLER_PRIVATE_KEY=your_controller_private_key
 LIT_NAGA_HANDSHAKE_TIMEOUT_MS=45000
 LIT_AUTH_STORAGE_PATH=optional_local_auth_cache_path
-LIT_APP_NAME=blockops
+LIT_APP_NAME=casperops
 ```
 
 Backend-driven signing paths should also have matching Lit configuration in `backend/.env`:
@@ -144,7 +144,7 @@ lit:v1:{"version":1,"provider":"lit-chipotle","pkpId":"0x...","ciphertext":"..."
 
 ## Runtime Signing Flow
 
-At execution time, BlockOps branches on the wallet type:
+At execution time, CasperOPs branches on the wallet type:
 
 - `wallet_type = 'pkp'`
   - use the PKP signing path
@@ -169,7 +169,7 @@ This proves the wallet is part of real autonomous execution, not only a UI-only 
 ## How to Test the Lit Flow
 
 1. Start the frontend and backend services.
-2. Sign in to BlockOps.
+2. Sign in to CasperOPs.
 3. Open the wallet setup modal.
 4. Confirm the highlighted default option is `Create PKP Wallet`.
 5. Use the `Create PKP Wallet` flow and click `Generate PKP`.
@@ -194,7 +194,7 @@ To test cross-platform PKP reuse:
 
 ## Why Lit Matters Here
 
-Lit gives BlockOps a better wallet model for AI agents:
+Lit gives CasperOPs a better wallet model for AI agents:
 
 - users can create a seedless agent wallet
 - imported keys are never stored in plaintext

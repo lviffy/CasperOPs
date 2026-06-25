@@ -29,7 +29,7 @@ const server = app.listen(PORT, async () => {
   }
 
   console.log('\n' + '='.repeat(50));
-  console.log('🚀 BlockOps Casper Backend');
+  console.log('🚀 CasperOPs Casper Backend');
   console.log('='.repeat(50));
   console.log(`📡 Server running on port ${PORT}`);
   console.log(`🌐 Network: ${NETWORK_NAME}`);

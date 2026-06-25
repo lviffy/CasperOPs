@@ -137,8 +137,8 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
         "[SUMMARY] Tokenisation: Active CEP-78 NFT",
         "[SUMMARY] Escrow Balance: 5,000 CSPR",
         "[SUMMARY] Agent Status: Delegated & Monitoring Yield Opportunities",
-        "★ BlockOps is ready to revolutionize Casper!",
-        "🗳️ VOTE FOR BLOCKOPS ON CSPR.FANS NOW"
+        "★ CasperOPs is ready to revolutionize Casper!",
+        "🗳️ VOTE FOR CASPEROPS ON CSPR.FANS NOW"
       ]
     }
   ], [])
@@ -444,7 +444,7 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
                   <Vote className="h-8 w-8 animate-bounce" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-100 tracking-tight">
-                  Support BlockOps on Casper!
+                  Support CasperOPs on Casper!
                 </h3>
                 <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
                   You just simulated a Casper Real-World Asset (RWA) automated agent flow with built-in daily limits and Account Abstraction. Let's make this the future of automated DeFi!
@@ -460,7 +460,7 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-sm"
                     >
-                      Vote for BlockOps on CSPR.fans
+                      Vote for CasperOPs on CSPR.fans
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   </Button>

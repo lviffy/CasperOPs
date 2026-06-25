@@ -1,6 +1,6 @@
 # Odra Smart-Contract Security Audit Checklist
 
-This document tracks security considerations for the BlockOps Odra contracts.
+This document tracks security considerations for the CasperOPs Odra contracts.
 Review before each mainnet deploy. The "v1.0 additions" section at the bottom
 captures what was shipped in Phase 17.
 

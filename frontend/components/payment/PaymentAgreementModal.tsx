@@ -91,14 +91,14 @@ export function PaymentAgreementModal({ open, onOpenChange, onAccepted }: Paymen
         <ScrollArea className="h-[400px] w-full rounded-md border p-4">
           <div className="space-y-4 text-sm">
             <section>
-              <h3 className="font-semibold text-base mb-2">BlockOps Payment Terms (Version {TERMS_VERSION})</h3>
+              <h3 className="font-semibold text-base mb-2">CasperOPs Payment Terms (Version {TERMS_VERSION})</h3>
               <p className="text-muted-foreground">Last Updated: November 23, 2025</p>
             </section>
 
             <section>
               <h4 className="font-semibold mb-2">1. Payment Overview</h4>
               <p className="text-muted-foreground">
-                BlockOps offers a mix of free and paid tools for blockchain automation. By accepting these terms, 
+                CasperOPs offers a mix of free and paid tools for blockchain automation. By accepting these terms, 
                 you agree to pay for premium tools in CSPR on the Casper network.
               </p>
             </section>
@@ -132,9 +132,9 @@ export function PaymentAgreementModal({ open, onOpenChange, onAccepted }: Paymen
               </p>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                 <li>Your payment is locked in escrow when you submit the transaction</li>
-                <li>Funds are released to BlockOps only after successful tool execution</li>
+                <li>Funds are released to CasperOPs only after successful tool execution</li>
                 <li>If the service fails, funds are automatically refunded to your wallet</li>
-                <li>Escrow provides security for both you and BlockOps</li>
+                <li>Escrow provides security for both you and CasperOPs</li>
               </ul>
             </section>
 
@@ -162,7 +162,7 @@ export function PaymentAgreementModal({ open, onOpenChange, onAccepted }: Paymen
               <h4 className="font-semibold mb-2">7. Wallet Security</h4>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                 <li>You are solely responsible for your wallet security</li>
-                <li>BlockOps never has access to your private keys</li>
+                <li>CasperOPs never has access to your private keys</li>
                 <li>Always verify transaction details before signing</li>
                 <li>Use a secure wallet provider (e.g., MetaMask)</li>
               </ul>
@@ -171,7 +171,7 @@ export function PaymentAgreementModal({ open, onOpenChange, onAccepted }: Paymen
             <section>
               <h4 className="font-semibold mb-2">8. Service Availability</h4>
               <p className="text-muted-foreground">
-                BlockOps strives for 99.9% uptime but does not guarantee uninterrupted service. 
+                CasperOPs strives for 99.9% uptime but does not guarantee uninterrupted service. 
                 We are not liable for service interruptions, and no refunds are provided for 
                 temporary unavailability.
               </p>
@@ -206,7 +206,7 @@ export function PaymentAgreementModal({ open, onOpenChange, onAccepted }: Paymen
             <section>
               <h4 className="font-semibold mb-2">11. Limitation of Liability</h4>
               <p className="text-muted-foreground">
-                BlockOps is provided "as-is" without warranties. We are not liable for any 
+                CasperOPs is provided "as-is" without warranties. We are not liable for any 
                 indirect, incidental, or consequential damages arising from your use of the service, 
                 including but not limited to loss of funds due to smart contract bugs, network issues, 
                 or user error.
@@ -235,8 +235,8 @@ export function PaymentAgreementModal({ open, onOpenChange, onAccepted }: Paymen
               <h4 className="font-semibold mb-2">14. Contact</h4>
               <p className="text-muted-foreground">
                 For questions or support regarding payments, contact us at: 
-                <a href="mailto:support@blockops.io" className="text-primary hover:underline ml-1">
-                  support@blockops.io
+                <a href="mailto:support@casperops.io" className="text-primary hover:underline ml-1">
+                  support@casperops.io
                 </a>
               </p>
             </section>

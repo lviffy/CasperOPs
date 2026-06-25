@@ -175,7 +175,9 @@ function snapshot() {
 // Probe on boot so the readiness probe reflects real state, not the
 // optimistic "true" default above. Errors are swallowed so a slow
 // boot doesn't block startup.
-probeHealth().catch(() => {});
+if (process.env.NODE_ENV !== 'test') {
+  probeHealth().catch(() => {});
+}
 
 // Re-probe on the configured interval.
 const probeInterval = setInterval(() => {

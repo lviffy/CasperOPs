@@ -1,30 +1,30 @@
 """
-BlockOps MCP Prometheus metrics registry.
+CasperOPs MCP Prometheus metrics registry.
 
 Mirrors `backend/utils/metrics.js` on the Python side so a single
 Grafana dashboard can chart the whole stack. Exposes:
 
-    blockops_mcp_tool_calls_total{tool_name,kind,status}
+    casperops_mcp_tool_calls_total{tool_name,kind,status}
         Counter — incremented in `dispatcher.dispatch` after every tool
         invocation. `kind` ∈ {local, proxy, rpc}, `status` ∈
         {ok, error, x402}.
 
-    blockops_mcp_tool_latency_seconds{tool_name,kind}
+    casperops_mcp_tool_latency_seconds{tool_name,kind}
         Histogram — wall-clock dispatch latency.
 
-    blockops_mcp_active_sessions
+    casperops_mcp_active_sessions
         Gauge — number of SSE sessions currently attached. Updated
         whenever a session opens / closes its `/mcp/sse` stream.
 
-    blockops_mcp_session_messages_total{kind}
+    casperops_mcp_session_messages_total{kind}
         Counter — `kind` ∈ {inbound, outbound}. Tracks JSON-RPC traffic.
 
-    blockops_mcp_backend_proxy_duration_seconds{tool_name,result}
+    casperops_mcp_backend_proxy_duration_seconds{tool_name,result}
         Histogram — backend proxy round-trip latency (`result` ∈
         {ok, error, unreachable}). Helps spot drift between the MCP
-        server and the BlockOps backend.
+        server and the CasperOPs backend.
 
-    blockops_mcp_rpc_call_duration_seconds{method,result}
+    casperops_mcp_rpc_call_duration_seconds{method,result}
         Histogram — direct Casper RPC + CSPR.cloud calls made by the
         RPC-class tools (get_balance, lookup_deploy, etc.).
 
@@ -52,7 +52,7 @@ from prometheus_client import (
 
 
 # Dedicated registry so we don't collide with the global default. The
-# BlockOps backend uses its own registry; the MCP server uses this one.
+# CasperOPs backend uses its own registry; the MCP server uses this one.
 REGISTRY = CollectorRegistry()
 
 # Process + platform collectors so a fresh /metrics scrape gives the
@@ -66,14 +66,14 @@ except Exception:  # pragma: no cover - collector init can fail on exotic platfo
 
 # ── Series ──────────────────────────────────────────────────────────────
 TOOL_CALLS_TOTAL = Counter(
-    "blockops_mcp_tool_calls_total",
+    "casperops_mcp_tool_calls_total",
     "Tool invocations through the MCP server.",
     ["tool_name", "kind", "status"],
     registry=REGISTRY,
 )
 
 TOOL_LATENCY = Histogram(
-    "blockops_mcp_tool_latency_seconds",
+    "casperops_mcp_tool_latency_seconds",
     "Wall-clock latency of MCP tool dispatches.",
     ["tool_name", "kind"],
     buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30),
@@ -81,28 +81,28 @@ TOOL_LATENCY = Histogram(
 )
 
 ACTIVE_SESSIONS = Gauge(
-    "blockops_mcp_active_sessions",
+    "casperops_mcp_active_sessions",
     "MCP SSE sessions currently connected.",
     registry=REGISTRY,
 )
 
 SESSION_MESSAGES = Counter(
-    "blockops_mcp_session_messages_total",
+    "casperops_mcp_session_messages_total",
     "JSON-RPC messages exchanged by the MCP server.",
     ["kind"],  # inbound | outbound
     registry=REGISTRY,
 )
 
 BACKEND_PROXY_DURATION = Histogram(
-    "blockops_mcp_backend_proxy_duration_seconds",
-    "Round-trip latency for proxied calls to the BlockOps backend.",
+    "casperops_mcp_backend_proxy_duration_seconds",
+    "Round-trip latency for proxied calls to the CasperOPs backend.",
     ["tool_name", "result"],
     buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30),
     registry=REGISTRY,
 )
 
 RPC_CALL_DURATION = Histogram(
-    "blockops_mcp_rpc_call_duration_seconds",
+    "casperops_mcp_rpc_call_duration_seconds",
     "Direct Casper RPC + CSPR.cloud call latency from RPC-class tools.",
     ["method", "result"],
     buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
@@ -139,7 +139,7 @@ def time_tool_call(tool_name: str, kind: str) -> Iterator[dict]:
 
 def record_proxy_call(tool_name: str, status_code: int, duration_s: float) -> None:
     """Record a backend proxy round-trip. status_code is the HTTP code
-    from the BlockOps backend; we bucket it into ok / error /
+    from the CasperOPs backend; we bucket it into ok / error /
     unreachable for cardinality control."""
     if status_code == 0:
         result = "unreachable"

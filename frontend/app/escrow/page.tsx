@@ -354,7 +354,7 @@ export default function EscrowPage() {
             <div className="p-1.5 bg-gradient-to-tr from-blue-500 to-purple-600 rounded text-white font-bold">
               <Coins className="h-4.5 w-4.5" />
             </div>
-            <span className="font-bold text-sm bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">BlockOps Escrow</span>
+            <span className="font-bold text-sm bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">CasperOPs Escrow</span>
           </div>
 
           <div className="flex items-center gap-3">

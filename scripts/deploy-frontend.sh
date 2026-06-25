@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BlockOps frontend deploy wrapper (Vercel).
+# CasperOPs frontend deploy wrapper (Vercel).
 #
 # Usage:
 #   ./scripts/deploy-frontend.sh           # production deploy

@@ -1,5 +1,5 @@
 /**
- * BlockOps CSPR.click authentication hook.
+ * CasperOPs CSPR.click authentication hook.
  *
  * Replaces the legacy `@privy-io/react-auth` `usePrivy` hook. Exposes a
  * stable `useAuth()` API so every page that previously consumed Privy
@@ -46,7 +46,7 @@ export interface CsprAuthUser {
 }
 
 /**
- * BlockOps auth hook. Connects a CSPR.click wallet, persists the public key
+ * CasperOPs auth hook. Connects a CSPR.click wallet, persists the public key
  * to Supabase, and exposes the active session for the React tree.
  *
  * @returns An object with `ready`, `authenticated`, `user`, `csprclickPublicKey`,

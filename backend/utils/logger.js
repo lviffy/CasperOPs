@@ -1,5 +1,5 @@
 /**
- * BlockOps structured logger.
+ * CasperOPs structured logger.
  *
  * Lightweight pino wrapper that:
  *   - Adds a request-correlation id to every log line.
@@ -75,7 +75,7 @@ function makeFallbackLogger() {
 const baseConfig = {
   redact: { paths: REDACT_PATHS, remove: false, censor: '[REDACTED]' },
   level: process.env.LOG_LEVEL || 'info',
-  base: { service: 'blockops-backend' },
+  base: { service: 'casperops-backend' },
 }
 
 // Use a synchronous destination so the logger doesn't keep a worker

@@ -1,5 +1,5 @@
 """
-BlockOps MCP server (stdio transport).
+CasperOPs MCP server (stdio transport).
 
 Speaks JSON-RPC 2.0 over stdin/stdout so it can plug into n8n, the
 `langgraph_agent.py` and `crewai_agent.py` examples, and any other agent
@@ -41,10 +41,10 @@ import dispatcher
 
 load_dotenv()
 
-log = logging.getLogger("blockops.mcp.stdio")
+log = logging.getLogger("casperops.mcp.stdio")
 
 SERVER_INFO = {
-    "name": "blockops-mcp-stdio",
+    "name": "casperops-mcp-stdio",
     "version": "1.0.0",
     "transport": "stdio",
     "tool_count": len(dispatcher.list_tool_names()),

@@ -146,7 +146,7 @@ export default function SwarmWorkspace() {
   };
 
   const handleShare = () => {
-    const text = "I just tested the Casper-native AI Swarm Workspace on BlockOps! Vote for BlockOps on CSPR.fans!";
+    const text = "I just tested the Casper-native AI Swarm Workspace on CasperOPs! Vote for CasperOPs on CSPR.fans!";
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank");
   };
 
@@ -167,9 +167,9 @@ export default function SwarmWorkspace() {
             </div>
             <div>
               <span className="text-xs font-semibold tracking-wider text-pink-400 uppercase">Casper Innovation Track</span>
-              <h2 className="text-xl md:text-2xl font-bold mt-1 text-white">Support BlockOps on CSPR.fans!</h2>
+              <h2 className="text-xl md:text-2xl font-bold mt-1 text-white">Support CasperOPs on CSPR.fans!</h2>
               <p className="text-sm text-slate-300 mt-1 max-w-2xl">
-                If you are wowed by our Casper-native multi-agent coordination, compliance engines, and visual builder, cast your vote for BlockOps. Helps us unlock the next phase of agent automation!
+                If you are wowed by our Casper-native multi-agent coordination, compliance engines, and visual builder, cast your vote for CasperOPs. Helps us unlock the next phase of agent automation!
               </p>
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function SwarmWorkspace() {
             >
               <Share2 className="w-4 h-4" /> Share
             </Button>
-            <Link href="https://cspr.fans/project/blockops" target="_blank" passHref>
+            <Link href="https://cspr.fans/project/casperops" target="_blank" passHref>
               <Button 
                 className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-semibold flex items-center gap-2 border-t border-pink-400/40 shadow-lg shadow-pink-500/20"
                 onClick={() => setHasVoted(true)}
@@ -198,7 +198,7 @@ export default function SwarmWorkspace() {
             className="mt-4 pt-4 border-t border-slate-800 text-xs text-pink-300 flex items-center gap-2"
           >
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            Thank you for supporting BlockOps! Your vote drives native automation forward on the Casper Network.
+            Thank you for supporting CasperOPs! Your vote drives native automation forward on the Casper Network.
           </motion.div>
         )}
       </motion.div>

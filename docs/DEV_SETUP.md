@@ -1,6 +1,6 @@
 # Developer Setup
 
-Full developer setup guide for the BlockOps Casper stack.
+Full developer setup guide for the CasperOPs Casper stack.
 
 ## 0. System requirements
 
@@ -19,8 +19,8 @@ Full developer setup guide for the BlockOps Casper stack.
 ## 1. Clone & install
 
 ```bash
-git clone https://github.com/your-org/BlockOPS.git
-cd BlockOPS
+git clone https://github.com/your-org/CasperOPs.git
+cd CasperOPs
 
 # Install root dev scripts
 npm install -g concurrently  # optional, for `./scripts/dev.sh`

@@ -461,7 +461,7 @@ async function createReminder(req, res) {
     }
 
     // Phase 23: the legacy `isFlowChain` portfolio reminder check is gone
-    // — BlockOps is now Casper-only and portfolio reminders are accepted
+    // — CasperOPs is now Casper-only and portfolio reminders are accepted
     // on any supported chain. (The previous implementation rejected
     // portfolio reminders on Casper because they were originally scoped
     // to Arbitrum/Flow.)

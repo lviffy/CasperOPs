@@ -1,6 +1,6 @@
 # Payment System UI Components
 
-Complete set of React components for the x402 payment system integration in BlockOps.
+Complete set of React components for the x402 payment system integration in CasperOPs.
 
 ## 📦 Components Overview
 

@@ -1,5 +1,5 @@
 /**
- * Sentry integration for the BlockOps backend.
+ * Sentry integration for the CasperOPs backend.
  *
  * Initializes Sentry only when SENTRY_DSN is set so dev environments don't
  * accidentally ship traces. Wraps the error handler in a no-op when Sentry

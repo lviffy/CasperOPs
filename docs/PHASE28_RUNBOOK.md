@@ -59,7 +59,7 @@ bridge between dryrun-verified code and a real on-chain v1.0 release.
 ## The deploy (one command)
 
 ```bash
-cd BlockOps
+cd CasperOPs
 ./scripts/e2e-testnet-phase28.sh --live
 ```
 

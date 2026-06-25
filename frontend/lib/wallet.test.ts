@@ -52,8 +52,8 @@ describe("wallet (CSPR.click)", () => {
   })
 
   it("initCsprClick initializes and caches the SDK", () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     const sdk = initCsprClick()
     expect(sdk).toBe(sdkMock)
     expect(sdkMock.init).not.toHaveBeenCalled()
@@ -64,13 +64,13 @@ describe("wallet (CSPR.click)", () => {
     const sdk = initCsprClick()
     expect(sdk).toBe(sdkMock)
     expect(sdkMock.init).toHaveBeenCalledWith(
-      expect.objectContaining({ appName: "BlockOps", appId: "csprclick-template" }),
+      expect.objectContaining({ appName: "CasperOPs", appId: "csprclick-template" }),
     )
   })
 
   it("connectWallet forwards to sdk.connect and maps the result", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     sdkMock.connect.mockResolvedValue({ public_key: "01abc" })
     const account = await connectWallet("casper-wallet")
     expect(account?.publicKey).toBe("01abc")
@@ -78,30 +78,30 @@ describe("wallet (CSPR.click)", () => {
   })
 
   it("connectWallet returns null when the user cancels", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     sdkMock.connect.mockResolvedValue(null)
     const account = await connectWallet("casper-wallet")
     expect(account).toBeNull()
   })
 
   it("disconnectWallet silently no-ops on error", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     sdkMock.disconnect.mockRejectedValue(new Error("nope"))
     await expect(disconnectWallet()).resolves.toBeUndefined()
   })
 
   it("getActiveAccount returns null when the SDK has no active account", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     sdkMock.getActiveAccountAsync.mockResolvedValue(null)
     await expect(getActiveAccount()).resolves.toBeNull()
   })
 
   it("getActiveAccount maps the SDK account into our ConnectedAccount shape", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     sdkMock.getActiveAccountAsync.mockResolvedValue({
       public_key: "01def",
       provider: "casper-signer",
@@ -118,8 +118,8 @@ describe("wallet (CSPR.click)", () => {
   })
 
   it("getKnownAccounts maps every known account", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     sdkMock.getKnownAccounts.mockResolvedValue([
       { public_key: "01a", liquid_balance: "1000", cspr_name: null },
       { public_key: "01b", liquid_balance: "2000", cspr_name: "bob.cspr" },
@@ -131,24 +131,24 @@ describe("wallet (CSPR.click)", () => {
   })
 
   it("getKnownAccounts returns [] on SDK failure", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     sdkMock.getKnownAccounts.mockRejectedValue(new Error("boom"))
     const list = await getKnownAccounts()
     expect(list).toEqual([])
   })
 
   it("switchAccount forwards to sdk.switchAccount", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     sdkMock.switchAccount.mockResolvedValue(undefined)
     await switchAccount("01c", "casper-wallet")
     expect(sdkMock.switchAccount).toHaveBeenCalledWith("casper-wallet", { publicKey: "01c" })
   })
 
   it("signDeploy forwards the deploy JSON to sdk.sign", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     sdkMock.sign.mockResolvedValue({ signature: "0xsig" })
     const result = await signDeploy({ hello: "world" }, "01pk")
     expect(result).toEqual({ signature: "0xsig" })
@@ -156,8 +156,8 @@ describe("wallet (CSPR.click)", () => {
   })
 
   it("signMessage prefers the dedicated signMessage method", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     sdkMock.signMessage.mockResolvedValue({ signature: "0xmsg" })
     const result = await signMessage("hello world", "01pk")
     expect(result).toEqual({ signature: "0xmsg" })
@@ -165,8 +165,8 @@ describe("wallet (CSPR.click)", () => {
   })
 
   it("signMessage falls back to sdk.sign with a UTF-8 encoder when no native helper", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     // Simulate older CSPR.click builds that only expose sign().
     ;(sdkMock as any).signMessage = undefined
     sdkMock.sign.mockResolvedValue({ signature: "0xfallback" })
@@ -176,8 +176,8 @@ describe("wallet (CSPR.click)", () => {
   })
 
   it("sendDeploy defaults to waiting for processing", async () => {
-    sdkMock.appName = "BlockOps"
-    sdkMock.appId = "blockops"
+    sdkMock.appName = "CasperOPs"
+    sdkMock.appId = "casperops"
     sdkMock.send.mockResolvedValue({ deployHash: "hash-1", status: "ok" })
     const result = await sendDeploy({ deploy: true }, "01pk")
     expect(result).toEqual({ deployHash: "hash-1", status: "ok" })

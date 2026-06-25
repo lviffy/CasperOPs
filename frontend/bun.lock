@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "blockops-agent-builder",
+      "name": "casperops-agent-builder",
       "dependencies": {
         "@google/generative-ai": "^0.24.1",
         "@hookform/resolvers": "^3.10.0",

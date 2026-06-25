@@ -1,11 +1,11 @@
-# BlockOps System Status
+# CasperOPs System Status
 
 > Public status page. Mirror to a hosted service (statuspage.io / Better
 > Stack status pages) once we're past v1.0; for now this file in the
 > repo is the canonical source of truth.
 
 **Live status URL (placeholder, update post-launch):**
-`https://status.blockops.example`
+`https://status.casperops.example`
 
 ---
 
@@ -36,7 +36,7 @@
            ▼
 ┌────────────────────┐         ┌─────────────────────┐
 │  Vercel / Frontend │ ──────▶ │  Fly.io / Backend   │
-│  (blockops.example)│         │  (api.blockops.example) │
+│  (casperops.example)│         │  (api.casperops.example) │
 └────────────────────┘         └──────────┬──────────┘
                                           │
                   ┌───────────────────────┼─────────────────────┐
@@ -50,7 +50,7 @@
                   ▼
         ┌─────────────────┐         ┌────────────────────┐
         │  Casper Network │         │  Render / MCP      │
-        │  (validator set)│ ◀────── │  (mcp.blockops)    │
+        │  (validator set)│ ◀────── │  (mcp.casperops)    │
         └─────────────────┘         └────────────────────┘
                                             │
                                             ▼
@@ -70,7 +70,7 @@ Upcoming planned windows:
 |----------------------------------|-----------|-----------------|
 | _none scheduled_                 | —         | —               |
 
-Subscribe to the status page (or follow `#blockops-announce` on the team
+Subscribe to the status page (or follow `#casperops-announce` on the team
 Slack) to get notifications 24 h before each window.
 
 ---
@@ -88,12 +88,12 @@ form. Full timeline + root cause stays in the per-incident doc.
 
 ## Reporting a new incident
 
-1. Open a Slack thread in `#blockops-oncall`.
+1. Open a Slack thread in `#casperops-oncall`.
 2. Update the matching component's status above to 🟡 Degraded or 🔴
    Down with a 1-line summary of user-visible impact.
 3. Open an incident doc at `docs/incidents/YYYY-MM-DD-<slug>.md`
    using `docs/incidents/TEMPLATE.md` (added with first incident).
-4. Post a follow-up in `#blockops-status` every 30 min until resolved.
+4. Post a follow-up in `#casperops-status` every 30 min until resolved.
 
 When the incident is closed:
 
@@ -114,4 +114,4 @@ When the incident is closed:
 | ⚪     | Maintenance — scheduled window, expect brief interruptions           |
 
 The status here is updated manually by the on-call. A future phase
-will auto-update from `blockops_node_*` + readiness probes.
+will auto-update from `casperops_node_*` + readiness probes.

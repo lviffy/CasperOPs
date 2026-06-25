@@ -9,15 +9,15 @@ them in under 10 minutes.
 
 ## 5 minutes before launch
 
-- [ ] **DNS verified.** `blockops.example`, `api.blockops.example`,
-      `mcp.blockops.example` all resolve to Cloudflare.
+- [ ] **DNS verified.** `casperops.example`, `api.casperops.example`,
+      `mcp.casperops.example` all resolve to Cloudflare.
 - [ ] **CDN live.** Cloudflare in front of the backend (orange-cloud
       proxy enabled, TLS 1.3 minimum, HSTS preload ready).
 - [ ] **Sentry DSNs populated** in both backend (`SENTRY_DSN`) and
       frontend (`NEXT_PUBLIC_SENTRY_DSN`). Verify by loading the
       frontend and triggering a test error.
 - [ ] **Status page live** and reporting green for every component.
-      URL: `https://status.blockops.example`.
+      URL: `https://status.casperops.example`.
 - [ ] **Uptime monitor configured.** Verify by hitting
       `/health/ready` on each component from a fresh
       monitor (Better Stack / UptimeRobot).
@@ -40,14 +40,14 @@ them in under 10 minutes.
 
 ## Post-launch (next 30 minutes)
 
-- [ ] **Verify all 3 services respond.** `curl -fsS https://api.blockops.example/health/ready | jq .`
+- [ ] **Verify all 3 services respond.** `curl -fsS https://api.casperops.example/health/ready | jq .`
 - [ ] **Verify a paid tool flow end-to-end.** Sign a CSPR.click
       payment deploy → call a paid tool → confirm tool executes.
 - [ ] **Verify Sentry is quiet.** No new errors in the dashboard.
-- [ ] **Verify Grafana dashboards show traffic.** `blockops_http_requests_total` ticking.
+- [ ] **Verify Grafana dashboards show traffic.** `casperops_http_requests_total` ticking.
 - [ ] **Verify status page stays green** for the first 30 minutes.
 - [ ] **Post the launch announcement** (Twitter + Discord).
-- [ ] **Email the waitlist** (subject: "BlockOps v1.0 is live").
+- [ ] **Email the waitlist** (subject: "CasperOPs v1.0 is live").
 - [ ] **Archive the testnet deployer key** to cold storage (1Password + offline USB).
       Do NOT delete — the v1.0.0-rc.1 events on CSPR.cloud are linked to it.
 - [ ] **Tag the release** as `v1.0.0` on GitHub (if not done as part of the deploy).

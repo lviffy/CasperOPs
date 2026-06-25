@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "BlockOps MCP Tool Catalog",
-  "description": "JSON Schema for the 19 backend tools exposed to LangGraph / CrewAI agents via the BlockOps MCP server. Mirrors backend/services/toolRouter.js AVAILABLE_TOOLS + backend/utils/chains.js TOOL_PRICING. Pricing tier and x402_required are sourced from chains.js; see docs/x402.md for the full challenge shape. v1.0 contract surface (events + new entry points) is listed under `contracts`.",
+  "title": "CasperOPs MCP Tool Catalog",
+  "description": "JSON Schema for the 19 backend tools exposed to LangGraph / CrewAI agents via the CasperOPs MCP server. Mirrors backend/services/toolRouter.js AVAILABLE_TOOLS + backend/utils/chains.js TOOL_PRICING. Pricing tier and x402_required are sourced from chains.js; see docs/x402.md for the full challenge shape. v1.0 contract surface (events + new entry points) is listed under `contracts`.",
   "version": "1.0.0",
   "x_pricing_legend": {
     "free": "No x402 challenge; the server executes the tool directly.",
@@ -215,7 +215,7 @@
     },
     {
       "name": "send_email",
-      "description": "Send an email via the BlockOps transactional provider (Resend / SendGrid).",
+      "description": "Send an email via the CasperOPs transactional provider (Resend / SendGrid).",
       "tier": "paid",
       "x402_required": true,
       "price_motes": 20000000,
@@ -260,7 +260,7 @@
         "type": "object",
         "properties": {
           "agent_id": { "type": "string" },
-          "metadata_uri": { "type": "string", "default": "ipfs://blockops/default.json" }
+          "metadata_uri": { "type": "string", "default": "ipfs://casperops/default.json" }
         },
         "required": ["agent_id"]
       }

@@ -1,5 +1,5 @@
 /**
- * Sentry integration for the BlockOps frontend (Next.js).
+ * Sentry integration for the CasperOPs frontend (Next.js).
  *
  * Mirrors `backend/utils/sentry.js`: initializes Sentry only when
  * `NEXT_PUBLIC_SENTRY_DSN` is set so dev environments don't accidentally

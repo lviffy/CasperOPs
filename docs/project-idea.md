@@ -1,4 +1,4 @@
-# BlockOPs
+# CasperOPs
 
 ### No-Code Platform for Trustworthy Agentic DeFi & RWA on Casper
 
@@ -9,9 +9,9 @@
 
 ## 🎯 Overview
 
-**BlockOPs** is a no-code and low-code platform that enables anyone—developers, businesses, and non-technical users—to build, deploy, and manage autonomous AI agents for DeFi and Real-World Asset (RWA) workflows on the Casper Network.
+**CasperOPs** is a no-code and low-code platform that enables anyone—developers, businesses, and non-technical users—to build, deploy, and manage autonomous AI agents for DeFi and Real-World Asset (RWA) workflows on the Casper Network.
 
-By combining visual workflow creation, autonomous agent orchestration, reputation systems, escrow-based trust mechanisms, and Casper’s AI toolkit, BlockOPs makes advanced on-chain automation accessible to everyone.
+By combining visual workflow creation, autonomous agent orchestration, reputation systems, escrow-based trust mechanisms, and Casper’s AI toolkit, CasperOPs makes advanced on-chain automation accessible to everyone.
 
 ### Tagline
 
@@ -29,7 +29,7 @@ Building trustworthy autonomous agents for DeFi and RWA applications remains dif
 - Fragmented tooling for AI and blockchain integration
 - High risk in autonomous financial operations
 
-BlockOPs solves these challenges through a visual agent-building platform backed by Casper’s infrastructure and trust layers.
+CasperOPs solves these challenges through a visual agent-building platform backed by Casper’s infrastructure and trust layers.
 
 ---
 
@@ -53,7 +53,7 @@ Users can describe agents using prompts such as:
 
 > "Create an agent that optimizes my liquid-staked assets with low risk."
 
-BlockOPs automatically generates the workflow and required components.
+CasperOPs automatically generates the workflow and required components.
 
 ---
 
@@ -115,7 +115,7 @@ Used for:
 
 ### 💰 DeFi & RWA Automation
 
-BlockOPs is specifically optimized for financial automation use cases.
+CasperOPs is specifically optimized for financial automation use cases.
 
 #### DeFi
 

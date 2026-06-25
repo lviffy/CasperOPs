@@ -1,5 +1,5 @@
 """
-BlockOps MCP server — HTTP / Server-Sent Events transport.
+CasperOPs MCP server — HTTP / Server-Sent Events transport.
 
 Run with:
     uvicorn mcp_server_sse:app --host 0.0.0.0 --port 8080
@@ -22,7 +22,7 @@ Environment variables:
     CASPER_RPC_URL          default https://rpc.testnet.casper.live/rpc
     CSPR_CLOUD_API_URL      default https://api.testnet.cspr.cloud
     CSPR_CLOUD_API_KEY      optional
-    BLOCKOPS_BACKEND_URL    default http://localhost:3000
+    CASPEROPS_BACKEND_URL    default http://localhost:3000
                             where /v1/tools/:toolId lives
     REDIS_URL               optional, enables session state
     POSTGRES_DSN            optional, enables tool-call history
@@ -65,7 +65,7 @@ async def _lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="BlockOps MCP Server (HTTP/SSE)", version="1.0.0",
+app = FastAPI(title="CasperOPs MCP Server (HTTP/SSE)", version="1.0.0",
               lifespan=_lifespan)
 
 
@@ -94,7 +94,7 @@ async def _handle_rpc(msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if method == "initialize":
         return _make_response(req_id, {
             "serverInfo": {
-                "name": "blockops-mcp-http",
+                "name": "casperops-mcp-http",
                 "version": "1.0.0",
                 "transport": "http+sse",
                 "tool_count": len(dispatcher.list_tool_names()),
@@ -166,7 +166,7 @@ async def metrics(
 @app.get("/")
 async def root() -> Dict[str, Any]:
     return {
-        "name": "blockops-mcp",
+        "name": "casperops-mcp",
         "version": "1.0.0",
         "transport": "http+sse",
         "tool_count": len(dispatcher.list_tool_names()),

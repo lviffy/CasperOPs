@@ -1,4 +1,4 @@
-# BlockOps local development stack.
+# CasperOPs local development stack.
 #
 # One command brings up Postgres + Redis + backend + frontend + MCP server
 # with health checks, named volumes for DB data, and a shared bridge network.
@@ -13,20 +13,20 @@
 # The MCP `__tests__` smoke suite can be run against the running stack:
 #   docker compose exec mcp python -m unittest __tests__.test_smoke
 
-name: blockops
+name: casperops
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: blockops-postgres
+    container_name: casperops-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-blockops}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blockops}
-      POSTGRES_DB: ${POSTGRES_DB:-blockops}
+      POSTGRES_USER: ${POSTGRES_USER:-casperops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-casperops}
+      POSTGRES_DB: ${POSTGRES_DB:-casperops}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-blockops} -d ${POSTGRES_DB:-blockops}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-casperops} -d ${POSTGRES_DB:-casperops}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,7 +35,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: blockops-redis
+    container_name: casperops-redis
     command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
     volumes:
       - redis-data:/data
@@ -51,7 +51,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: blockops-backend
+    container_name: casperops-backend
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -106,7 +106,7 @@ services:
         NEXT_PUBLIC_ESCROW_HASH: ${NEXT_PUBLIC_ESCROW_HASH:-}
         NEXT_PUBLIC_COMPLIANCE_HASH: ${NEXT_PUBLIC_COMPLIANCE_HASH:-}
         NEXT_PUBLIC_AGENT_BACKEND_URL: ${NEXT_PUBLIC_AGENT_BACKEND_URL:-http://localhost:8000}
-    container_name: blockops-frontend
+    container_name: casperops-frontend
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -128,16 +128,16 @@ services:
     build:
       context: ./n8n_agent_backend
       dockerfile: Dockerfile
-    container_name: blockops-mcp
+    container_name: casperops-mcp
     environment:
       GROQ_API_KEY1: ${GROQ_API_KEY1:-}
       GROQ_API_KEY2: ${GROQ_API_KEY2:-}
       GROQ_API_KEY3: ${GROQ_API_KEY3:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       BACKEND_URL: http://backend:3000
-      BLOCKOPS_BACKEND_URL: http://backend:3000
+      CASPEROPS_BACKEND_URL: http://backend:3000
       REDIS_URL: redis://redis:6379
-      POSTGRES_DSN: postgres://${POSTGRES_USER:-blockops}:${POSTGRES_PASSWORD:-blockops}@postgres:5432/${POSTGRES_DB:-blockops}
+      POSTGRES_DSN: postgres://${POSTGRES_USER:-casperops}:${POSTGRES_PASSWORD:-casperops}@postgres:5432/${POSTGRES_DB:-casperops}
       CASPER_RPC_URL: ${CASPER_RPC_URL:-https://rpc.testnet.casper.live/rpc}
       CSPR_CLOUD_API_URL: ${CSPR_CLOUD_API_URL:-https://api.testnet.cspr.cloud}
       CSPR_CLOUD_API_KEY: ${CSPR_CLOUD_API_KEY:-}

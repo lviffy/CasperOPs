@@ -1,12 +1,12 @@
-# BlockOps - Frontend
+# CasperOPs - Frontend
 
-This is the frontend application for BlockOps, built with [Next.js](https://nextjs.org).
+This is the frontend application for CasperOPs, built with [Next.js](https://nextjs.org).
 
 ## Features
 
 - 🎨 **Visual Drag & Drop Workflow Builder** - Create blockchain automation workflows with an intuitive visual interface
 - 🤖 **AI-Powered Agent Generation** - Generate agents using AI based on your requirements
-- 🔗 **Blockchain Integration** - Interact with BlockOps testnet smart contracts
+- 🔗 **Blockchain Integration** - Interact with CasperOPs testnet smart contracts
 - 🛠️ **10+ Blockchain Tools** - Token transfers, swaps, NFT/Token deployment, DAO creation, airdrops, and more
 - 💼 **Wallet Management** - Create agent wallets or import existing ones
 - 📊 **Real-time Updates** - See your workflows execute in real-time

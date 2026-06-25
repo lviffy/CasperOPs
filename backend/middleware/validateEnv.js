@@ -145,7 +145,7 @@ function validateEnv({ exitOnError = true, logger = console, strict = null } = {
   }
 
   const banner = '='.repeat(72);
-  logger.error?.(`\n${banner}\n  BlockOps backend boot aborted — invalid environment\n${banner}`);
+  logger.error?.(`\n${banner}\n  CasperOPs backend boot aborted — invalid environment\n${banner}`);
   logger.error?.(`\nIssues:\n${formatIssues(parsed.error)}\n`);
   logger.error?.(
     `Fix the variables above in your .env / hosting secret store, then retry.\n${banner}\n`,

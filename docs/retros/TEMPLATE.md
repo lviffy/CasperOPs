@@ -96,6 +96,6 @@ Things we don't have an answer to yet. Bring these to the retro.
 
 ### Links
 
-- Sentry: https://sentry.io/organizations/blockops/
-- Grafana: https://grafana.blockops.example/d/blockops-slo
-- Status page: https://status.blockops.example
+- Sentry: https://sentry.io/organizations/casperops/
+- Grafana: https://grafana.casperops.example/d/casperops-slo
+- Status page: https://status.casperops.example

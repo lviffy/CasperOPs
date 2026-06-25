@@ -1,10 +1,10 @@
 -- =============================================================================
 -- 20260622_casper_schema.sql
--- BlockOps Casper-native database migration.
+-- CasperOPs Casper-native database migration.
 --
 -- Drops the legacy EVM/Lit columns, adds CSPR.click columns, and creates the
 -- new deploy-history / tool-execution / reputation-event tables that the
--- Casper-only BlockOps stack needs.
+-- Casper-only CasperOPs stack needs.
 --
 -- This migration is IDEMPOTENT — every ALTER / CREATE uses IF [NOT] EXISTS so
 -- it's safe to re-run on partially-migrated databases.
@@ -110,7 +110,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_reputation_events_tx_hash ON reputation_ev
 CREATE INDEX IF NOT EXISTS idx_reputation_events_agent_id ON reputation_events (agent_id, created_at DESC);
 
 -- =============================================================================
--- RLS policies (mirrors BlockOps app's existing setup; tighten as needed).
+-- RLS policies (mirrors CasperOPs app's existing setup; tighten as needed).
 -- =============================================================================
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE deploy_history ENABLE ROW LEVEL SECURITY;
