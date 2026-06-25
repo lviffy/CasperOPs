@@ -133,7 +133,7 @@ Return ONLY valid JSON matching this exact structure:
 async def create_workflow(request: WorkflowRequest):
     """
     Convert natural language workflow description to structured JSON
-    Primary: Groq (moonshotai/kimi-k2-instruct-0905)
+    Primary: Groq (llama-3.3-70b-versatile)
     Fallback: Google Gemini
     """
     try:
@@ -151,7 +151,7 @@ async def create_workflow(request: WorkflowRequest):
                     logger.info(f"Attempting Groq API key {client_idx}/{len(groq_clients)}...")
                     
                     groq_response = groq_client.chat.completions.create(
-                        model="moonshotai/kimi-k2-instruct-0905",
+                        model="llama-3.3-70b-versatile",
                         messages=[
                             {"role": "system", "content": SYSTEM_PROMPT},
                             {"role": "user", "content": f"User Query: {request.prompt}\n\nGenerate the workflow JSON:"}
@@ -162,7 +162,7 @@ async def create_workflow(request: WorkflowRequest):
                     )
                     
                     raw_content = groq_response.choices[0].message.content
-                    provider_used = f"Groq key {client_idx} (moonshotai/kimi-k2-instruct-0905)"
+                    provider_used = f"Groq key {client_idx} (llama-3.3-70b-versatile)"
                     logger.info(f"✓ Groq key {client_idx} response received successfully")
                     break  # Success, exit loop
                     

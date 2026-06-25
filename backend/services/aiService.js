@@ -33,7 +33,7 @@ const genAI = process.env.GEMINI_API_KEY
  * @param {Object} options - Additional options
  * @returns {Promise<string>} AI response
  */
-async function chatWithAI(messages, model = 'moonshotai/kimi-k2-instruct-0905', options = {}) {
+async function chatWithAI(messages, model = 'llama-3.3-70b-versatile', options = {}) {
   // Try all Groq keys in sequence
   if (groqClients.length > 0) {
     let lastError = null;

@@ -19,7 +19,7 @@ def process_agent_conversation(
 ) -> Dict[str, Any]:
     """
     Process the conversation with the AI agent
-    Primary: Groq (moonshotai/kimi-k2-instruct-0905) with tool use
+    Primary: Groq (llama-3.3-70b-versatile) with tool use
     Fallback: Google Gemini
     """
     
@@ -133,7 +133,7 @@ def process_agent_conversation(
                             "tool_calls": all_tool_calls,
                             "results": all_tool_results,
                             "conversation_history": [],
-                            "provider": f"Groq key {client_idx} (moonshotai/kimi-k2-instruct-0905)"
+                            "provider": f"Groq key {client_idx} (llama-3.3-70b-versatile)"
                         }
                 
                 # Max iterations reached with this Groq client
@@ -143,8 +143,7 @@ def process_agent_conversation(
                     "tool_calls": all_tool_calls,
                     "results": all_tool_results,
                     "conversation_history": [],
-                    "provider": f"Groq key {client_idx} (moonshotai/kimi-k2-instruct-0905)"
-                }
+                    "provider": f"Groq key {client_idx} (llama-3.3-70b-versatile)"
                 
             except Exception as groq_error:
                 error_msg = str(groq_error)

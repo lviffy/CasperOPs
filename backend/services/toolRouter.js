@@ -316,7 +316,7 @@ async function intelligentToolRouting(userMessage, conversationHistory = [], rou
       { role: 'system', content: 'You are a JSON-only tool routing expert. Always respond with valid JSON.' },
       { role: 'user', content: prompt },
     ];
-    const response = await chatWithAI(messages, 'moonshotai/kimi-k2-instruct-0905', {
+    const response = await chatWithAI(messages, 'llama-3.3-70b-versatile', {
       temperature: 0.2,
       maxTokens: 2000,
     });

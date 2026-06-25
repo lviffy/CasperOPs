@@ -148,7 +148,7 @@ Response:
                     print(f"Attempting workflow generation with Groq key {client_idx}/{len(groq_clients)}")
                     
                     completion = groq_client.chat.completions.create(
-                        model="moonshotai/kimi-k2-instruct-0905",
+                        model="llama-3.3-70b-versatile",
                         messages=[
                             {"role": "system", "content": workflow_system_prompt},
                             {"role": "user", "content": request.prompt}
@@ -278,7 +278,7 @@ async def health_check():
         "service": "AI Agent Builder",
         "blockchain": "Casper Testnet",
         "ai_providers": {
-            "primary": "Groq (moonshotai/kimi-k2-instruct-0905)" if groq_clients else "Not configured",
+            "primary": "Groq (llama-3.3-70b-versatile)" if groq_clients else "Not configured",
             "fallback": "Google Gemini 3.1 Flash Lite" if GEMINI_API_KEY else "Not configured"
         },
         "backend_url": BACKEND_URL
