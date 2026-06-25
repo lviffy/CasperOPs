@@ -584,7 +584,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
         </>
       )}
 
-      <AgentWalletModal open={showWalletModal} onOpenChange={setShowWalletModal} />
+      <AgentWalletModal open={showWalletModal} onOpenChange={setShowWalletModal} hideButton />
 
       <AIChatModal
         open={isAIChatOpen}

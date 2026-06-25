@@ -144,7 +144,7 @@ def process_agent_conversation(
                     "results": all_tool_results,
                     "conversation_history": [],
                     "provider": f"Groq key {client_idx} (llama-3.3-70b-versatile)"
-                
+                }
             except Exception as groq_error:
                 error_msg = str(groq_error)
                 

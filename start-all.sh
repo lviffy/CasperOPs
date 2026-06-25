@@ -103,7 +103,7 @@ echo "🐳 Starting AI_workflow_backend..."
 (
   cd "$AI_WORKFLOW_DIR"
   compose_cmd down
-  compose_cmd up -d
+  compose_cmd up -d --build
 )
 echo "✅ AI_workflow_backend started"
 
@@ -111,7 +111,7 @@ echo "🐳 Starting n8n_agent_backend..."
 (
   cd "$N8N_AGENT_DIR"
   compose_cmd down
-  compose_cmd up -d
+  compose_cmd up -d --build
 )
 echo "✅ n8n_agent_backend started"
 

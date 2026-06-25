@@ -51,7 +51,9 @@ const CRYPTO_MAPPINGS = {
   'arb': 'arbitrum',
   'arbitrum': 'arbitrum',
   'op': 'optimism',
-  'optimism': 'optimism'
+  'optimism': 'optimism',
+  'cspr': 'casper-network',
+  'casper': 'casper-network'
 };
 
 /**
@@ -190,16 +192,17 @@ const getTokenPrice = async (req, res) => {
 
     // Format response
     const prices = [];
+    const vsLower = vsCurrency.toLowerCase();
     for (const coinId of coinIds) {
       if (priceData[coinId]) {
         const data = priceData[coinId];
         prices.push({
           coin: coinId,
-          price: data[vsCurrency],
+          price: data[vsLower],
           currency: vsCurrency.toUpperCase(),
-          change_24h: data[`${vsCurrency}_24h_change`] || null,
-          market_cap: data[`${vsCurrency}_market_cap`] || null,
-          volume_24h: data[`${vsCurrency}_24h_vol`] || null
+          change_24h: data[`${vsLower}_24h_change`] !== undefined ? data[`${vsLower}_24h_change`] : null,
+          market_cap: data[`${vsLower}_market_cap`] !== undefined ? data[`${vsLower}_market_cap`] : null,
+          volume_24h: data[`${vsLower}_24h_vol`] !== undefined ? data[`${vsLower}_24h_vol`] : null
         });
       }
     }

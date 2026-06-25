@@ -61,6 +61,97 @@ async def chat_with_agent(request: AgentRequest):
         print(f"ERROR in /agent/chat: {error_detail}")
         raise HTTPException(status_code=500, detail=str(e))
 
+def generate_fallback_workflow_n8n(prompt: str) -> dict:
+    prompt_lower = prompt.lower()
+    tools = []
+    
+    # Check for deploy_cep18
+    if any(k in prompt_lower for k in ["deploy cep18", "deploy cep-18", "deploy token", "create token", "issue token"]):
+        tools.append({
+            "type": "deploy_cep18",
+            "name": "Deploy CEP-18 Token",
+            "next_tools": []
+        })
+    # Check for deploy_cep78
+    elif any(k in prompt_lower for k in ["deploy cep78", "deploy cep-78", "deploy nft", "create nft collection", "nft collection"]):
+        tools.append({
+            "type": "deploy_cep78",
+            "name": "Deploy CEP-78 NFT Collection",
+            "next_tools": []
+        })
+    # Check for mint_nft
+    elif any(k in prompt_lower for k in ["mint nft", "mint first nft", "mint"]):
+        tools.append({
+            "type": "mint_nft",
+            "name": "Mint NFT",
+            "next_tools": []
+        })
+    # Check for get_balance
+    elif any(k in prompt_lower for k in ["balance", "check balance", "get balance", "view balance"]):
+        tools.append({
+            "type": "get_balance",
+            "name": "Check CSPR Balance",
+            "next_tools": []
+        })
+    # Check for fetch_price
+    elif any(k in prompt_lower for k in ["price", "fetch price", "get price", "token price", "cost"]):
+        tools.append({
+            "type": "fetch_price",
+            "name": "Fetch Price",
+            "next_tools": []
+        })
+    # Check for send_email
+    elif any(k in prompt_lower for k in ["email", "send email", "notify email", "mail"]):
+        tools.append({
+            "type": "send_email",
+            "name": "Send Email",
+            "next_tools": []
+        })
+    # Check for transfer
+    elif any(k in prompt_lower for k in ["transfer", "send cspr", "send token", "pay"]):
+        tools.append({
+            "type": "transfer",
+            "name": "Transfer CSPR",
+            "next_tools": []
+        })
+    # Check for register_agent
+    elif any(k in prompt_lower for k in ["register agent", "register new agent", "agent factory"]):
+        tools.append({
+            "type": "register_agent",
+            "name": "Register Agent",
+            "next_tools": []
+        })
+    # Check for attest_agent
+    elif any(k in prompt_lower for k in ["attest agent", "attest", "attestation"]):
+        tools.append({
+            "type": "attest_agent",
+            "name": "Attest Agent",
+            "next_tools": []
+        })
+    
+    # If no specific keyword matched, default to check balance then transfer
+    if not tools:
+        tools = [
+            {
+                "type": "get_balance",
+                "name": "Check CSPR Balance",
+                "next_tools": ["transfer"]
+            },
+            {
+                "type": "transfer",
+                "name": "Transfer CSPR",
+                "next_tools": []
+            }
+        ]
+    
+    has_seq = any(len(t.get("next_tools", [])) > 0 for t in tools)
+    
+    return {
+        "tools": tools,
+        "description": f"Fallback workflow generated for: {prompt[:50]}...",
+        "has_sequential_execution": has_seq
+    }
+
 @app.post("/create-workflow", response_model=WorkflowResponse)
 async def create_workflow(request: WorkflowRequest):
     """
@@ -258,9 +349,26 @@ Response:
                 )
                 
             except Exception as gemini_error:
-                raise HTTPException(status_code=500, detail=f"Gemini workflow generation failed: {str(gemini_error)}")
+                print(f"Gemini workflow generation failed: {str(gemini_error)}")
         
-        raise HTTPException(status_code=500, detail="No AI providers available")
+        # If we reach here, no AI provider was successful. Use local fallback builder.
+        print("All AI providers failed or not configured. Using local fallback workflow builder.")
+        fallback_data = generate_fallback_workflow_n8n(request.prompt)
+        tools = []
+        for idx, tool in enumerate(fallback_data.get("tools", [])):
+            tools.append(AITool(
+                id=f"tool_{idx + 1}",
+                type=tool.get("type", ""),
+                name=tool.get("name", ""),
+                next_tools=tool.get("next_tools", [])
+            ))
+        return WorkflowResponse(
+            agent_id=f"workflow_{int(os.urandom(4).hex(), 16)}",
+            tools=tools,
+            has_sequential_execution=fallback_data.get("has_sequential_execution", False),
+            description=fallback_data.get("description", "Generated workflow"),
+            raw_response=json.dumps(fallback_data)
+        )
         
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse AI response as JSON: {str(e)}")

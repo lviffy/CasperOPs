@@ -38,16 +38,16 @@ def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
                 resolved_expression = ' '.join(expression.split())
                 
                 # Build alias map: common variable name variants → canonical provided name
-                # This fixes the AI using e.g. "arb_price" in expression but providing "arbitrum_price"
+                # This fixes the AI using e.g. "cspr_price" in expression but providing "casper_price"
                 alias_map = {}
                 for var_name in list(variables.keys()):
                     val = variables[var_name]
                     vn = var_name.lower()
                     # Price aliases
                     if 'price' in vn:
-                        # eth_price → also register as ethereum_price and vice versa
-                        if 'eth' in vn:
-                            for alias in ['eth_price', 'ethereum_price', 'eth_price_usd', 'price_eth']:
+                        # cspr_price → also register as casper_price and vice versa
+                        if 'cspr' in vn or 'casper' in vn:
+                            for alias in ['cspr_price', 'casper_price', 'cspr_price_usd', 'price_cspr']:
                                 alias_map[alias] = val
                         elif 'btc' in vn or 'bitcoin' in vn:
                             for alias in ['btc_price', 'bitcoin_price', 'btc_price_usd', 'price_btc']:
@@ -55,17 +55,14 @@ def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
                         elif 'sol' in vn or 'solana' in vn:
                             for alias in ['sol_price', 'solana_price', 'sol_price_usd', 'price_sol']:
                                 alias_map[alias] = val
-                        elif 'arb' in vn or 'arbitrum' in vn:
-                            for alias in ['arb_price', 'arbitrum_price', 'arb_price_usd', 'token_price', 'token_price_usd', 'price_arb']:
-                                alias_map[alias] = val
                         elif 'token' in vn:
                             # token_price → also register short coin names
-                            for alias in ['token_price', 'token_price_usd', 'arb_price', 'sol_price', 'btc_price', 'target_price']:
+                            for alias in ['token_price', 'token_price_usd', 'cspr_price', 'sol_price', 'btc_price', 'target_price']:
                                 if alias not in variables:  # don't override explicit vars
                                     alias_map[alias] = val
                     # Balance aliases
                     if 'balance' in vn:
-                        for alias in ['eth_balance', 'balance', 'wallet_balance', 'my_balance']:
+                        for alias in ['cspr_balance', 'balance', 'wallet_balance', 'my_balance']:
                             alias_map[alias] = val
                 
                 # Merge aliases into variables (don't override explicitly provided vars)
@@ -73,31 +70,31 @@ def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
                 
                 # --- FALLBACK: extract balance/amounts from description & expression context ---
                 # The AI often writes the balance value in the description but forgets to put it in variables.
-                # e.g. description="Calculate how many ARB with 0.1 ETH" or user_message has "0.1 ETH"
-                # Scan for patterns like "0.1 ETH", "balance: 0.1", "X ETH balance"
+                # e.g. description="Calculate how many tokens with 1000 CSPR" or user_message has "1000 CSPR"
+                # Scan for patterns like "1000 CSPR", "balance: 1000", "X CSPR balance"
                 context_text = description
-                if 'eth_balance' not in merged_variables and 'balance' not in merged_variables:
+                if 'cspr_balance' not in merged_variables and 'balance' not in merged_variables:
                     balance_patterns = [
-                        r'ETH Balance:\s*([\d.]+)',                      # "ETH Balance: 0.1"
-                        r'Balance for 0x[a-fA-F0-9]+:\s*([\d.]+)',      # "Balance for 0x...: 0.1"
-                        r'balance[:\s]+([\d.]+)',                        # "balance: 0.1"
-                        r'with\s+([\d.]+)\s*(?:ETH|ether)',             # "with 0.1 ETH"
-                        r'has\s+([\d.]+)\s*(?:ETH|ether)',              # "has 0.1 ETH"
-                        r'\b(0\.\d+)\s*ETH\b',                          # "0.1 ETH" (< 1 ETH)
-                        r'(\d+\.?\d*)\s*ether',                         # "0.1 ether"
+                        r'CSPR Balance:\s*([\d.]+)',                      # "CSPR Balance: 1000"
+                        r'Balance for [a-zA-Z0-9_-]+:\s*([\d.]+)',        # "Balance for wallet: 1000"
+                        r'balance[:\s]+([\d.]+)',                        # "balance: 1000"
+                        r'with\s+([\d.]+)\s*(?:CSPR|casper)',             # "with 1000 CSPR"
+                        r'has\s+([\d.]+)\s*(?:CSPR|casper)',              # "has 1000 CSPR"
+                        r'\b(0\.\d+)\s*CSPR\b',                          # "0.1 CSPR" (< 1 CSPR)
+                        r'(\d+\.?\d*)\s*casper',                         # "1000 casper"
                     ]
                     for pattern in balance_patterns:
                         m = re.search(pattern, context_text, re.IGNORECASE)
                         if m:
                             try:
                                 extracted = float(m.group(1))
-                                # Values > 1000 are almost certainly prices, not balances
-                                if 0 < extracted < 1000:
-                                    merged_variables['eth_balance'] = extracted
+                                # CSPR balances can be large
+                                if 0 < extracted < 100000000:
+                                    merged_variables['cspr_balance'] = extracted
                                     merged_variables['balance'] = extracted
                                     merged_variables['wallet_balance'] = extracted
                                     merged_variables['my_balance'] = extracted
-                                    print(f"[Calculate] Auto-extracted balance {extracted} ETH from description")
+                                    print(f"[Calculate] Auto-extracted balance {extracted} CSPR from description")
                                     break
                             except (ValueError, TypeError):
                                 pass
@@ -184,8 +181,8 @@ def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     
     # Prepare headers - check if Bearer token is needed
     headers = {}
-    if "api.subgraph.arbitrum.network" in endpoint:
-        bearer_token = os.getenv("ARBITRUM_BEARER_TOKEN")
+    if "api.testnet.cspr.cloud" in endpoint:
+        bearer_token = os.getenv("CSPR_CLOUD_API_KEY")
         if bearer_token:
             headers["Authorization"] = f"Bearer {bearer_token}"
     

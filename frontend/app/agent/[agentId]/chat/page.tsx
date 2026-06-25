@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState, useRef, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { Send, Loader2, ChevronDown, ChevronUp, Wrench, ArrowLeft, ArrowRight, CircleDot, Copy, Check, Database, RefreshCw, Link2, Clock3, BellRing, X, Star, ShieldCheck } from "lucide-react"
+import { Send, Loader2, ChevronDown, ChevronUp, Wrench, ArrowLeft, ArrowRight, CircleDot, Copy, Check, Database, RefreshCw, Link2, Clock3, BellRing, X, Star, ShieldCheck, Bot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -1329,7 +1329,7 @@ export default function AgentChatPage() {
   const router = useRouter()
   const params = useParams()
   const agentId = params.agentId as string
-  const { logout, dbUser, csprclickPublicKey, user } = useAuth()
+  const { logout, dbUser, csprclickPublicKey, user, authenticated, login } = useAuth()
   const signerPublicKey = csprclickPublicKey ?? user?.publicKey ?? null
 
   const [agent, setAgent] = useState<Agent | null>(null)
@@ -1375,6 +1375,23 @@ export default function AgentChatPage() {
     }
     return deployHash
   }
+
+  useEffect(() => {
+    const generateUUID = () => {
+      if (typeof window !== "undefined" && window.crypto && window.crypto.randomUUID) {
+        return window.crypto.randomUUID()
+      }
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0
+        const v = c === "x" ? r : (r & 0x3) | 0x8
+        return v.toString(16)
+      })
+    }
+
+    if (!conversationId) {
+      setConversationId(generateUUID())
+    }
+  }, [conversationId])
 
   useEffect(() => {
     setSelectedChain(getStoredChain())
@@ -1730,12 +1747,29 @@ export default function AgentChatPage() {
                 <Database className="h-3.5 w-3.5" />
                 Audit Logs
               </Button>
-              <UserProfile
-                onLogout={() => {
-                  logout()
-                  router.push("/")
-                }}
-              />
+              {authenticated ? (
+                <UserProfile
+                  onLogout={() => {
+                    logout()
+                    router.push("/")
+                  }}
+                />
+              ) : (
+                <Button
+                  onClick={async () => {
+                    try {
+                      await login()
+                    } catch (e) {
+                      console.error("Login failed:", e)
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-3 text-[11px] font-medium"
+                >
+                  Connect Wallet
+                </Button>
+              )}
             </div>
           </div>
         </header>
@@ -1743,7 +1777,7 @@ export default function AgentChatPage() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-2xl px-4 py-6">
-            {messages.length === 0 && (
+            {messages.length === 0 && authenticated && (
               <div className="flex min-h-[65vh] items-center justify-center">
                 <div className="text-center space-y-2">
                   <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-border">
@@ -1751,6 +1785,34 @@ export default function AgentChatPage() {
                   </div>
                   <p className="text-xs text-muted-foreground">Send a message to begin.</p>
                   <p className="text-[11px] text-muted-foreground">Default execution chain: {selectedChainConfig.name}</p>
+                </div>
+              </div>
+            )}
+
+            {!authenticated && (
+              <div className="flex min-h-[65vh] items-center justify-center">
+                <div className="text-center space-y-4 max-w-sm p-6 rounded-2xl border border-border bg-muted/30">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Bot className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-sm">Connect your wallet</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      You need to connect a Casper wallet to chat with this agent and run automated blockchain operations.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        await login()
+                      } catch (e) {
+                        console.error("Login failed:", e)
+                      }
+                    }}
+                    className="w-full text-xs h-9 bg-foreground text-background hover:bg-foreground/90 font-medium"
+                  >
+                    Connect Casper Wallet
+                  </Button>
                 </div>
               </div>
             )}
@@ -1839,6 +1901,9 @@ export default function AgentChatPage() {
             </Tooltip>
           </div>
         </footer>
+
+        {/* Live Reasoning Terminal at the bottom */}
+        <ReasoningTerminal conversationId={conversationId ?? null} />
       </div>
 
       <AuditLogsSheet
@@ -1856,8 +1921,6 @@ export default function AgentChatPage() {
         userId={dbUser?.id}
         conversationId={conversationId}
       />
-
-      <ReasoningTerminal conversationId={conversationId ?? null} />
     </TooltipProvider>
   )
 }

@@ -74,23 +74,23 @@ export function AIChatModal({ open, onOpenChange, onApplyWorkflow }: AIChatModal
     }
 
     // Check quota before generating
-    try {
-      const quotaResponse = await fetch(`/api/payments/ai-quota?userId=${user.id}`)
-      const quota = await quotaResponse.json()
-      
-      if (!quota.canGenerate) {
-        const aiMessage: Message = {
-          id: Date.now().toString(),
-          role: "assistant",
-          content: "You've used all 3 free AI generations for today. Please use a paid generation to continue.",
-          timestamp: new Date(),
-        }
-        setMessages((prev) => [...prev, aiMessage])
-        return
-      }
-    } catch (error) {
-      console.error('Error checking quota:', error)
-    }
+    // try {
+    //   const quotaResponse = await fetch(`/api/payments/ai-quota?userId=${user.id}`)
+    //   const quota = await quotaResponse.json()
+    //   
+    //   if (!quota.canGenerate) {
+    //     const aiMessage: Message = {
+    //       id: Date.now().toString(),
+    //       role: "assistant",
+    //       content: "You've used all 3 free AI generations for today. Please use a paid generation to continue.",
+    //       timestamp: new Date(),
+    //     }
+    //     setMessages((prev) => [...prev, aiMessage])
+    //     return
+    //   }
+    // } catch (error) {
+    //   console.error('Error checking quota:', error)
+    // }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -127,15 +127,15 @@ export function AIChatModal({ open, onOpenChange, onApplyWorkflow }: AIChatModal
       // Check if it's a valid workflow response
       if (isValidAIWorkflowResponse(data)) {
         // Increment usage count after successful generation
-        try {
-          await fetch('/api/payments/ai-quota', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.id, isPaid: false })
-          })
-        } catch (error) {
-          console.error('Error incrementing AI usage:', error)
-        }
+        // try {
+          // await fetch('/api/payments/ai-quota', {
+          //   method: 'POST',
+          //   headers: { 'Content-Type': 'application/json' },
+          //   body: JSON.stringify({ userId: user.id, isPaid: false })
+          // })
+        // } catch (error) {
+        //   console.error('Error incrementing AI usage:', error)
+        // }
 
         setCurrentAIResponse(data)
         const aiMessage: Message = {

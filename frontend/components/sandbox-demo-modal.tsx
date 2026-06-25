@@ -2,24 +2,26 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { 
-  Check, 
-  Loader2, 
-  Wallet, 
-  Building2, 
-  Sparkles, 
-  Coins, 
-  Bot, 
-  Vote, 
-  ExternalLink, 
+import {
+  Check,
+  Loader2,
+  Wallet,
+  Building2,
+  Sparkles,
+  Coins,
+  Bot,
+  Vote,
+  ExternalLink,
   ShieldCheck,
   X,
   Play,
   RotateCcw,
-  SquareTerminal
+  SquareTerminal,
+  ChevronRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 
 interface SandboxDemoModalProps {
   isOpen: boolean
@@ -44,104 +46,110 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
   const terminalEndRef = useRef<HTMLDivElement>(null)
 
-  const steps: Step[] = useMemo(() => [
-    {
-      id: 1,
-      title: "Connect Casper Wallet",
-      description: "Initialize secure CSPR.click connection & retrieve active public key.",
-      icon: <Wallet className="h-5 w-5 text-blue-400" />,
-      terminalLogs: [
-        "[SYSTEM] Launching Casper Wallet connection...",
-        "[CSPR.CLICK] Requesting active account address...",
-        "[CSPR.CLICK] Retrieved public key: 0166b7d9e17a3000...5a8e25f",
-        "[SYSTEM] Fetching balance for account...",
-        "[CHAIN] Balance: 15,248.50 CSPR",
-        "✓ Wallet connected successfully."
-      ],
-      txHash: "01c3fe67a9f806695064a8e25fbbf71239c00000000000000000000000000000",
-      explorerUrl: "https://testnet.cspr.live/deploy/01c3fe67a9f806695064a8e25fbbf71239c00000000000000000000000000000"
-    },
-    {
-      id: 2,
-      title: "RWA Asset Valuation",
-      description: "Appraise real estate collateral & generate proof of value.",
-      icon: <Building2 className="h-5 w-5 text-indigo-400" />,
-      terminalLogs: [
-        "[AI AGENT] Fetching valuation model for Real Estate Asset: RE-402...",
-        "[COMPLIANCE] Verified zoning, deed, and ownership records.",
-        "[ORACLE] Fetching latest market feed: $1,250,000 USD.",
-        "[SYSTEM] Generating cryptographic appraisal report hash...",
-        "[HASH] sha256:7b5d92e85a539fe58032bda36e927efc90bc570f7e1b9b185f26588db692b152",
-        "✓ Asset valuation completed and certified."
-      ]
-    },
-    {
-      id: 3,
-      title: "Tokenise RWA (CEP-78 NFT)",
-      description: "Mint Casper-native CEP-78 NFT embedding asset appraisal.",
-      icon: <Sparkles className="h-5 w-5 text-purple-400" />,
-      terminalLogs: [
-        "[CHAIN] Preparing CEP-78 Mint deploy...",
-        "[PARAMS] TokenOwner: 0166b...5f, Meta: { appraisal: '$1.25M', hash: '7b5d92...' }",
-        "[WALLET] Prompting user signature...",
-        "[CHAIN] Broadcasting CEP-78 mint transaction...",
-        "[DEPLOY] Tx submitted! Hash: 0184a28be3f07a2139bc...",
-        "[CHAIN] Execution status: SUCCESS. Gas Cost: 15.00 CSPR.",
-        "✓ Token RE-402 minted as CEP-78 NFT."
-      ],
-      txHash: "0184a28be3f07a2139bc99c565d6c8b9db1a5e128dfef883907c12847dbe03e2",
-      explorerUrl: "https://testnet.cspr.live/deploy/0184a28be3f07a2139bc99c565d6c8b9db1a5e128dfef883907c12847dbe03e2"
-    },
-    {
-      id: 4,
-      title: "Transfer CSPR to Escrow",
-      description: "Deposit yield reserves to Odra Escrow Smart Contract.",
-      icon: <Coins className="h-5 w-5 text-pink-400" />,
-      terminalLogs: [
-        "[ESCROW] Querying contract hash: hash-0a12e58fb3e9...",
-        "[PARAMS] Amount: 5,000 CSPR, Target: Agent-Escrow-Pool",
-        "[WALLET] Prompting user signature...",
-        "[CHAIN] Broadcasting transfer deploy...",
-        "[DEPLOY] Tx submitted! Hash: 014a5bb869f21ab28120...",
-        "[CHAIN] Execution status: SUCCESS. Gas Cost: 2.50 CSPR.",
-        "✓ 5,000 CSPR deposited to smart escrow."
-      ],
-      txHash: "014a5bb869f21ab28120d2a89cb8e29a997ef31e4282c091bc7d8a9e61da0c58",
-      explorerUrl: "https://testnet.cspr.live/deploy/014a5bb869f21ab28120d2a89cb8e29a997ef31e4282c091bc7d8a9e61da0c58"
-    },
-    {
-      id: 5,
-      title: "Delegate & Register Agent",
-      description: "Register AI Agent with spending limits & action keys.",
-      icon: <Bot className="h-5 w-5 text-emerald-400" />,
-      terminalLogs: [
-        "[ESCROW] Invoking entry point: set_agent_limits",
-        "[PARAMS] Agent: 0122e...7d, Daily Limit: 500 CSPR, Expiry: 30 days",
-        "[WALLET] Prompting user signature...",
-        "[CHAIN] Broadcasting contract execution deploy...",
-        "[DEPLOY] Tx submitted! Hash: 01bf3b8ad7c50a113d9e...",
-        "[CHAIN] Execution status: SUCCESS. Gas Cost: 3.80 CSPR.",
-        "✓ AI Agent delegated successfully with strict spending limits."
-      ],
-      txHash: "01bf3b8ad7c50a113d9e847c22df8d1a117b3ebca12df38e91986427382d61fe",
-      explorerUrl: "https://testnet.cspr.live/deploy/01bf3b8ad7c50a113d9e847c22df8d1a117b3ebca12df38e91986427382d61fe"
-    },
-    {
-      id: 6,
-      title: "Simulation Complete",
-      description: "RWA Yield Fund is now live and managed by delegated AI agent.",
-      icon: <ShieldCheck className="h-5 w-5 text-yellow-400" />,
-      terminalLogs: [
-        "[SYSTEM] Sandbox Demo Simulation Finished!",
-        "[SUMMARY] RWA Collateral: Certified ($1.25M)",
-        "[SUMMARY] Tokenisation: Active CEP-78 NFT",
-        "[SUMMARY] Escrow Balance: 5,000 CSPR",
-        "[SUMMARY] Agent Status: Delegated & Monitoring Yield Opportunities",
-        "★ CasperOPs is ready to revolutionize Casper!",
-        "🗳️ VOTE FOR CASPEROPS ON CSPR.FANS NOW"
-      ]
-    }
-  ], [])
+  const steps: Step[] = useMemo(
+    () => [
+      {
+        id: 1,
+        title: "Connect Wallet",
+        description: "Initialize CSPR.click connection & retrieve active public key.",
+        icon: <Wallet className="h-4 w-4" />,
+        terminalLogs: [
+          "[SYSTEM] Launching Casper Wallet connection...",
+          "[CSPR.CLICK] Requesting active account address...",
+          "[CSPR.CLICK] Retrieved public key: 0166b7d9e17a3000...5a8e25f",
+          "[SYSTEM] Fetching balance for account...",
+          "[CHAIN] Balance: 15,248.50 CSPR",
+          "✓ Wallet connected successfully.",
+        ],
+        txHash: "01c3fe67a9f806695064a8e25fbbf71239c00000000000000000000000000000",
+        explorerUrl:
+          "https://testnet.cspr.live/deploy/01c3fe67a9f806695064a8e25fbbf71239c00000000000000000000000000000",
+      },
+      {
+        id: 2,
+        title: "RWA Valuation",
+        description: "Appraise real estate collateral & generate proof of value.",
+        icon: <Building2 className="h-4 w-4" />,
+        terminalLogs: [
+          "[AI AGENT] Fetching valuation model for Real Estate Asset: RE-402...",
+          "[COMPLIANCE] Verified zoning, deed, and ownership records.",
+          "[ORACLE] Fetching latest market feed: $1,250,000 USD.",
+          "[SYSTEM] Generating cryptographic appraisal report hash...",
+          "[HASH] sha256:7b5d92e85a539fe58032bda36e927efc90bc570f7e1b9b185f26588db692b152",
+          "✓ Asset valuation completed and certified.",
+        ],
+      },
+      {
+        id: 3,
+        title: "Tokenise RWA",
+        description: "Mint Casper-native CEP-78 NFT embedding asset appraisal.",
+        icon: <Sparkles className="h-4 w-4" />,
+        terminalLogs: [
+          "[CHAIN] Preparing CEP-78 Mint deploy...",
+          "[PARAMS] TokenOwner: 0166b...5f, Meta: { appraisal: '$1.25M', hash: '7b5d92...' }",
+          "[WALLET] Prompting user signature...",
+          "[CHAIN] Broadcasting CEP-78 mint transaction...",
+          "[DEPLOY] Tx submitted! Hash: 0184a28be3f07a2139bc...",
+          "[CHAIN] Execution status: SUCCESS. Gas Cost: 15.00 CSPR.",
+          "✓ Token RE-402 minted as CEP-78 NFT.",
+        ],
+        txHash: "0184a28be3f07a2139bc99c565d6c8b9db1a5e128dfef883907c12847dbe03e2",
+        explorerUrl:
+          "https://testnet.cspr.live/deploy/0184a28be3f07a2139bc99c565d6c8b9db1a5e128dfef883907c12847dbe03e2",
+      },
+      {
+        id: 4,
+        title: "Transfer to Escrow",
+        description: "Deposit yield reserves to Odra Escrow Smart Contract.",
+        icon: <Coins className="h-4 w-4" />,
+        terminalLogs: [
+          "[ESCROW] Querying contract hash: hash-0a12e58fb3e9...",
+          "[PARAMS] Amount: 5,000 CSPR, Target: Agent-Escrow-Pool",
+          "[WALLET] Prompting user signature...",
+          "[CHAIN] Broadcasting transfer deploy...",
+          "[DEPLOY] Tx submitted! Hash: 014a5bb869f21ab28120...",
+          "[CHAIN] Execution status: SUCCESS. Gas Cost: 2.50 CSPR.",
+          "✓ 5,000 CSPR deposited to smart escrow.",
+        ],
+        txHash: "014a5bb869f21ab28120d2a89cb8e29a997ef31e4282c091bc7d8a9e61da0c58",
+        explorerUrl:
+          "https://testnet.cspr.live/deploy/014a5bb869f21ab28120d2a89cb8e29a997ef31e4282c091bc7d8a9e61da0c58",
+      },
+      {
+        id: 5,
+        title: "Register Agent",
+        description: "Register AI Agent with spending limits & action keys.",
+        icon: <Bot className="h-4 w-4" />,
+        terminalLogs: [
+          "[ESCROW] Invoking entry point: set_agent_limits",
+          "[PARAMS] Agent: 0122e...7d, Daily Limit: 500 CSPR, Expiry: 30 days",
+          "[WALLET] Prompting user signature...",
+          "[CHAIN] Broadcasting contract execution deploy...",
+          "[DEPLOY] Tx submitted! Hash: 01bf3b8ad7c50a113d9e...",
+          "[CHAIN] Execution status: SUCCESS. Gas Cost: 3.80 CSPR.",
+          "✓ AI Agent delegated with strict spending limits.",
+        ],
+        txHash: "01bf3b8ad7c50a113d9e847c22df8d1a117b3ebca12df38e91986427382d61fe",
+        explorerUrl:
+          "https://testnet.cspr.live/deploy/01bf3b8ad7c50a113d9e847c22df8d1a117b3ebca12df38e91986427382d61fe",
+      },
+      {
+        id: 6,
+        title: "Complete",
+        description: "RWA Yield Fund is now live and managed by delegated AI agent.",
+        icon: <ShieldCheck className="h-4 w-4" />,
+        terminalLogs: [
+          "[SYSTEM] Sandbox Demo Simulation Finished!",
+          "[SUMMARY] RWA Collateral: Certified ($1.25M)",
+          "[SUMMARY] Tokenisation: Active CEP-78 NFT",
+          "[SUMMARY] Escrow Balance: 5,000 CSPR",
+          "[SUMMARY] Agent Status: Delegated & Monitoring Yield Opportunities",
+          "✓ CasperOPs is ready to automate your Casper workflow.",
+        ],
+      },
+    ],
+    []
+  )
 
   // Handle auto-advancing steps
   useEffect(() => {
@@ -157,16 +165,13 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
         return
       }
 
-      // Initialize logs for current step
       const stepData = steps[stepIdx]
       setLogs([])
       currentLogIndex = 0
 
-      // Show wallet prompt for steps with wallet signing (1, 3, 4, 5)
       const needsSign = [0, 2, 3, 4].includes(stepIdx)
       if (needsSign) {
         setShowSignPrompt(true)
-        // Wait 1.2s for signing, then start logs
         stepTimer = setTimeout(() => {
           setShowSignPrompt(false)
           startLogsStreaming(stepData, stepIdx)
@@ -179,17 +184,14 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
     const startLogsStreaming = (stepData: Step, stepIdx: number) => {
       const stream = () => {
         if (currentLogIndex < stepData.terminalLogs.length) {
-          setLogs(prev => [...prev, stepData.terminalLogs[currentLogIndex]])
+          setLogs((prev) => [...prev, stepData.terminalLogs[currentLogIndex]])
           currentLogIndex++
           logTimer = setTimeout(stream, 200)
         } else {
-          // Finish step
-          setCompletedSteps(prev => [...prev, stepIdx])
-          
-          // Auto advance if playing
+          setCompletedSteps((prev) => [...prev, stepIdx])
           if (isPlaying) {
             stepTimer = setTimeout(() => {
-              setCurrentStep(prev => {
+              setCurrentStep((prev) => {
                 const next = prev + 1
                 return next < steps.length ? next : prev
               })
@@ -208,7 +210,6 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
     }
   }, [isOpen, currentStep, isPlaying])
 
-  // Scroll to bottom of terminal
   useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [logs])
@@ -223,115 +224,85 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
     setShowSignPrompt(false)
   }
 
-  // Simple pure-CSS/JS Confetti Effect for the final step
-  const renderConfetti = () => {
-    if (currentStep !== 5) return null
-    return (
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
-        {[...Array(60)].map((_, i) => {
-          const size = Math.random() * 8 + 5
-          const color = ["#3b82f6", "#a855f7", "#ec4899", "#10b981", "#f59e0b"][i % 5]
-          const left = Math.random() * 100
-          const delay = Math.random() * 3
-          const duration = Math.random() * 2 + 2
-
-          return (
-            <motion.div
-              key={i}
-              className="absolute rounded-full"
-              style={{
-                width: size,
-                height: size,
-                backgroundColor: color,
-                left: `${left}%`,
-                top: `-10px`,
-              }}
-              animate={{
-                y: ["0vh", "80vh"],
-                x: [`${Math.random() * 20 - 10}px`, `${Math.random() * 40 - 20}px`],
-                rotate: [0, 360],
-                opacity: [1, 0]
-              }}
-              transition={{
-                duration: duration,
-                delay: delay,
-                repeat: Infinity,
-                ease: "easeOut"
-              }}
-            />
-          )
-        })}
-      </div>
-    )
-  }
+  const progress = ((currentStep + 1) / steps.length) * 100
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-        {renderConfetti()}
-        
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/20 backdrop-blur-sm"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ duration: 0.3 }}
-          className="w-full max-w-2xl bg-slate-900/90 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]"
+          exit={{ opacity: 0, scale: 0.97, y: 12 }}
+          transition={{ duration: 0.2 }}
+          className="w-full max-w-2xl bg-background border border-border rounded-lg shadow-lg overflow-hidden flex flex-col max-h-[90vh]"
         >
           {/* Header */}
-          <div className="p-6 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/30">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-gradient-to-tr from-blue-500 to-purple-500 rounded-lg text-white shadow-lg shadow-purple-500/20">
-                <Sparkles className="h-5 w-5 animate-pulse" />
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-muted/40">
+                <SquareTerminal className="h-4 w-4 text-foreground/70" />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-slate-100 flex items-center gap-2">
-                  Casper RWA Agent Sandbox
-                  <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-400 border-purple-500/20 py-0 animate-pulse">
-                    Live Demo
-                  </Badge>
+                <h3 className="text-sm font-semibold text-foreground leading-none">
+                  RWA Agent Sandbox
                 </h3>
-                <p className="text-xs text-slate-400">Experience seamless agent automation and AA features</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Interactive simulation of agent automation on Casper Testnet
+                </p>
               </div>
             </div>
-            <button 
-              onClick={onClose}
-              className="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-lg hover:bg-slate-800"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-[10px] font-medium">
+                Live Demo
+              </Badge>
+              <button
+                onClick={onClose}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
-          {/* Progress Indicator */}
-          <div className="w-full bg-slate-950 h-1.5 overflow-hidden">
-            <motion.div 
-              className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
-              animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+          {/* Progress bar */}
+          <div className="h-px w-full bg-border relative overflow-hidden">
+            <motion.div
+              className="absolute inset-y-0 left-0 bg-foreground"
+              animate={{ width: `${progress}%` }}
               transition={{ duration: 0.3 }}
             />
           </div>
 
-          {/* Body Content */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            
-            {/* Step Grid Status */}
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+
+            {/* Step indicators */}
             <div className="grid grid-cols-6 gap-2">
               {steps.map((s, idx) => {
                 const isActive = idx === currentStep
-                const isCompleted = completedSteps.includes(idx)
+                const isDone = completedSteps.includes(idx)
                 return (
-                  <div key={s.id} className="flex flex-col items-center gap-1.5 text-center">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                      isActive 
-                        ? "bg-purple-600 text-white ring-4 ring-purple-500/20 scale-110" 
-                        : isCompleted
-                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                          : "bg-slate-950 text-slate-500 border border-slate-800"
-                    }`}>
-                      {isCompleted ? <Check className="h-4 w-4" /> : <span className="text-xs font-semibold">{s.id}</span>}
+                  <div key={s.id} className="flex flex-col items-center gap-1">
+                    <div
+                      className={`h-7 w-7 rounded-full flex items-center justify-center border text-xs font-semibold transition-all ${
+                        isActive
+                          ? "border-foreground bg-foreground text-background"
+                          : isDone
+                          ? "border-border bg-muted/40 text-foreground"
+                          : "border-border bg-background text-muted-foreground"
+                      }`}
+                    >
+                      {isDone ? <Check className="h-3.5 w-3.5" /> : s.id}
                     </div>
-                    <span className={`text-[9px] font-medium max-w-full truncate hidden sm:block ${
-                      isActive ? "text-purple-400 font-semibold" : "text-slate-500"
-                    }`}>
+                    <span
+                      className={`text-[9px] font-medium hidden sm:block truncate max-w-full ${
+                        isActive ? "text-foreground" : "text-muted-foreground"
+                      }`}
+                    >
                       {s.title.split(" ")[0]}
                     </span>
                   </div>
@@ -339,90 +310,108 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
               })}
             </div>
 
-            {/* Active Step Panel */}
-            <div className="bg-slate-950/40 border border-slate-800/60 rounded-xl p-5 flex items-start gap-4 relative">
-              <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+            <Separator />
+
+            {/* Active step info */}
+            <div className="flex items-start gap-3 rounded-md border border-border bg-muted/20 p-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-foreground/60">
                 {steps[currentStep].icon}
               </div>
-              <div className="space-y-1 flex-1">
-                <h4 className="text-sm font-semibold text-slate-100">{steps[currentStep].title}</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">{steps[currentStep].description}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground">
+                  {steps[currentStep].title}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  {steps[currentStep].description}
+                </p>
                 {steps[currentStep].txHash && (
-                  <div className="pt-2 flex items-center gap-2 text-[10px] text-slate-500">
-                    <span className="font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800 truncate max-w-[200px] sm:max-w-xs">
-                      Deploy: {steps[currentStep].txHash}
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-muted-foreground bg-muted/40 border border-border rounded px-2 py-0.5 truncate max-w-[200px]">
+                      {steps[currentStep].txHash!.slice(0, 20)}…
                     </span>
-                    <a 
-                      href={steps[currentStep].explorerUrl} 
-                      target="_blank" 
+                    <a
+                      href={steps[currentStep].explorerUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
-                      className="text-purple-400 hover:text-purple-300 flex items-center gap-0.5 hover:underline"
+                      className="inline-flex items-center gap-0.5 text-[10px] text-foreground hover:underline"
                     >
-                      Explorer <ExternalLink className="h-3 w-3" />
+                      CSPR.live <ExternalLink className="h-2.5 w-2.5" />
                     </a>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Simulated Wallet Signing Dialog Overlay inside modal */}
+            {/* Wallet sign prompt */}
             <AnimatePresence>
               {showSignPrompt && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className="bg-slate-950 border-2 border-purple-500/40 rounded-xl p-5 shadow-xl relative overflow-hidden"
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  transition={{ duration: 0.2 }}
+                  className="rounded-md border border-border bg-muted/20 p-3"
                 >
-                  <div className="absolute top-0 right-0 p-1.5 bg-purple-500/10 border-b border-l border-purple-500/20 text-[9px] font-mono text-purple-400 rounded-bl">
-                    CSPR.click Prompt
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 animate-pulse border border-purple-500/30">
-                      <Wallet className="h-5 w-5" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-muted/40 text-foreground/60">
+                        <Wallet className="h-3.5 w-3.5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">
+                          Signature Request
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Sign deploy for: {steps[currentStep].title}
+                        </p>
+                      </div>
                     </div>
-                    <div className="space-y-0.5">
-                      <h4 className="text-xs font-semibold text-slate-100">Signature Request</h4>
-                      <p className="text-[11px] text-slate-400">Sign deploy for: {steps[currentStep].title}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between text-[10px]">
-                    <span className="text-slate-500">Auto-signing in 1.2s...</span>
-                    <div className="flex gap-2">
-                      <Button size="sm" className="h-7 px-3 text-xs bg-purple-600 hover:bg-purple-500 text-white border-0">
-                        Sign Now
-                      </Button>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Auto-signing…
                     </div>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Live Terminal */}
-            <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 font-mono text-xs flex flex-col h-44 shadow-inner">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-850 mb-2">
-                <span className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <SquareTerminal className="h-3.5 w-3.5 text-slate-400" />
+            {/* Terminal */}
+            <div className="rounded-md border border-border overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <SquareTerminal className="h-3 w-3" />
                   Execution Logs
                 </span>
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                <span className="h-1.5 w-1.5 rounded-full bg-foreground/50 animate-pulse" />
               </div>
-              <div className="flex-1 overflow-y-auto space-y-1 text-slate-300">
+              <div className="bg-muted/10 p-3 font-mono text-[11px] h-40 overflow-y-auto space-y-0.5">
                 {logs.map((log, idx) => {
                   if (!log) return null
-                  const isError = log.includes("[ERROR]")
                   const isSuccess = log.includes("✓") || log.includes("★")
-                  const isHeader = log.includes("[SYSTEM]") || log.includes("[CSPR.CLICK]") || log.includes("[CHAIN]") || log.includes("[AI AGENT]") || log.includes("[ESCROW]") || log.includes("[ORACLE]")
+                  const isLabel =
+                    log.startsWith("[SYSTEM]") ||
+                    log.startsWith("[CSPR") ||
+                    log.startsWith("[CHAIN]") ||
+                    log.startsWith("[AI") ||
+                    log.startsWith("[ESCROW]") ||
+                    log.startsWith("[ORACLE]") ||
+                    log.startsWith("[DEPLOY]") ||
+                    log.startsWith("[HASH]") ||
+                    log.startsWith("[SUMMARY]") ||
+                    log.startsWith("[WALLET]") ||
+                    log.startsWith("[COMPLIANCE]") ||
+                    log.startsWith("[PARAMS]")
                   return (
-                    <div key={idx} className={
-                      isError 
-                        ? "text-red-400" 
-                        : isSuccess 
-                          ? "text-emerald-400 font-semibold" 
-                          : isHeader 
-                            ? "text-purple-400" 
-                            : "text-slate-400"
-                    }>
+                    <div
+                      key={idx}
+                      className={
+                        isSuccess
+                          ? "text-foreground font-semibold"
+                          : isLabel
+                          ? "text-foreground/70"
+                          : "text-muted-foreground"
+                      }
+                    >
                       {log}
                     </div>
                   )
@@ -431,84 +420,82 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
               </div>
             </div>
 
-            {/* Final CTA Screen at Step 6 */}
-            {currentStep === 5 && (
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
+            {/* Final CTA */}
+            {currentStep === 5 && completedSteps.includes(5) && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, type: "spring" }}
-                className="bg-gradient-to-br from-purple-900/40 via-pink-900/20 to-slate-950 border-2 border-purple-500 rounded-xl p-6 text-center space-y-4 shadow-xl shadow-purple-500/10 relative overflow-hidden"
+                transition={{ delay: 0.4 }}
+                className="rounded-md border border-border bg-muted/20 p-5 text-center space-y-3"
               >
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-500/10 via-transparent to-transparent pointer-events-none" />
-                <div className="inline-flex p-3 bg-purple-500/20 rounded-full text-purple-400 border border-purple-500/30 mb-2">
-                  <Vote className="h-8 w-8 animate-bounce" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-muted/40 text-foreground mx-auto">
+                  <Vote className="h-5 w-5" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-100 tracking-tight">
-                  Support CasperOPs on Casper!
-                </h3>
-                <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
-                  You just simulated a Casper Real-World Asset (RWA) automated agent flow with built-in daily limits and Account Abstraction. Let's make this the future of automated DeFi!
-                </p>
-                <div className="pt-2">
-                  <Button 
-                    asChild 
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold px-8 py-3 rounded-lg shadow-lg hover:shadow-purple-500/20 transition-all duration-300 border-0"
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Support CasperOPs on Casper!
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed max-w-sm mx-auto">
+                    You just simulated a Casper RWA automated agent flow with built-in
+                    daily limits and Account Abstraction. Vote to help us ship more!
+                  </p>
+                </div>
+                <Button asChild size="sm" className="h-8 text-xs gap-1.5">
+                  <a
+                    href="https://cspr.fans"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <a 
-                      href="https://cspr.fans" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm"
-                    >
-                      Vote for CasperOPs on CSPR.fans
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                </div>
+                    Vote for CasperOPs on CSPR.fans
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </Button>
               </motion.div>
             )}
-
           </div>
 
-          {/* Footer Controls */}
-          <div className="p-4 border-t border-slate-800 bg-slate-950/50 flex items-center justify-between gap-3">
+          {/* Footer */}
+          <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-border bg-muted/10">
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleReset}
-                className="h-8 border-slate-800 text-slate-400 hover:text-slate-200 text-xs gap-1.5 hover:bg-slate-900"
+                className="h-8 text-xs gap-1.5"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <RotateCcw className="h-3 w-3" />
                 Reset
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="h-8 border-slate-800 text-slate-400 hover:text-slate-200 text-xs gap-1.5 hover:bg-slate-900"
+                className="h-8 text-xs gap-1.5"
               >
-                <Play className={`h-3.5 w-3.5 ${isPlaying ? "text-purple-400 animate-pulse" : ""}`} />
-                {isPlaying ? "Pause Auto-Advance" : "Resume Auto-Advance"}
+                <Play className={`h-3 w-3 ${isPlaying ? "text-foreground" : ""}`} />
+                {isPlaying ? "Pause" : "Resume"}
               </Button>
             </div>
-            
+
             <div className="flex gap-2">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="h-8 text-slate-500 hover:text-slate-350 text-xs hover:bg-transparent"
+                className="h-8 text-xs"
               >
-                Close Simulation
+                Close
               </Button>
               {currentStep < 5 && (
                 <Button
                   size="sm"
-                  onClick={() => setCurrentStep(prev => Math.min(steps.length - 1, prev + 1))}
-                  className="h-8 bg-purple-600 hover:bg-purple-500 text-white text-xs border-0"
+                  onClick={() =>
+                    setCurrentStep((prev) => Math.min(steps.length - 1, prev + 1))
+                  }
+                  className="h-8 text-xs gap-1"
                 >
-                  Skip Step
+                  Skip
+                  <ChevronRight className="h-3 w-3" />
                 </Button>
               )}
             </div>

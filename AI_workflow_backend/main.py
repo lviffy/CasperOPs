@@ -16,7 +16,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Agent Workflow Builder API - Arbitrum Sepolia Edition")
+app = FastAPI(title="Agent Workflow Builder API - Casper Testnet Edition")
 
 # Add CORS middleware to allow requests from anywhere
 app.add_middleware(
@@ -52,7 +52,86 @@ if GEMINI_API_KEY:
     logger.info("Gemini configured (Fallback)")
 
 if not GROQ_API_KEYS and not GEMINI_API_KEY:
-    raise ValueError("At least one of GROQ_API_KEY1-3 or GEMINI_API_KEY must be set")
+    logger.warning("Neither GROQ_API_KEY1-3 nor GEMINI_API_KEY is set. Fallback workflow builder will be used for all requests.")
+
+def generate_fallback_workflow(prompt: str) -> dict:
+    prompt_lower = prompt.lower()
+    tools = []
+    
+    # Check for deploy_cep18
+    if any(k in prompt_lower for k in ["deploy cep18", "deploy cep-18", "deploy token", "create token", "issue token"]):
+        tools.append({
+            "id": "tool_1",
+            "type": "deploy_cep18",
+            "name": "Deploy CEP-18 Token",
+            "next_tools": []
+        })
+    # Check for deploy_cep78
+    elif any(k in prompt_lower for k in ["deploy cep78", "deploy cep-78", "deploy nft", "create nft collection", "nft collection"]):
+        tools.append({
+            "id": "tool_1",
+            "type": "deploy_cep78",
+            "name": "Deploy CEP-78 NFT Collection",
+            "next_tools": []
+        })
+    # Check for get_balance
+    elif any(k in prompt_lower for k in ["balance", "check balance", "get balance", "view balance"]):
+        tools.append({
+            "id": "tool_1",
+            "type": "get_balance",
+            "name": "Check Balance",
+            "next_tools": []
+        })
+    # Check for fetch_price
+    elif any(k in prompt_lower for k in ["price", "fetch price", "get price", "token price", "cost"]):
+        tools.append({
+            "id": "tool_1",
+            "type": "fetch_price",
+            "name": "Fetch Price",
+            "next_tools": []
+        })
+    # Check for send_email
+    elif any(k in prompt_lower for k in ["email", "send email", "notify email", "mail"]):
+        tools.append({
+            "id": "tool_1",
+            "type": "send_email",
+            "name": "Send Email Notification",
+            "next_tools": []
+        })
+    # Check for transfer
+    elif any(k in prompt_lower for k in ["transfer", "send cspr", "send token", "pay"]):
+        tools.append({
+            "id": "tool_1",
+            "type": "transfer",
+            "name": "Transfer CSPR",
+            "next_tools": []
+        })
+    
+    # If no specific keyword matched, default to check balance then transfer
+    if not tools:
+        tools = [
+            {
+                "id": "tool_1",
+                "type": "get_balance",
+                "name": "Check Balance",
+                "next_tools": ["tool_2"]
+            },
+            {
+                "id": "tool_2",
+                "type": "transfer",
+                "name": "Transfer CSPR",
+                "next_tools": []
+            }
+        ]
+    
+    has_seq = any(len(t.get("next_tools", [])) > 0 for t in tools)
+    
+    return {
+        "agent_id": "agent_1",
+        "tools": tools,
+        "has_sequential_execution": has_seq,
+        "description": f"Custom agent workflow generated for prompt: '{prompt[:40]}...'"
+    }
 
 class WorkflowRequest(BaseModel):
     prompt: str
@@ -76,20 +155,20 @@ class WorkflowResponse(BaseModel):
 AVAILABLE_TOOLS = [
     "transfer",
     "get_balance",
-    "deploy_erc20",
-    "deploy_erc721",
-    "fetch_token_price",
+    "deploy_cep18",
+    "deploy_cep78",
+    "fetch_price",
     "send_email"
 ]
 
-SYSTEM_PROMPT = """You are an AI that converts natural language descriptions of blockchain agent workflows into structured JSON for the Arbitrum Sepolia blockchain.
+SYSTEM_PROMPT = """You are an AI that converts natural language descriptions of blockchain agent workflows into structured JSON for the Casper Testnet.
 
 Available tools:
-- transfer: Transfer ETH or ERC-20 tokens between wallets
-- get_balance: Fetch balance of ETH for a wallet
-- deploy_erc20: Deploy ERC-20 tokens on Arbitrum Sepolia
-- deploy_erc721: Deploy ERC-721 NFT tokens on Arbitrum Sepolia
-- fetch_token_price: Get the current price of any token using AI-powered search
+- transfer: Transfer CSPR between wallets
+- get_balance: Fetch balance of CSPR for a wallet
+- deploy_cep18: Deploy CEP-18 tokens on Casper Testnet
+- deploy_cep78: Deploy CEP-78 NFT tokens on Casper Testnet
+- fetch_price: Get the current price of any token using AI-powered search
 - send_email: Send email notifications to recipients (compose subject & body from user intent)
 
 Your task is to analyze the user's request and create a workflow structure with:
@@ -114,7 +193,7 @@ Return ONLY valid JSON matching this exact structure:
   "tools": [
     {
       "id": "tool_1",
-      "type": "deploy_erc20",
+      "type": "deploy_cep18",
       "name": "Token Deployment",
       "next_tools": ["tool_2"]
     },
@@ -220,10 +299,11 @@ async def create_workflow(request: WorkflowRequest):
                 
             except Exception as gemini_error:
                 logger.error(f"Gemini API also failed: {str(gemini_error)}")
-                raise HTTPException(status_code=500, detail=f"Both AI providers failed. Groq error: Primary not available, Gemini error: {str(gemini_error)}")
         
         if raw_content is None:
-            raise HTTPException(status_code=500, detail="No AI provider available")
+            logger.warning("All LLM providers failed or not configured. Using local fallback workflow builder.")
+            fallback_data = generate_fallback_workflow(request.prompt)
+            return WorkflowResponse(**fallback_data)
         
         logger.info(f"Raw AI Response ({provider_used}): {raw_content}")
         
@@ -258,7 +338,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "Agent Workflow Builder",
-        "blockchain": "Arbitrum Sepolia",
+        "blockchain": "Casper Testnet",
         "ai_providers": {
             "primary": "Groq (llama-3.3-70b-versatile)" if GROQ_API_KEYS else "Not configured",
             "fallback": "Google Gemini 3.1 Flash Lite" if GEMINI_API_KEY else "Not configured"

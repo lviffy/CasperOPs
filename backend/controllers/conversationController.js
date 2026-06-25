@@ -263,15 +263,32 @@ async function chat(req, res) {
 
     if (useSupabase) {
       // Use Supabase for persistent conversation memory
-      if (!convId) {
-        // Create new conversation
+      let conversationExists = false;
+      if (convId) {
+        const { data: existing } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('id', convId)
+          .single();
+        if (existing) {
+          conversationExists = true;
+        }
+      }
+
+      if (!conversationExists) {
+        // Create new conversation (using client-supplied UUID if present)
+        const insertData = {
+          agent_id: agentId,
+          user_id: userId,
+          title: conversationTitle // Use first 100 chars as title
+        };
+        if (convId) {
+          insertData.id = convId;
+        }
+
         const { data, error } = await supabase
           .from('conversations')
-          .insert({ 
-            agent_id: agentId, 
-            user_id: userId, 
-            title: conversationTitle // Use first 100 chars as title
-          })
+          .insert(insertData)
           .select()
           .single();
         
@@ -918,7 +935,7 @@ async function getMessages(req, res) {
     const parsedLimit = parseInt(limit, 10);
     const finalLimit = Number.isNaN(parsedLimit) ? 50 : parsedLimit;
 
-    if (!isUuidLike(conversationId) || hasInMemoryConversation(conversationId)) {
+    if (!supabase || !isUuidLike(conversationId) || hasInMemoryConversation(conversationId)) {
       const messages = getInMemoryMessages(conversationId).slice(-finalLimit);
       return res.json({
         messages,

@@ -28,7 +28,7 @@ const cache = getCache();
  */
 const TOOL_ENDPOINTS = {
   fetch_price: { method: 'POST', path: '/price/token' },
-  get_balance: { method: 'GET', path: '/balance/{address}' },
+  get_balance: { method: 'GET', path: '/transfer/balance/{address}' },
   transfer: { method: 'POST', path: '/transfer' },
   batch_transfer: { method: 'POST', path: '/batch/transfer' },
   deploy_cep18: { method: 'POST', path: '/token/deploy' },

@@ -359,7 +359,7 @@ async function archiveToolExecutionLogs({
       filecoin_cid: null,
       filecoin_uri: null,
       filecoin_provider: null,
-      storage_status: 'disabled',
+      storage_status: 'not_configured',
       storage_error: 'filecoin archival removed in Casper migration',
       created_at: timestamp
     };
@@ -383,7 +383,7 @@ async function archiveToolExecutionLogs({
       timestamp,
       txHash: resultSummary.txHash,
       amount: resultSummary.amount,
-      storageStatus: 'disabled',
+      storageStatus: 'not_configured',
       filecoinCid: null,
       filecoinUri: null,
       prepareTxHash: null,

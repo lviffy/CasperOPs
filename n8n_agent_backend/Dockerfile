@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Application source.
 COPY dispatcher.py main.py mcp_server.py mcp_server_sse.py state.py ./
 COPY tools ./tools
-COPY app ./app 2>/dev/null || true
+COPY app ./app
 COPY examples ./examples
 COPY __tests__ ./__tests__
 
@@ -36,10 +36,10 @@ COPY __tests__ ./__tests__
 RUN useradd -m -u 1001 appuser 2>/dev/null || true
 USER appuser
 
-EXPOSE 8080
+EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:8080/health || exit 1
+  CMD curl -fsS http://127.0.0.1:8000/health || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["uvicorn", "mcp_server_sse:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
