@@ -13,6 +13,7 @@ def enrich_send_email_args(args: Dict[str, Any], prior_results: list, user_messa
     - Alias 'body' → 'text'
     - Extract 'to' email from user_message or prior results if missing
     - Auto-generate subject + text from prior tool results when missing
+    - Perform template interpolation on ${var} placeholders from prior tool results
     """
     enriched = dict(args)
 
@@ -55,6 +56,65 @@ def enrich_send_email_args(args: Dict[str, Any], prior_results: list, user_messa
 
     if not enriched.get("subject"):
         enriched["subject"] = "✅ CasperOPs Yield Optimizer — Workflow Complete"
+
+    # Build auto-variables from prior results for ${var} template interpolation
+    auto_vars = {}
+    for r in prior_results:
+        if not r.get("success") or not r.get("result"):
+            continue
+        tool = r.get("tool")
+        result = r.get("result")
+        if tool == "fetch_price":
+            prices = result.get("prices", [])
+            if prices:
+                coin = str(prices[0].get("coin") or "").lower()
+                price = str(prices[0].get("price") or "")
+                auto_vars["price"] = price
+                auto_vars["price_usd"] = price
+                auto_vars["token_price"] = price
+                auto_vars["current_price"] = price
+                auto_vars[f"{coin}_price"] = price
+                if coin == "bitcoin":
+                    auto_vars["btc_price"] = price
+                elif coin == "btc":
+                    auto_vars["bitcoin_price"] = price
+                elif coin == "solana":
+                    auto_vars["sol_price"] = price
+                elif coin == "sol":
+                    auto_vars["solana_price"] = price
+                elif coin == "casper":
+                    auto_vars["cspr_price"] = price
+                elif coin == "cspr":
+                    auto_vars["casper_price"] = price
+        elif tool in ["get_balance", "wallet_readiness"]:
+            balance = result.get("balance")
+            if balance is not None:
+                auto_vars["balance"] = str(balance)
+                auto_vars["cspr_balance"] = str(balance)
+        elif tool == "calculate":
+            calc_result = result.get("result")
+            if calc_result is None:
+                calc_result = result
+            if isinstance(calc_result, dict):
+                val = calc_result.get("result")
+            else:
+                val = calc_result
+            if val is not None:
+                auto_vars["result"] = str(val)
+                auto_vars["calc_result"] = str(val)
+
+    # Perform template interpolation on string fields
+    def interpolate_string(s: str) -> str:
+        if not isinstance(s, str):
+            return s
+        def repl(match):
+            var_name = match.group(1).lower()
+            return auto_vars.get(var_name, match.group(0))
+        return re.sub(r'\$\{([A-Za-z0-9_]+)\}', repl, s)
+
+    for field in ["text", "body", "subject", "html"]:
+        if field in enriched and isinstance(enriched[field], str):
+            enriched[field] = interpolate_string(enriched[field])
 
     return enriched
 

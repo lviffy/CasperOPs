@@ -57,6 +57,7 @@ const contractChatRoutes  = require('./routes/contractChatRoutes');
 const emailRoutes         = require('./routes/emailRoutes');
 const webhookRoutes       = require('./routes/webhookRoutes');
 const reminderRoutes      = require('./routes/reminderRoutes');
+const scheduleRoutes      = require('./routes/scheduleRoutes');
 const telegramRoutes      = require('./routes/telegramRoutes');
 const agentRoutes         = require('./routes/agentRoutes');
 const rwaRoutes           = require('./routes/rwaRoutes');
@@ -67,6 +68,7 @@ const escrowRoutes        = require('./routes/escrowRoutes');
 const analyticsRoutes     = require('./routes/analyticsRoutes');
 const telegramService     = require('./services/telegramService');
 const { reloadReminderJobsFromDB } = require('./controllers/reminderController');
+const { reloadJobsFromDB } = require('./controllers/scheduleController');
 
 // Initialize Express app
 const app = express();
@@ -136,6 +138,7 @@ app.use('/contract-chat', ...authGuard, contractChatRoutes);
 app.use('/webhooks',      ...authGuard, webhookRoutes);
 app.use('/agents',        txLimiter, agentRoutes);
 app.use('/reminders',     chatLimiter, apiKeyAuth({ optional: true }), reminderRoutes);
+app.use('/schedule',      chatLimiter, apiKeyAuth({ optional: true }), scheduleRoutes);
 app.use('/rwa',           ...authGuard, rwaRoutes);
 
 // Telegram: /webhook is public (called by Telegram, no key needed)
@@ -264,6 +267,15 @@ if (require.main === module) {
         await reloadReminderJobsFromDB();
       } catch (err) {
         console.warn(`[boot] reloadReminderJobsFromDB failed: ${err.message}`);
+      }
+    }
+
+    // Reload scheduled transfer jobs from DB on startup.
+    if (typeof reloadJobsFromDB === 'function') {
+      try {
+        await reloadJobsFromDB();
+      } catch (err) {
+        console.warn(`[boot] reloadJobsFromDB failed: ${err.message}`);
       }
     }
 

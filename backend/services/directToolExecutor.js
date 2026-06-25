@@ -680,18 +680,67 @@ function interpolateParameters(params, previousResults) {
   }
   const latestResult = [...previousResults].reverse().find((r) => r?.success && r?.result)?.result || null;
 
+  // Build autoVars dictionary for easy ${var} style substitution
+  const autoVars = {};
+  for (const r of previousResults) {
+    if (!r?.success || !r?.result) continue;
+    const tool = r.tool;
+    const payload = r.result || {};
+    if (tool === 'fetch_price') {
+      const prices = payload.prices || [];
+      if (prices[0]) {
+        const coin = (prices[0].coin || '').toLowerCase();
+        const price = String(prices[0].price);
+        autoVars.price = price;
+        autoVars.price_usd = price;
+        autoVars.token_price = price;
+        autoVars.current_price = price;
+        autoVars[`${coin}_price`] = price;
+        if (coin === 'bitcoin') autoVars.btc_price = price;
+        if (coin === 'btc') autoVars.bitcoin_price = price;
+        if (coin === 'solana') autoVars.sol_price = price;
+        if (coin === 'sol') autoVars.solana_price = price;
+        if (coin === 'casper') autoVars.cspr_price = price;
+        if (coin === 'cspr') autoVars.casper_price = price;
+      }
+    } else if (tool === 'get_balance' || tool === 'wallet_readiness') {
+      const balance = payload.balance;
+      if (balance != null) {
+        autoVars.balance = String(balance);
+        autoVars.cspr_balance = String(balance);
+      }
+    } else if (tool === 'calculate') {
+      const calcResult = payload.result ?? payload;
+      const val = calcResult?.result ?? calcResult;
+      if (val != null) {
+        autoVars.result = String(val);
+        autoVars.calc_result = String(val);
+      }
+    }
+  }
+
   const applyTemplateInterpolation = (input) => {
     if (typeof input !== 'string') return input;
     let value = input;
+    // Substitute standard $$PREVIOUS_RESULT.path
     value = value.replace(/\$\$PREVIOUS_RESULT\.([A-Za-z0-9_.]+)/g, (_match, path) => {
       const resolved = readPathWithAliases(latestResult, path);
       return resolved === undefined ? _match : stringifyInterpolatedValue(resolved);
     });
+    // Substitute $toolName.path
     value = value.replace(/\$([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z0-9_.]+)/g, (_match, toolName, path) => {
       const toolResult = resultsByTool[toolName];
       if (!toolResult) return _match;
       const resolved = readPathWithAliases(toolResult, path);
       return resolved === undefined ? _match : stringifyInterpolatedValue(resolved);
+    });
+    // Substitute ${var} using autoVars
+    value = value.replace(/\$\{([A-Za-z0-9_]+)\}/g, (_match, varName) => {
+      const vn = varName.toLowerCase();
+      if (autoVars[vn] !== undefined) {
+        return autoVars[vn];
+      }
+      return _match;
     });
     return value;
   };
