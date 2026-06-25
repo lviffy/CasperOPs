@@ -99,7 +99,7 @@ export default function Home() {
 
   if (!ready || loading) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-linear-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
+      <main className="flex min-h-screen flex-col items-center justify-center bg-linear-to-br from-slate-50 via-red-50/30 to-rose-50/20">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 mx-auto"></div>
           <p className="mt-4 text-slate-600">Loading...</p>
@@ -120,11 +120,11 @@ export default function Home() {
         </div>
       )}
 
-      {/* Glowing Blue Orb - Half Visible at Top */}
+      {/* Glowing Red Orb - Half Visible at Top */}
       <div className="absolute -top-[300px] sm:-top-[500px] left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] lg:w-[1000px] h-[600px] sm:h-[800px] lg:h-[1000px] pointer-events-none z-0">
-        <div className="absolute inset-0 bg-blue-400 rounded-full blur-3xl opacity-20"></div>
-        <div className="absolute inset-4 sm:inset-8 bg-blue-400 rounded-full blur-2xl opacity-30"></div>
-        <div className="absolute inset-[290px] sm:inset-[390px] lg:inset-[490px] bg-blue-500 rounded-full blur-xl opacity-40"></div>
+        <div className="absolute inset-0 bg-red-400 rounded-full blur-3xl opacity-20"></div>
+        <div className="absolute inset-4 sm:inset-8 bg-red-400 rounded-full blur-2xl opacity-30"></div>
+        <div className="absolute inset-[290px] sm:inset-[390px] lg:inset-[490px] bg-primary rounded-full blur-xl opacity-40"></div>
       </div>
 
       {/* Navigation */}
@@ -185,7 +185,7 @@ export default function Home() {
                 className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors flex items-center gap-1.5"
               >
                 Swarm Workspace
-                <Badge variant="outline" className="h-4 px-1 text-[9px] bg-indigo-500/10 text-indigo-500 border-indigo-500/20">Beta</Badge>
+                <Badge variant="outline" className="h-4 px-1 text-[9px] bg-primary/10 text-primary border-primary/20">Beta</Badge>
               </Link>
             </div>
 
@@ -292,7 +292,7 @@ export default function Home() {
         <div className="relative flex flex-col items-center text-center">
           {/* Social Proof Badge */}
           <div className="mb-6 sm:mb-10 inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 sm:px-4 py-1.5 sm:py-2">
-            <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+            <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             <span className="text-xs sm:text-sm text-slate-700">Build your army of agents</span>
             <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
           </div>
@@ -301,7 +301,7 @@ export default function Home() {
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-6 max-w-4xl mt-2 sm:mt-4 px-4">
             <span className="text-slate-900">Build AI agents that</span>
             <br />
-            <span className="text-blue-500">automate blockchain</span>
+            <span className="text-primary">automate blockchain</span>
           </h1>
 
           {/* Subheading */}
@@ -335,7 +335,7 @@ export default function Home() {
                 <Button 
                   onClick={() => document.getElementById("sandbox")?.scrollIntoView({ behavior: "smooth" })}
                   size="lg" 
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-650 hover:to-purple-750 text-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto border-0 shadow-lg shadow-purple-500/10 flex items-center gap-2 cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-900 font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto border border-slate-200 shadow-sm flex items-center gap-2 cursor-pointer"
                 >
                   <Play className="h-4 w-4" />
                   Try Sandbox Demo
@@ -361,7 +361,7 @@ export default function Home() {
                 <Button 
                   onClick={() => document.getElementById("sandbox")?.scrollIntoView({ behavior: "smooth" })}
                   size="lg" 
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-650 hover:to-purple-750 text-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto border-0 shadow-lg shadow-purple-500/10 flex items-center gap-2 cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-900 font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto border border-slate-200 shadow-sm flex items-center gap-2 cursor-pointer"
                 >
                   <Play className="h-4 w-4" />
                   Try Sandbox Demo
@@ -416,7 +416,7 @@ export default function Home() {
                 title: "DeFi Automation", 
                 description: "Auto-compound yields, manage liquidity positions, and execute limit orders across any DEX.",
                 icon: (
-                  <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
                 )
@@ -425,7 +425,7 @@ export default function Home() {
                 title: "NFT Operations", 
                 description: "Automate collections, snipe rare mints, and automate royalty distributions instantly.",
                 icon: (
-                  <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 )
@@ -434,7 +434,7 @@ export default function Home() {
                 title: "Smart Alerts", 
                 description: "Get notified via Discord, Telegram, or Email when specific on-chain events occur.",
                 icon: (
-                  <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
                 )
@@ -443,7 +443,7 @@ export default function Home() {
                 title: "Cross-Chain", 
                 description: "Bridge assets and sync state between Ethereum, L2s, and other chains automatically.",
                 icon: (
-                  <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                   </svg>
                 )
@@ -488,7 +488,7 @@ export default function Home() {
       <section className="relative w-full pt-12 lg:pt-20 pb-8 lg:pb-12 bg-slate-50 overflow-hidden">
         <div className="w-full px-[2vw]">
           <div className="max-w-[2000px] mx-auto">
-            <div className="relative bg-[#05163d] rounded-3xl overflow-hidden">
+            <div className="relative bg-[#1A1214] rounded-3xl overflow-hidden">
             <div className="px-8 sm:px-12 lg:px-16 py-12 lg:py-20">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center mx-auto">
             
