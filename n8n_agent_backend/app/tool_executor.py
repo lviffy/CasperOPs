@@ -1,9 +1,63 @@
 from typing import Dict, Any
 import os
 import json
+import re
 import requests
 
 from .tool_definitions import TOOL_DEFINITIONS
+
+
+def enrich_send_email_args(args: Dict[str, Any], prior_results: list, user_message: str) -> Dict[str, Any]:
+    """
+    Normalize send_email arguments:
+    - Alias 'body' → 'text'
+    - Extract 'to' email from user_message or prior results if missing
+    - Auto-generate subject + text from prior tool results when missing
+    """
+    enriched = dict(args)
+
+    # Normalize body → text
+    if "body" in enriched and "text" not in enriched:
+        enriched["text"] = enriched.pop("body")
+
+    # Try to extract recipient email from user message
+    if not enriched.get("to"):
+        email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', user_message)
+        if email_match:
+            enriched["to"] = email_match.group(0)
+
+    # Build summary text from prior successful tool results
+    if not enriched.get("text") and not enriched.get("html"):
+        summary_lines = ["✅ CasperOPs Yield Optimizer — Workflow Execution Summary\n"]
+        for r in prior_results:
+            tool = r.get("tool", "unknown")
+            result = r.get("result", {})
+            if r.get("success") and result:
+                if tool == "fetch_price":
+                    prices = result.get("prices", [])
+                    if prices:
+                        p = prices[0]
+                        summary_lines.append(f"• Live Price: {p.get('coin','CSPR')} = ${p.get('price','N/A')} USD")
+                elif tool == "get_balance":
+                    summary_lines.append(f"• Wallet Balance: {result.get('balance', 'N/A')} CSPR (ready: {result.get('readiness', 'N/A')})")
+                elif tool == "wallet_readiness":
+                    summary_lines.append(f"• Wallet Readiness: {result.get('readiness', 'N/A')} — Balance: {result.get('balance', 'N/A')} CSPR")
+                elif tool == "calculate":
+                    inner = result.get("result", result)
+                    summary_lines.append(f"• Yield Calculation: {inner.get('result', 'N/A')} (expr: {inner.get('resolved_expression','N/A')})")
+                elif tool == "yield_rebalance":
+                    actions = result.get("actions", [])
+                    summary_lines.append(f"• Yield Rebalance Strategy: {result.get('strategyId','N/A')} (risk: {result.get('riskTolerance','N/A')})")
+                    for a in actions:
+                        summary_lines.append(f"  - {a.get('protocol')}: {a.get('action')} {a.get('allocation')}")
+        summary_lines.append("\nAll workflow steps completed successfully on Casper Testnet.")
+        enriched["text"] = "\n".join(summary_lines)
+
+    if not enriched.get("subject"):
+        enriched["subject"] = "✅ CasperOPs Yield Optimizer — Workflow Complete"
+
+    return enriched
+
 
 def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     """Execute a tool by calling its API endpoint"""

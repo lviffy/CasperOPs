@@ -58,6 +58,47 @@ def generate_fallback_workflow(prompt: str) -> dict:
     prompt_lower = prompt.lower()
     tools = []
     
+    # Check for the specific yield optimizer pipeline requested by the user
+    if any(k in prompt_lower for k in ["yield", "rebalance", "optimizer"]) and any(k in prompt_lower for k in ["readiness", "ready"]):
+        tools = [
+            {
+                "id": "tool_1",
+                "type": "fetch_price",
+                "name": "Fetch Live CSPR Price",
+                "next_tools": ["tool_2"]
+            },
+            {
+                "id": "tool_2",
+                "type": "wallet_readiness",
+                "name": "Check Wallet Readiness",
+                "next_tools": ["tool_3"]
+            },
+            {
+                "id": "tool_3",
+                "type": "calculate",
+                "name": "Run Yield Rebalance Calculation",
+                "next_tools": ["tool_4"]
+            },
+            {
+                "id": "tool_4",
+                "type": "yield_rebalance",
+                "name": "Perform Yield Rebalance",
+                "next_tools": ["tool_5"]
+            },
+            {
+                "id": "tool_5",
+                "type": "send_email",
+                "name": "Send success email notification",
+                "next_tools": []
+            }
+        ]
+        return {
+            "agent_id": "agent_1",
+            "tools": tools,
+            "has_sequential_execution": True,
+            "description": "Yield optimizer workflow: fetches price, checks readiness, calculates rebalance, deploys on Casper, and sends success notification"
+        }
+        
     # Check for deploy_cep18
     if any(k in prompt_lower for k in ["deploy cep18", "deploy cep-18", "deploy token", "create token", "issue token"]):
         tools.append({
@@ -72,6 +113,22 @@ def generate_fallback_workflow(prompt: str) -> dict:
             "id": "tool_1",
             "type": "deploy_cep78",
             "name": "Deploy CEP-78 NFT Collection",
+            "next_tools": []
+        })
+    # Check for wallet_readiness
+    elif any(k in prompt_lower for k in ["readiness", "ready"]):
+        tools.append({
+            "id": "tool_1",
+            "type": "wallet_readiness",
+            "name": "Check Wallet Readiness",
+            "next_tools": []
+        })
+    # Check for yield_rebalance
+    elif any(k in prompt_lower for k in ["yield", "rebalance"]):
+        tools.append({
+            "id": "tool_1",
+            "type": "yield_rebalance",
+            "name": "Perform Yield Rebalance",
             "next_tools": []
         })
     # Check for get_balance
@@ -158,7 +215,10 @@ AVAILABLE_TOOLS = [
     "deploy_cep18",
     "deploy_cep78",
     "fetch_price",
-    "send_email"
+    "send_email",
+    "calculate",
+    "yield_rebalance",
+    "wallet_readiness"
 ]
 
 SYSTEM_PROMPT = """You are an AI that converts natural language descriptions of blockchain agent workflows into structured JSON for the Casper Testnet.
@@ -170,6 +230,9 @@ Available tools:
 - deploy_cep78: Deploy CEP-78 NFT tokens on Casper Testnet
 - fetch_price: Get the current price of any token using AI-powered search
 - send_email: Send email notifications to recipients (compose subject & body from user intent)
+- calculate: Evaluate mathematical calculations
+- yield_rebalance: Rebalance positions across supported Casper DeFi protocols
+- wallet_readiness: Check if a Casper wallet is funded and ready for on-chain actions
 
 Your task is to analyze the user's request and create a workflow structure with:
 1. An agent node (always present, id: "agent_1")

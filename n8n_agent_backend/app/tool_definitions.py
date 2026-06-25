@@ -244,4 +244,47 @@ TOOL_DEFINITIONS = {
         "endpoint": "local",
         "method": "LOCAL",
     },
+    "yield_rebalance": {
+        "name": "yield_rebalance",
+        "description": (
+            "Rebalance treasury allocation across Casper staking validators. "
+            "Requires allocations (array of validator and weight_bps objects)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "allocations": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "validator": {"type": "string", "description": "Casper validator public key"},
+                            "weight_bps": {"type": "number", "description": "Allocation weight in basis points (1 - 10000)"}
+                        },
+                        "required": ["validator", "weight_bps"]
+                    }
+                },
+                "agentAddress": {"type": "string", "description": "Optional Casper agent public key (resolved from context if not provided)"},
+                "strategyId": {"type": "string", "description": "Optional strategy identifier"},
+                "riskTolerance": {"type": "string", "description": "Optional risk profile: low, medium, or high"}
+            },
+            "required": ["allocations"]
+        },
+        "endpoint": f"{BACKEND_URL}/v1/tools/yield_rebalance",
+        "method": "POST"
+    },
+    "wallet_readiness": {
+        "name": "wallet_readiness",
+        "description": "Check whether a Casper public key is ready to receive on-chain interactions.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "public_key": {"type": "string", "description": "Casper public key to check"}
+            },
+            "required": ["public_key"]
+        },
+        "endpoint": f"{BACKEND_URL}/v1/tools/wallet_readiness",
+        "method": "POST"
+    },
 }

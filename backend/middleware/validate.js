@@ -61,11 +61,16 @@ const schemas = {
   lookup_block: z.object({ block_identifier: z.union([z.string(), z.object({}).passthrough()]) }),
   fetch_price: z.object({}).optional(),
   send_email: z.object({
-    to: z.string().email(),
-    subject: z.string().min(1).max(256),
-    body: z.string().min(1).max(10_000),
-  }),
-  calculate: z.object({ expression: z.string().min(1).max(512) }),
+    to: z.union([z.string().email(), z.null(), z.undefined()]).optional(),
+    subject: z.union([z.string().min(1).max(256), z.null(), z.undefined()]).optional(),
+    text: z.union([z.string().min(1).max(10_000), z.null(), z.undefined()]).optional(),
+    body: z.union([z.string().min(1).max(10_000), z.null(), z.undefined()]).optional(),
+    html: z.union([z.string().min(1).max(50_000), z.null(), z.undefined()]).optional(),
+    cc: z.union([z.string(), z.null(), z.undefined()]).optional(),
+    bcc: z.union([z.string(), z.null(), z.undefined()]).optional(),
+    replyTo: z.union([z.string(), z.null(), z.undefined()]).optional(),
+  }).passthrough(),
+  calculate: z.object({ expression: z.string().min(1).max(512).optional() }),
   register_agent: z.object({
     agent_id: z.string().min(1).max(128),
     metadata_uri: z.string().max(512).optional(),
@@ -77,6 +82,10 @@ const schemas = {
   }),
   get_reputation: z.object({ agent_id: z.string().min(1).max(128) }),
   yield_rebalance: z.object({
+    agentAddress: publicKeySchema.optional(),
+    agent_address: publicKeySchema.optional(),
+    strategyId: z.string().max(128).optional(),
+    riskTolerance: z.enum(['low', 'medium', 'high']).optional(),
     allocations: z
       .array(
         z.object({
@@ -89,7 +98,8 @@ const schemas = {
       .refine(
         (allocs) => allocs.reduce((s, a) => s + a.weight_bps, 0) === 10_000,
         { message: 'weight_bps must sum to 10_000 (100%)' },
-      ),
+      )
+      .optional(),
   }),
   wallet_readiness: z.object({ public_key: publicKeySchema }),
   compliance_check: z.object({

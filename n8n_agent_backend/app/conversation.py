@@ -6,7 +6,7 @@ import google.generativeai as genai
 from .tool_definitions import TOOL_DEFINITIONS
 from .config import groq_clients, GEMINI_API_KEY
 from .ai_helpers import get_openai_tools, enrich_calculate_args, convert_to_gemini_tools
-from .tool_executor import execute_tool
+from .tool_executor import execute_tool, enrich_send_email_args
 
 def process_agent_conversation(
     system_prompt: str,
@@ -67,6 +67,9 @@ def process_agent_conversation(
                         # Auto-inject missing variables for calculate from prior tool results
                         if function_name == "calculate":
                             function_args = enrich_calculate_args(function_args, all_tool_results, user_message)
+                        # Auto-normalize send_email params (body→text, extract recipient, auto-generate content)
+                        elif function_name == "send_email":
+                            function_args = enrich_send_email_args(function_args, all_tool_results, user_message)
                         
                         all_tool_calls.append({
                             "tool": function_name,
@@ -289,6 +292,9 @@ def process_agent_conversation(
                 # Auto-inject missing variables for calculate from prior tool results
                 if function_name == "calculate":
                     function_args = enrich_calculate_args(function_args, all_tool_results, user_message)
+                # Auto-normalize send_email params
+                elif function_name == "send_email":
+                    function_args = enrich_send_email_args(function_args, all_tool_results, user_message)
                 
                 all_tool_calls.append({
                     "tool": function_name,

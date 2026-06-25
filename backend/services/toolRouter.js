@@ -366,18 +366,24 @@ async function intelligentToolRouting(userMessage, conversationHistory = [], rou
       }
     }
 
-    const hasTransfer = steps.some((s) => s.tool === 'transfer');
-    const hasDeployLookup = steps.some((s) => s.tool === 'lookup_deploy');
-    const hasSendEmail = steps.some((s) => s.tool === 'send_email');
-    if (hasTransfer && (hasDeployLookup || hasSendEmail)) {
-      const order = ['transfer', 'lookup_deploy', 'send_email'];
+    const canonicalOrder = [
+      'fetch_price',
+      'get_balance',
+      'wallet_readiness',
+      'calculate',
+      'yield_rebalance',
+      'transfer',
+      'lookup_deploy',
+      'send_email'
+    ];
+    if (steps.length > 1) {
+      routingPlan.execution_plan.type = 'sequential';
       const ordered = [
-        ...order.flatMap((name) => steps.filter((s) => s.tool === name)),
-        ...steps.filter((s) => !order.includes(s.tool)),
+        ...canonicalOrder.flatMap((name) => steps.filter((s) => s.tool === name)),
+        ...steps.filter((s) => !canonicalOrder.includes(s.tool)),
       ];
       routingPlan.execution_plan.steps = ordered;
-      routingPlan.execution_plan.type = 'sequential';
-      log.info({ stepCount: ordered.length }, 'Enforced sequential order for transfer/status/email flow');
+      log.info({ stepCount: ordered.length }, 'Enforced canonical sequential order');
     }
 
     log.info({
@@ -423,7 +429,9 @@ function detectToolsWithRegex(message) {
   if (/\b(price|fetch.*price|get.*price|check.*price|what.*price|how.*much|cost)\b/i.test(message)) {
     tools.push({ tool: 'fetch_price', reason: 'User mentioned price', parameters: {}, depends_on: [] });
   }
-  if (/\b(balance|wallet|check.*balance|get.*balance|how.*much.*have)\b/i.test(message)) {
+  if (/\b(readiness|ready)\b/i.test(message)) {
+    tools.push({ tool: 'wallet_readiness', reason: 'User mentioned wallet readiness', parameters: {}, depends_on: [] });
+  } else if (/\b(balance|wallet|check.*balance|get.*balance|how.*much.*have)\b/i.test(message)) {
     tools.push({ tool: 'get_balance', reason: 'User mentioned balance or wallet', parameters: {}, depends_on: [] });
   }
   if (hasTransferIntent && (!hasEmailIntent || hasTransferVerb || hasCsprKeyHint)) {

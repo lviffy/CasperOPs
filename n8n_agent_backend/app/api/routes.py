@@ -65,6 +65,41 @@ def generate_fallback_workflow_n8n(prompt: str) -> dict:
     prompt_lower = prompt.lower()
     tools = []
     
+    # Check for the specific yield optimizer pipeline requested by the user
+    if any(k in prompt_lower for k in ["yield", "rebalance", "optimizer"]) and any(k in prompt_lower for k in ["readiness", "ready"]):
+        tools = [
+            {
+                "type": "fetch_price",
+                "name": "Fetch Live CSPR Price",
+                "next_tools": ["wallet_readiness"]
+            },
+            {
+                "type": "wallet_readiness",
+                "name": "Check Wallet Readiness",
+                "next_tools": ["calculate"]
+            },
+            {
+                "type": "calculate",
+                "name": "Run Yield Rebalance Calculation",
+                "next_tools": ["yield_rebalance"]
+            },
+            {
+                "type": "yield_rebalance",
+                "name": "Perform Yield Rebalance",
+                "next_tools": ["send_email"]
+            },
+            {
+                "type": "send_email",
+                "name": "Send success email notification",
+                "next_tools": []
+            }
+        ]
+        return {
+            "tools": tools,
+            "description": "Yield optimizer workflow: fetches price, checks readiness, calculates rebalance, deploys on Casper, and sends success notification",
+            "has_sequential_execution": True
+        }
+        
     # Check for deploy_cep18
     if any(k in prompt_lower for k in ["deploy cep18", "deploy cep-18", "deploy token", "create token", "issue token"]):
         tools.append({
@@ -84,6 +119,20 @@ def generate_fallback_workflow_n8n(prompt: str) -> dict:
         tools.append({
             "type": "mint_nft",
             "name": "Mint NFT",
+            "next_tools": []
+        })
+    # Check for wallet_readiness
+    elif any(k in prompt_lower for k in ["readiness", "ready"]):
+        tools.append({
+            "type": "wallet_readiness",
+            "name": "Check Wallet Readiness",
+            "next_tools": []
+        })
+    # Check for yield_rebalance
+    elif any(k in prompt_lower for k in ["yield", "rebalance"]):
+        tools.append({
+            "type": "yield_rebalance",
+            "name": "Perform Yield Rebalance",
             "next_tools": []
         })
     # Check for get_balance
@@ -164,7 +213,7 @@ async def create_workflow(request: WorkflowRequest):
         workflow_system_prompt = """You are an AI workflow designer for Casper Testnet blockchain operations.
 Your task is to analyze the user's request and create a structured workflow with the appropriate blockchain tools.
 
-AVAILABLE TOOLS:
+AVAILABLE_TOOLS:
 - transfer: Transfer native CSPR tokens from one address to another
 - get_balance: Get native CSPR balance of a wallet address
 - deploy_cep18: Deploy a new CEP-18 token (Casper's ERC-20 equivalent)
@@ -179,6 +228,8 @@ AVAILABLE TOOLS:
 - fetch_price: Fetch the current live price of CSPR or other tokens
 - send_email: Send email notification to recipients
 - calculate: Evaluate mathematical calculations
+- wallet_readiness: Check if a Casper wallet is funded and ready for on-chain actions
+- yield_rebalance: Rebalance staking allocations and treasury weight across Casper validators
 
 RESPONSE FORMAT:
 You must respond with a valid JSON object containing:

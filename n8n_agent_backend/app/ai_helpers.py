@@ -77,7 +77,7 @@ def enrich_calculate_args(function_args: Dict[str, Any], all_tool_results: List[
                 try:
                     b = float(str(balance_val))
                     # Only inject if not already explicitly set
-                    for key in ["eth_balance", "balance", "wallet_balance", "my_balance"]:
+                    for key in ["cspr_balance", "eth_balance", "balance", "wallet_balance", "my_balance"]:
                         if key not in variables:
                             variables[key] = b
                 except (ValueError, TypeError):
@@ -91,7 +91,11 @@ def enrich_calculate_args(function_args: Dict[str, Any], all_tool_results: List[
                 if price_val is not None:
                     try:
                         p = float(price_val)
-                        if "eth" in coin or "ethereum" in coin:
+                        if "cspr" in coin or "casper" in coin:
+                            for key in ["cspr_price", "cspr_price_usd", "casper_price", "casper_price_usd"]:
+                                if key not in variables:
+                                    variables[key] = p
+                        elif "eth" in coin or "ethereum" in coin:
                             for key in ["eth_price", "eth_price_usd", "ethereum_price"]:
                                 if key not in variables:
                                     variables[key] = p
@@ -122,10 +126,17 @@ def enrich_calculate_args(function_args: Dict[str, Any], all_tool_results: List[
     # Also scan context_text (user_message) for a balance value as last resort.
     # The conversationController.js embeds e.g. "ETH Balance: 0.1 ETH" in user_message.
     # We only inject if the value looks like a wallet balance (< 100 ETH), not a price.
-    if context_text and not any(k in variables for k in ["eth_balance", "balance", "wallet_balance"]):
+    if context_text and not any(k in variables for k in ["cspr_balance", "eth_balance", "balance", "wallet_balance"]):
         import re as _re
         balance_patterns = [
             # Most specific patterns first to avoid false matches
+            r'CSPR Balance:\s*([\d.]+)',                      # "CSPR Balance: 1000"
+            r'Balance for 02[a-fA-F0-9]+:\s*([\d.]+)',       # "Balance for 02...: 1000 CSPR"
+            r'balanceInCspr["\s:>]+([\d.]+)',                # JSON key
+            r'(?:wallet\s*)?balance[:\s]+([\d.]+)\s*(?:CSPR|casper)?',  # "balance: 1000"
+            r'with\s+([\d.]+)\s*(?:CSPR|casper)\b',           # "with 1000 CSPR"
+            r'has\s+([\d.]+)\s*(?:CSPR|casper)\b',            # "has 1000 CSPR"
+            r'\b([\d.]+)\s*(?:CSPR|casper)\b(?!.*price)',
             r'ETH Balance:\s*([\d.]+)',                      # "ETH Balance: 0.1"
             r'Balance for 0x[a-fA-F0-9]+:\s*([\d.]+)',      # "Balance for 0x...: 0.1 ETH"
             r'balanceInEth["\s:>]+([\d.]+)',                 # JSON key
@@ -141,13 +152,12 @@ def enrich_calculate_args(function_args: Dict[str, Any], all_tool_results: List[
             if m:
                 try:
                     b = float(m.group(1))
-                    # Sanity check: a wallet balance is typically < 1000 ETH;
-                    # values > 1000 are almost certainly prices, not balances.
-                    if 0 < b < 1000:
-                        for key in ["eth_balance", "balance", "wallet_balance", "my_balance"]:
+                    # Sanity check: a wallet balance is typically < 100000000 CSPR/ETH
+                    if 0 < b < 100000000:
+                        for key in ["cspr_balance", "eth_balance", "balance", "wallet_balance", "my_balance"]:
                             if key not in variables:
                                 variables[key] = b
-                        print(f"[Calculate] Auto-extracted balance {b} ETH from context_text (pattern: {pattern})")
+                        print(f"[Calculate] Auto-extracted balance {b} from context_text (pattern: {pattern})")
                         break
                 except (ValueError, TypeError):
                     pass
