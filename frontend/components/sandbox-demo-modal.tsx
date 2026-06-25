@@ -44,7 +44,7 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
   const [showSignPrompt, setShowSignPrompt] = useState(false)
   const [logs, setLogs] = useState<string[]>([])
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
-  const terminalEndRef = useRef<HTMLDivElement>(null)
+  const terminalContainerRef = useRef<HTMLDivElement>(null)
 
   const steps: Step[] = useMemo(
     () => [
@@ -211,7 +211,9 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
   }, [isOpen, currentStep, isPlaying])
 
   useEffect(() => {
-    terminalEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (terminalContainerRef.current) {
+      terminalContainerRef.current.scrollTop = terminalContainerRef.current.scrollHeight
+    }
   }, [logs])
 
   if (!isOpen) return null
@@ -384,7 +386,7 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
                 </span>
                 <span className="h-1.5 w-1.5 rounded-full bg-foreground/50 animate-pulse" />
               </div>
-              <div className="bg-muted/10 p-3 font-mono text-[11px] h-40 overflow-y-auto space-y-0.5">
+              <div ref={terminalContainerRef} className="bg-muted/10 p-3 font-mono text-[11px] h-40 overflow-y-auto space-y-0.5">
                 {logs.map((log, idx) => {
                   if (!log) return null
                   const isSuccess = log.includes("✓") || log.includes("★")
@@ -416,7 +418,6 @@ export function SandboxDemoModal({ isOpen, onClose }: SandboxDemoModalProps) {
                     </div>
                   )
                 })}
-                <div ref={terminalEndRef} />
               </div>
             </div>
 

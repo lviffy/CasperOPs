@@ -43,7 +43,7 @@ export function SandboxSection() {
   const [showSignPrompt, setShowSignPrompt] = useState(false)
   const [logs, setLogs] = useState<string[]>([])
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
-  const terminalEndRef = useRef<HTMLDivElement>(null)
+  const terminalContainerRef = useRef<HTMLDivElement>(null)
 
   const steps: Step[] = useMemo(
     () => [
@@ -218,8 +218,8 @@ export function SandboxSection() {
   }, [hasStarted, currentStep, isPlaying, steps])
 
   useEffect(() => {
-    if (terminalEndRef.current) {
-      terminalEndRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" })
+    if (terminalContainerRef.current) {
+      terminalContainerRef.current.scrollTop = terminalContainerRef.current.scrollHeight
     }
   }, [logs])
 
@@ -433,7 +433,7 @@ export function SandboxSection() {
               </div>
 
               {/* Terminal output area */}
-              <div className="flex-1 font-mono text-[11px] leading-relaxed py-4 overflow-y-auto max-h-[220px] md:max-h-[260px] space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
+              <div ref={terminalContainerRef} className="flex-1 font-mono text-[11px] leading-relaxed py-4 overflow-y-auto max-h-[220px] md:max-h-[260px] space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
                 {logs.length === 0 && !showSignPrompt && (
                   <div className="text-slate-500 italic">Waiting for simulation to start...</div>
                 )}
@@ -468,7 +468,6 @@ export function SandboxSection() {
                     </div>
                   )
                 })}
-                <div ref={terminalEndRef} />
               </div>
 
               {/* Dynamic Overlays inside Terminal: Signature Request & Complete Card */}

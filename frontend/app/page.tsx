@@ -384,6 +384,9 @@ export default function Home() {
         </div>
       </main>
 
+      {/* Interactive Sandbox Section */}
+      <SandboxSection />
+
       {/* By the Numbers Section */}
       <section id="features" className="bg-black min-h-screen flex items-center justify-center relative overflow-hidden">
         {/* Grid Background */}
@@ -480,9 +483,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Interactive Sandbox Section */}
-      <SandboxSection />
 
       {/* How It Works Section */}
       <section className="relative w-full pt-12 lg:pt-20 pb-8 lg:pb-12 bg-slate-50 overflow-hidden">
