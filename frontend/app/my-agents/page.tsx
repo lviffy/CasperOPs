@@ -89,10 +89,10 @@ export default function MyAgents() {
   const [loadingRegistryAgentId, setLoadingRegistryAgentId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (ready && !authenticated) {
+    if (ready && !authLoading && !authenticated) {
       router.replace("/")
     }
-  }, [ready, authenticated, router])
+  }, [ready, authLoading, authenticated, router])
 
   useEffect(() => {
     if (ready && authenticated && user?.id) {

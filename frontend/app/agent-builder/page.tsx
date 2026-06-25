@@ -14,10 +14,10 @@ function AgentBuilderContent() {
   const { ready, authenticated, loading, user, showPrivateKeySetup, setShowPrivateKeySetup, syncUser, pkpSchemaReady } = useAuth()
 
   useEffect(() => {
-    if (ready && !authenticated) {
+    if (ready && !loading && !authenticated) {
       router.replace("/")
     }
-  }, [ready, authenticated, router])
+  }, [ready, loading, authenticated, router])
 
   if (!ready || loading) {
     return (
@@ -34,8 +34,6 @@ function AgentBuilderContent() {
     return null // Will redirect
   }
 
-  // Debug logging
-  console.log('Agent Builder - Modal Props:', { authenticated, hasUser: !!user, showPrivateKeySetup })
 
   return (
     <main className="flex min-h-screen flex-col">

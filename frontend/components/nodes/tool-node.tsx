@@ -16,10 +16,19 @@ import {
   Search,
   Network,
   CheckSquare,
+  Calculator,
+  MessageSquare,
+  Sliders,
+  ArrowUpCircle,
+  FileText,
+  Key,
+  Activity,
+  Award,
 } from "lucide-react"
 import type { NodeData } from "@/lib/types"
 import { getToolSupportMeta } from "@/lib/tool-support"
 import { getToolPrice } from "@/lib/tool-pricing"
+
 const toolIcons: Record<string, React.ReactNode> = {
   // Native CSPR
   transfer: <ArrowRightLeft className="h-4 w-4" />,
@@ -37,7 +46,11 @@ const toolIcons: Record<string, React.ReactNode> = {
   register_agent: <Network className="h-4 w-4" />,
   attest_agent: <CheckSquare className="h-4 w-4" />,
   get_reputation: <Star className="h-4 w-4" />,
+  attest_performance: <Award className="h-4 w-4" />,
   yield_rebalance: <Zap className="h-4 w-4" />,
+  compliance_check: <ShieldCheck className="h-4 w-4" />,
+  rwa_valuation: <TrendingUp className="h-4 w-4" />,
+  fractionalize_rwa: <Layers className="h-4 w-4" />,
   // On-chain lookups
   lookup_deploy: <Search className="h-4 w-4" />,
   lookup_block: <Search className="h-4 w-4" />,
@@ -45,6 +58,15 @@ const toolIcons: Record<string, React.ReactNode> = {
   fetch_price: <TrendingUp className="h-4 w-4" />,
   send_email: <Mail className="h-4 w-4" />,
   wallet_readiness: <ShieldCheck className="h-4 w-4" />,
+  calculate: <Calculator className="h-4 w-4" />,
+  post_message: <MessageSquare className="h-4 w-4" />,
+  get_message: <MessageSquare className="h-4 w-4" />,
+  // Phase 37 - Casper-unique native capabilities
+  update_account_weights: <Sliders className="h-4 w-4" />,
+  upgrade_contract_package: <ArrowUpCircle className="h-4 w-4" />,
+  update_nft_metadata: <FileText className="h-4 w-4" />,
+  add_delegated_key: <Key className="h-4 w-4" />,
+  profile_wasm_gas: <Activity className="h-4 w-4" />,
 }
 
 const toolColors: Record<string, { border: string; bg: string; text: string }> = {
@@ -60,12 +82,24 @@ const toolColors: Record<string, { border: string; bg: string; text: string }> =
   register_agent: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
   attest_agent: { border: "border-foreground/50", bg: "bg-foreground/10", text: "text-foreground" },
   get_reputation: { border: "border-foreground/60", bg: "bg-foreground/15", text: "text-foreground" },
+  attest_performance: { border: "border-foreground/45", bg: "bg-foreground/8", text: "text-foreground" },
   yield_rebalance: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
+  compliance_check: { border: "border-foreground/35", bg: "bg-foreground/3", text: "text-foreground" },
+  rwa_valuation: { border: "border-foreground/45", bg: "bg-foreground/8", text: "text-foreground" },
+  fractionalize_rwa: { border: "border-foreground/50", bg: "bg-foreground/10", text: "text-foreground" },
   lookup_deploy: { border: "border-foreground/50", bg: "bg-foreground/10", text: "text-foreground" },
   lookup_block: { border: "border-foreground/60", bg: "bg-foreground/15", text: "text-foreground" },
   fetch_price: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
   send_email: { border: "border-foreground/50", bg: "bg-foreground/10", text: "text-foreground" },
   wallet_readiness: { border: "border-foreground/60", bg: "bg-foreground/15", text: "text-foreground" },
+  calculate: { border: "border-foreground/35", bg: "bg-foreground/3", text: "text-foreground" },
+  post_message: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
+  get_message: { border: "border-foreground/45", bg: "bg-foreground/8", text: "text-foreground" },
+  update_account_weights: { border: "border-foreground/50", bg: "bg-foreground/10", text: "text-foreground" },
+  upgrade_contract_package: { border: "border-foreground/60", bg: "bg-foreground/15", text: "text-foreground" },
+  update_nft_metadata: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
+  add_delegated_key: { border: "border-foreground/50", bg: "bg-foreground/10", text: "text-foreground" },
+  profile_wasm_gas: { border: "border-foreground/60", bg: "bg-foreground/15", text: "text-foreground" },
 }
 
 export const ToolNode = memo(({ data, type, isConnectable }: NodeProps<NodeData>) => {

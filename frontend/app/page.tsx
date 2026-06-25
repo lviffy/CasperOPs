@@ -88,7 +88,6 @@ export default function Home() {
   }, [])
 
   const handleGetStarted = useCallback(async () => {
-    console.log('Get Started clicked!')
     setIsLoggingIn(true)
     try {
       await login()

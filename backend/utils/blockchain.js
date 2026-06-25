@@ -25,21 +25,60 @@ async function getAccountBalance(publicKeyHex) {
   // contract calls land, so the 30 s TTL bounds the staleness window.
   // The transfer tool invalidates this cache after broadcasting.
   //
-  // Phase 30: the read goes through the RPC failover layer so a single
-  // bad endpoint doesn't take down the whole balance endpoint.
+  // Fast path: query CSPR.cloud REST API directly (authorized), avoids
+  // the slow 2-step JSON-RPC flow (state root hash → uref → balance).
   try {
     return await cache.getOrFetch(
       'get_balance',
       { publicKey: publicKeyHex },
       async () => {
-        const stateRootHash = await rpc('chain_get_state_root_hash', {});
-        // casper-js-sdk expects the state_root_hash response — wrap in the
-        // format it knows how to consume. Easiest path: use the existing
-        // public Casper RPC client directly when needed, otherwise call
-        // the lower-level CasperServiceByJsonRPC for the typed helpers.
+        const cloudUrl = process.env.CSPR_CLOUD_API_URL;
+        const cloudKey = process.env.CSPR_CLOUD_API_KEY;
+
+        if (cloudUrl && cloudKey) {
+          // Direct REST API — fastest path, no multi-hop JSON-RPC
+          const base = cloudUrl.replace(/\/+$/, '');
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 6000);
+          try {
+            const res = await fetch(`${base}/accounts/${publicKeyHex}`, {
+              headers: {
+                'accept': 'application/json',
+                'authorization': cloudKey,
+              },
+              signal: controller.signal,
+            });
+            if (res.ok) {
+              const json = await res.json();
+              // liquid_balance_motes or balance from the REST response
+              const motes = json?.data?.liquid_balance_motes
+                ?? json?.liquid_balance_motes
+                ?? json?.data?.balance
+                ?? json?.balance
+                ?? null;
+              if (motes !== null && motes !== undefined) {
+                return String(motes);
+              }
+            }
+          } finally {
+            clearTimeout(timer);
+          }
+          // Fall through to SDK approach if REST failed
+        }
+
+        // Fallback: 2-step JSON-RPC via failover layer
+        const stateRootHashResult = await rpc('chain_get_state_root_hash', {});
+        // The RPC response is { api_version, state_root_hash } — extract just the hash string.
+        const stateRootHash = stateRootHashResult?.state_root_hash || stateRootHashResult;
         const { CasperServiceByJsonRPC } = require('casper-js-sdk');
-        const url = process.env.CASPER_RPC_URL || 'https://rpc.testnet.casper.live/rpc';
-        const client = new CasperServiceByJsonRPC(url);
+        const activeRpcUrl = rpcSnapshot().activeUrl;
+        const client = new CasperServiceByJsonRPC(activeRpcUrl);
+        if (activeRpcUrl.includes('cspr.cloud') && process.env.CSPR_CLOUD_API_KEY) {
+          const transport = client.client?.requestManager?.transports?.[0];
+          if (transport && transport.headers && typeof transport.headers.set === 'function') {
+            transport.headers.set('authorization', process.env.CSPR_CLOUD_API_KEY);
+          }
+        }
         const publicKey = CLPublicKey.fromHex(publicKeyHex);
         const balance = await client.getAccountBalanceUrefByPublicKey(stateRootHash, publicKey)
           .then((uref) => client.getAccountBalance(stateRootHash, uref));
@@ -69,8 +108,15 @@ function getRpcHealth() {
 
 function getClient() {
   const { CasperServiceByJsonRPC } = require('casper-js-sdk');
-  const url = process.env.CASPER_RPC_URL || 'https://rpc.testnet.casper.live/rpc';
-  return new CasperServiceByJsonRPC(url);
+  const activeRpcUrl = rpcSnapshot().activeUrl;
+  const client = new CasperServiceByJsonRPC(activeRpcUrl);
+  if (activeRpcUrl.includes('cspr.cloud') && process.env.CSPR_CLOUD_API_KEY) {
+    const transport = client.client?.requestManager?.transports?.[0];
+    if (transport && transport.headers && typeof transport.headers.set === 'function') {
+      transport.headers.set('authorization', process.env.CSPR_CLOUD_API_KEY);
+    }
+  }
+  return client;
 }
 
 module.exports = {

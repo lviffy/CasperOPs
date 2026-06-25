@@ -37,7 +37,7 @@ import { createAgent, getAgentById, updateAgent } from "@/lib/agents"
 import { workflowToTools, toolsToWorkflow } from "@/lib/workflow-converter"
 import { getTemplates, type TemplateDefinition } from "@/lib/templates"
 import { AgentWalletModal } from "./agent-wallet"
-import { initCsprClick, getActiveAccount } from "@/lib/wallet"
+import { initCsprClick, getActiveAccount, fetchCsprBalance } from "@/lib/wallet"
 import AIQuotaCompact from "./payment/ai-quota-compact"
 import {
   AlertDialog,
@@ -82,7 +82,11 @@ const toolTypes = [
   "register_agent",
   "attest_agent",
   "get_reputation",
+  "attest_performance",
   "yield_rebalance",
+  "compliance_check",
+  "rwa_valuation",
+  "fractionalize_rwa",
   // On-chain lookups
   "lookup_deploy",
   "lookup_block",
@@ -90,6 +94,16 @@ const toolTypes = [
   "fetch_price",
   "send_email",
   "wallet_readiness",
+  "calculate",
+  // Messages
+  "post_message",
+  "get_message",
+  // Phase 37: Casper-unique native capabilities
+  "update_account_weights",
+  "upgrade_contract_package",
+  "update_nft_metadata",
+  "add_delegated_key",
+  "profile_wasm_gas",
 ]
 
 const nodeTypes: NodeTypes = {
@@ -106,12 +120,24 @@ const nodeTypes: NodeTypes = {
   register_agent: ToolNode,
   attest_agent: ToolNode,
   get_reputation: ToolNode,
+  attest_performance: ToolNode,
   yield_rebalance: ToolNode,
+  compliance_check: ToolNode,
+  rwa_valuation: ToolNode,
+  fractionalize_rwa: ToolNode,
   lookup_deploy: ToolNode,
   lookup_block: ToolNode,
   fetch_price: ToolNode,
   send_email: ToolNode,
   wallet_readiness: ToolNode,
+  calculate: ToolNode,
+  post_message: ToolNode,
+  get_message: ToolNode,
+  update_account_weights: ToolNode,
+  upgrade_contract_package: ToolNode,
+  update_nft_metadata: ToolNode,
+  add_delegated_key: ToolNode,
+  profile_wasm_gas: ToolNode,
 }
 
 const edgeTypes: EdgeTypes = {
@@ -203,9 +229,11 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
     initCsprClick()
     // Try to refresh the active account balance for the header chip
     if (dbUser?.wallet_address) {
-      getActiveAccount()
-        .then((acc) => {
-          if (acc?.balance) setWalletBalance(acc.balance)
+      fetchCsprBalance(dbUser.wallet_address)
+        .then((bal) => {
+          if (bal !== null) {
+            setWalletBalance(Number(bal).toFixed(2))
+          }
         })
         .catch(() => {})
     }

@@ -36,8 +36,8 @@ const { logger } = require('./logger');
 
 const PRIMARY_URL = process.env.CASPER_RPC_URL || 'https://rpc.testnet.casper.live/rpc';
 const FALLBACK_URL = process.env.CASPER_RPC_URL_FALLBACK
-  || process.env.CSPR_CLOUD_API_URL
-  || '';
+  || (process.env.CSPR_CLOUD_API_URL ? process.env.CSPR_CLOUD_API_URL.replace('api.', 'node.').replace(/\/+$/, '') + '/rpc' : '')
+  || 'https://node.testnet.cspr.cloud/rpc';
 
 const READ_TIMEOUT_MS = Number(process.env.CASPER_RPC_READ_TIMEOUT_MS) || 4000;
 const PROBE_COOLDOWN_MS = Number(process.env.CASPER_RPC_PROBE_COOLDOWN_MS) || 60_000;
@@ -56,10 +56,16 @@ function log() {
 async function rawRequest(url, method, params) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), READ_TIMEOUT_MS);
+  const headers = { 'content-type': 'application/json' };
+
+  if (url.includes('cspr.cloud') && process.env.CSPR_CLOUD_API_KEY) {
+    headers['authorization'] = process.env.CSPR_CLOUD_API_KEY;
+  }
+
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params: params || {} }),
       signal: controller.signal,
     });

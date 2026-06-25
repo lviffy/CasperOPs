@@ -10,6 +10,7 @@
 import type { CSPRClickSDK } from "@make-software/csprclick-core-client";
 import { CHAIN_CONFIGS, DEFAULT_CHAIN_ID, explorerUrl } from "./chains";
 import { updateCompatibleUserWallet } from "./supabase";
+import { BLOCKCHAIN_BACKEND_URL, BLOCKCHAIN_API_KEY } from "./backend";
 
 export type CasperPublicKey = `0${string}${string}`;
 
@@ -40,15 +41,12 @@ function getCsprClickConfig() {
  */
 export function initCsprClick(): CSPRClickSDK | null {
   if (typeof window === "undefined") return null;
-  console.log("[initCsprClick] window.csprclick:", window.csprclick);
   if (!window.csprclick) return null;
   if (window.csprclick.appName && window.csprclick.appId) {
-    console.log("[initCsprClick] SDK already initialized:", window.csprclick.appName);
     return window.csprclick;
   }
 
   const cfg = getCsprClickConfig();
-  console.log("[initCsprClick] calling window.csprclick.init with config:", cfg);
   try {
     window.csprclick.init(cfg);
   } catch (err) {
@@ -63,7 +61,6 @@ export function initCsprClick(): CSPRClickSDK | null {
  * Returns the connected account, or `null` if the user cancelled.
  */
 export async function connectWallet(provider = "casper-wallet"): Promise<ConnectedAccount | null> {
-  console.log("[connectWallet] attempting connect. provider:", provider, "window.csprclick:", window.csprclick);
   const sdk = initCsprClick();
   if (!sdk) throw new Error("CSPR.click SDK not available");
 
@@ -90,7 +87,6 @@ export async function connectWallet(provider = "casper-wallet"): Promise<Connect
       if (resolved) return;
       resolved = true;
       cleanup();
-      console.log("[connectWallet] Event: csprclick:signed_in received inside promise", evt);
       if (evt?.account) {
         resolve({
           publicKey: evt.account.public_key,
@@ -249,20 +245,31 @@ export async function sendDeploy(
 }
 
 /**
- * Fetch the CSPR balance for a public key via CSPR.cloud.
+ * Fetch the CSPR balance for a public key via CSPR.cloud or blockchain backend.
  * Returns a value in CSPR (decimal) or `null` on failure.
  */
 export async function fetchCsprBalance(publicKey: string): Promise<string | null> {
   if (!publicKey) return null;
-  const base = CHAIN_CONFIGS[DEFAULT_CHAIN_ID].csprCloudUrl;
-  const url = `${base.replace(/\/$/, "")}/accounts/${publicKey}/balance`;
+  const url = `${BLOCKCHAIN_BACKEND_URL}/transfer/balance/${publicKey}`;
   try {
-    const res = await fetch(url, { headers: { accept: "application/json" } });
+    const res = await fetch(url, {
+      headers: {
+        accept: "application/json",
+        "x-api-key": BLOCKCHAIN_API_KEY,
+      },
+    });
     if (!res.ok) return null;
     const json: any = await res.json();
-    const motes = Number(json?.balance ?? json?.data?.balance ?? 0);
-    if (!Number.isFinite(motes) || motes <= 0) return "0";
-    return (motes / 1_000_000_000).toFixed(4);
+    const balanceVal = json?.balance ?? json?.data?.balance ?? 0;
+    if (json?.success) {
+      // Backend response: balance is already in CSPR decimal string
+      return Number(balanceVal).toFixed(4);
+    } else {
+      // Direct CSPR.cloud or test mock response: balance is in motes
+      const motes = Number(balanceVal);
+      if (!Number.isFinite(motes) || motes <= 0) return "0";
+      return (motes / 1_000_000_000).toFixed(4);
+    }
   } catch (err) {
     console.warn("[csprclick] balance fetch failed:", err);
     return null;

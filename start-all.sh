@@ -87,7 +87,7 @@ kill_port_if_busy "$FRONTEND_PORT" "frontend"
 echo "📦 Starting backend on http://localhost:$BACKEND_PORT ..."
 (
   cd "$BACKEND_DIR"
-  nohup npm start >"$LOG_DIR/backend.log" 2>&1 &
+  setsid node server.js >"$LOG_DIR/backend.log" 2>&1 < /dev/null &
   echo $! >"$PID_DIR/backend.pid"
 )
 

@@ -27,6 +27,9 @@ const TOOL_PRICING: Record<string, ToolPricingEntry> = {
   calculate: { tier: "free", priceMotes: 0, priceCspr: "0.00" },
   get_reputation: { tier: "free", priceMotes: 0, priceCspr: "0.00" },
   wallet_readiness: { tier: "free", priceMotes: 0, priceCspr: "0.00" },
+  compliance_check: { tier: "free", priceMotes: 0, priceCspr: "0.00" },
+  get_message: { tier: "free", priceMotes: 0, priceCspr: "0.00" },
+  profile_wasm_gas: { tier: "free", priceMotes: 0, priceCspr: "0.00" },
 
   // Paid
   transfer: { tier: "paid", priceMotes: 100_000_000, priceCspr: "0.10" },
@@ -38,6 +41,14 @@ const TOOL_PRICING: Record<string, ToolPricingEntry> = {
   register_agent: { tier: "paid", priceMotes: 500_000_000, priceCspr: "0.50" },
   attest_agent: { tier: "paid", priceMotes: 200_000_000, priceCspr: "0.20" },
   yield_rebalance: { tier: "paid", priceMotes: 100_000_000, priceCspr: "0.10" },
+  rwa_valuation: { tier: "paid", priceMotes: 200_000_000, priceCspr: "0.20" },
+  fractionalize_rwa: { tier: "paid", priceMotes: 500_000_000, priceCspr: "0.50" },
+  attest_performance: { tier: "paid", priceMotes: 200_000_000, priceCspr: "0.20" },
+  post_message: { tier: "paid", priceMotes: 100_000_000, priceCspr: "0.10" },
+  update_account_weights: { tier: "paid", priceMotes: 500_000_000, priceCspr: "0.50" },
+  upgrade_contract_package: { tier: "paid", priceMotes: 5_000_000_000, priceCspr: "5.00" },
+  update_nft_metadata: { tier: "paid", priceMotes: 200_000_000, priceCspr: "0.20" },
+  add_delegated_key: { tier: "paid", priceMotes: 300_000_000, priceCspr: "0.30" },
 }
 
 const FALLBACK: ToolPricingEntry = { tier: "paid", priceMotes: 0, priceCspr: "0.00" }
