@@ -29,10 +29,12 @@ import {
   listScheduledTransfersForUser,
   sendChatWithMemory,
   BLOCKCHAIN_BACKEND_URL,
+  BLOCKCHAIN_API_KEY,
   type ReminderJob,
   type ScheduledTransferJob,
 } from "@/lib/backend"
 import type { Agent } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 import { signDeploy, sendDeploy, casperDeployUrl } from "@/lib/wallet"
 import { CHAIN_CONFIGS, getChainConfig, getStoredChain, type SupportedChainId } from "@/lib/chains"
 
@@ -1116,12 +1118,19 @@ function formatContent(content: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 
+  // Step 1: Convert markdown links [text](url) → <a> tags
+  cleaned = cleaned.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2 hover:text-foreground/80 transition-colors">$1</a>')
+
+  // Step 2: Convert bare URLs to links, but SKIP any URL already inside an <a> tag
+  cleaned = cleaned.replace(/(https?:\/\/[^\s<]+)/g, (match, _url, offset) => {
+    // Check if this URL is already inside an href="..." or an <a>...</a> tag
+    const before = cleaned.slice(Math.max(0, offset - 10), offset)
+    if (before.includes('href="') || before.includes("href='")) return match
+    return `<a href="${match}" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2 hover:text-foreground/80 transition-colors">${match}</a>`
+  })
+
   return cleaned
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2 hover:text-foreground/80 transition-colors">$1</a>')
-    .replace(/(https?:\/\/[^\s<]+)/g, (match) => {
-      if (match.includes('href="')) return match
-      return `<a href="${match}" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2 hover:text-foreground/80 transition-colors">${match}</a>`
-    })
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
     .replace(/```(?:json)?\n([\s\S]*?)\n```/g, (_, code) => {
@@ -1159,24 +1168,65 @@ export default function AgentChatPage() {
       throw new Error("No Casper wallet connected. Please connect via CSPR.click.")
     }
 
-    const deployJson = {
-      ...(txData?.deploy ?? {}),
-      signingPublicKey: signerPublicKey,
-      chainName: CHAIN_CONFIGS[selectedChain]?.chainName ?? "casper-testnet",
+    // The backend may return { deploy: { deploy: { hash, header, ... } } } or
+    // { deploy: { hash, header, ... } }. Unwrap to the innermost deploy object.
+    let rawDeploy = txData?.deploy ?? {}
+    if (rawDeploy?.deploy && typeof rawDeploy.deploy === "object" && rawDeploy.deploy.header) {
+      rawDeploy = rawDeploy // already in { deploy: { ... } } wrapper — CSPR.click expects this
+    } else if (rawDeploy?.header) {
+      rawDeploy = { deploy: rawDeploy } // wrap bare deploy in { deploy: ... }
     }
 
-    const result = txData?.broadcast === false
-      ? await signDeploy(deployJson, signerPublicKey)
-      : await sendDeploy(deployJson, signerPublicKey, true)
+    const deployJson = {
+      ...rawDeploy,
+      signingPublicKey: signerPublicKey,
+      chainName: CHAIN_CONFIGS[selectedChain]?.chainName ?? "casper-test",
+    }
 
-    const deployHash =
-      (result as any)?.deployHash ??
-      (result as any)?.deploy_hash ??
-      (result as any)?.hash ??
-      ""
+    console.log("[signAndSendCasperDeploy] Signing via CSPR.click:", JSON.stringify(deployJson).slice(0, 200))
+
+    // Always sign the deploy first
+    const signedResult = await signDeploy(deployJson, signerPublicKey)
+    console.log("[signAndSendCasperDeploy] CSPR.click signature result:", JSON.stringify(signedResult).slice(0, 500))
+
+    if (txData?.broadcast === false) {
+      const deployHash =
+        (signedResult as any)?.deployHash ??
+        (signedResult as any)?.deploy_hash ??
+        (signedResult as any)?.hash ??
+        (signedResult as any)?.deploy?.hash ??
+        rawDeploy?.deploy?.hash ??
+        ""
+      return deployHash
+    }
+
+    console.log("[signAndSendCasperDeploy] Relaying signed transaction to backend for robust broadcast...")
+
+    // Send signed deploy to backend for premium broadcasting
+    const response = await fetch(`${BLOCKCHAIN_BACKEND_URL}/token/broadcast`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": BLOCKCHAIN_API_KEY,
+      },
+      body: JSON.stringify({ signedDeploy: signedResult }),
+    })
+
+    if (!response.ok) {
+      const errorJson = await response.json().catch(() => null)
+      throw new Error(errorJson?.error || "Failed to broadcast signed deploy through the backend relay node.")
+    }
+
+    const broadcastData = await response.json()
+    console.log("[signAndSendCasperDeploy] Backend broadcast result:", broadcastData)
+
+    const rawHash = broadcastData.deployHash || broadcastData.transactionHash || rawDeploy?.deploy?.hash || ""
+    const deployHash = typeof rawHash === "object" && rawHash !== null
+      ? ((rawHash as any).deploy_hash || (rawHash as any).deployHash || "")
+      : String(rawHash)
 
     if (!deployHash) {
-      throw new Error("CSPR.click did not return a deploy hash")
+      throw new Error("Failed to obtain a deploy hash after backend broadcast")
     }
     return deployHash
   }
@@ -1326,14 +1376,59 @@ export default function AgentChatPage() {
               })
 
               const explorerUrl = casperDeployUrl(deployHash)
-              finalMessage += `\n\n✅ Deploy confirmed!\nDeploy Hash: [${deployHash.slice(0, 10)}…${deployHash.slice(-8)}](${explorerUrl})`
+              const appendText = `\n\n✅ Deploy confirmed!\nDeploy Hash: [${deployHash.slice(0, 10)}…${deployHash.slice(-8)}](${explorerUrl})`
+              finalMessage += appendText
+
+              if (data.conversationId) {
+                try {
+                  const { data: latestMsgs } = await supabase
+                    .from('conversation_messages')
+                    .select('id, content')
+                    .eq('conversation_id', data.conversationId)
+                    .eq('role', 'assistant')
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+
+                  if (latestMsgs && latestMsgs.length > 0) {
+                    await supabase
+                      .from('conversation_messages')
+                      .update({ content: latestMsgs[0].content + appendText })
+                      .eq('id', latestMsgs[0].id)
+                  }
+                } catch (dbErr) {
+                  console.error("Failed to append deploy status to db:", dbErr)
+                }
+              }
 
               toast({
                 title: "Success",
                 description: "Deploy confirmed on Casper",
               })
             } catch (error: any) {
-              finalMessage += `\n\n❌ Deploy failed: ${error.message}`
+              const errorText = `\n\n❌ Deploy failed: ${error.message}`
+              finalMessage += errorText
+              
+              if (data.conversationId) {
+                try {
+                  const { data: latestMsgs } = await supabase
+                    .from('conversation_messages')
+                    .select('id, content')
+                    .eq('conversation_id', data.conversationId)
+                    .eq('role', 'assistant')
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+
+                  if (latestMsgs && latestMsgs.length > 0) {
+                    await supabase
+                      .from('conversation_messages')
+                      .update({ content: latestMsgs[0].content + errorText })
+                      .eq('id', latestMsgs[0].id)
+                  }
+                } catch (dbErr) {
+                  console.error("Failed to append deploy error to db:", dbErr)
+                }
+              }
+
               toast({
                 title: "Deploy Failed",
                 description: error.message,
@@ -1640,7 +1735,7 @@ export default function AgentChatPage() {
                     )}
                   >
                     <div
-                      className="text-sm leading-relaxed whitespace-pre-wrap [&_a]:underline [&_a]:underline-offset-2"
+                      className="text-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden [&_a]:underline [&_a]:underline-offset-2 [&_a]:break-all"
                       dangerouslySetInnerHTML={{ __html: formatContent(message.content) }}
                     />
 

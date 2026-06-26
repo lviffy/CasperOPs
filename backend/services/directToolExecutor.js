@@ -31,7 +31,7 @@ const TOOL_ENDPOINTS = {
   get_balance: { method: 'GET', path: '/transfer/balance/{address}' },
   transfer: { method: 'POST', path: '/transfer' },
   batch_transfer: { method: 'POST', path: '/batch/transfer' },
-  deploy_cep18: { method: 'POST', path: '/token/deploy' },
+  deploy_cep18: { method: 'POST', path: '/token/prepare-deploy' },
   deploy_cep78: { method: 'POST', path: '/nft/deploy-collection' },
   mint_nft: { method: 'POST', path: '/nft/mint' },
   get_token_info: { method: 'GET', path: '/token/info/{tokenHash}' },
@@ -39,8 +39,8 @@ const TOOL_ENDPOINTS = {
   get_nft_info: { method: 'GET', path: '/nft/info/{collectionHash}/{tokenId}' },
   send_email: { method: 'POST', path: '/email/send' },
   calculate: { method: 'LOCAL' },
-  lookup_deploy: { method: 'GET', path: '/chain/deploy/{deployHash}' },
-  lookup_block: { method: 'GET', path: '/chain/block/{blockHeight}' },
+  lookup_deploy: { method: 'LOCAL' },
+  lookup_block: { method: 'LOCAL' },
   schedule_reminder: { method: 'POST', path: '/reminders' },
   list_reminders: { method: 'GET', path: '/reminders' },
   cancel_reminder: { method: 'DELETE', path: '/reminders/{id}' },
@@ -61,6 +61,8 @@ const LOCAL_TOOL_HANDLERS = {
   compliance_check,
   post_message,
   get_message,
+  lookup_deploy,
+  lookup_block,
   // Phase 37: Casper-unique native tools
   update_account_weights,
   upgrade_contract_package,
@@ -162,6 +164,104 @@ function parseCasperPublicKey(value) {
     throw new Error(`Invalid Casper public key: ${cleaned}`);
   }
   return CLPublicKey.fromHex(hex);
+}
+
+async function lookup_deploy({ deployHash }) {
+  if (!deployHash) {
+    return { success: false, error: 'deployHash is required' };
+  }
+  try {
+    const client = getClient();
+    let deployResult;
+    try {
+      deployResult = await client.getDeployInfo(deployHash);
+    } catch (err) {
+      // If the node hasn't seen the deploy yet or it's still propagating,
+      // it may throw "deploy not found" or "Bad response format".
+      // Return status 'pending' in this case.
+      const msg = String(err.message || err).toLowerCase();
+      if (msg.includes('not found') || msg.includes('bad response') || msg.includes('format')) {
+        return {
+          success: true,
+          deployHash,
+          hash: deployHash,
+          status: 'pending',
+          blockHash: null,
+          contractHash: null,
+          contractPackageHash: null,
+        };
+      }
+      throw err;
+    }
+
+    const executionResults = deployResult?.execution_results || [];
+    const executionResult = executionResults[0]?.result;
+    
+    let status = 'pending';
+    let blockHash = null;
+    let error = null;
+    let contractHash = null;
+    let contractPackageHash = null;
+    
+    if (executionResults.length > 0) {
+      blockHash = executionResults[0].block_hash;
+      if (executionResult?.Success) {
+        status = 'success';
+        const transforms = executionResult.Success.effect?.transforms || [];
+        for (const t of transforms) {
+          if (t.key?.startsWith('hash-')) {
+            contractHash = t.key;
+          }
+          if (t.key?.startsWith('contract-package-')) {
+            contractPackageHash = t.key;
+          }
+        }
+      } else if (executionResult?.Failure) {
+        status = 'failed';
+        error = executionResult.Failure.error_message;
+      }
+    }
+    
+    return {
+      success: true,
+      deployHash,
+      hash: deployHash,
+      status,
+      blockHash,
+      error,
+      contractHash,
+      contractPackageHash,
+      tokenAddress: contractHash, // CEP-18 tokens are contracts
+      collectionAddress: contractHash // CEP-78 NFTs are contracts
+    };
+  } catch (err) {
+    log.error({ tool: 'lookup_deploy', deployHash, err: err.message }, 'lookup_deploy failed');
+    return { success: false, error: err.message };
+  }
+}
+
+async function lookup_block({ blockHeight }) {
+  try {
+    const client = getClient();
+    let blockResult;
+    if (!blockHeight || blockHeight === 'latest' || blockHeight === 'pending') {
+      blockResult = await client.getLatestBlockInfo();
+    } else {
+      blockResult = await client.getBlockInfoByHeight(Number(blockHeight));
+    }
+    const block = blockResult?.block;
+    return {
+      success: true,
+      blockHeight: block?.header?.height,
+      blockHash: block?.hash,
+      eraId: block?.header?.era_id,
+      transactionCount: block?.body?.deploy_hashes?.length || 0,
+      timestamp: block?.header?.timestamp
+    };
+  } catch (err) {
+    log.error({ tool: 'lookup_block', blockHeight, err: err.message }, 'lookup_block failed');
+    return { success: false, error: err.message };
+  }
 }
 
 /**
@@ -852,8 +952,28 @@ function mapToolParams(tool, params = {}, fallbackMessage = '', executionContext
     case 'deploy_cep18':
     case 'deploy_cep78': {
       const privateKey = params.privateKey || params.private_key || executionContext.privateKey;
-      mapped = { privateKey, ...params };
-      if (!privateKey) missing.push('privateKey');
+      const deployerAddress = params.deployerAddress || params.walletAddress || executionContext.walletAddress || contextualAddress;
+      
+      // Normalize supply parameter: AI/fallback may use totalSupply, initial_supply, or supply
+      const initialSupply = params.initialSupply || params.totalSupply || params.initial_supply || params.supply;
+      
+      // If we are calling the prepare endpoint (e.g. deploy_cep18), we want to use deployerAddress
+      // But deploy_cep78 might still use /nft/deploy-collection which expects privateKey.
+      if (tool === 'deploy_cep18') {
+        mapped = {
+          deployerAddress,
+          name: params.name,
+          symbol: params.symbol,
+          decimals: params.decimals || 9,
+          initialSupply,
+        };
+        if (!deployerAddress && !privateKey) missing.push('deployerAddress');
+        if (!initialSupply) missing.push('initialSupply');
+      } else {
+        mapped = { privateKey, ...params };
+        if (!privateKey) missing.push('privateKey');
+      }
+      
       if (!params.name) missing.push('name');
       if (!params.symbol) missing.push('symbol');
       break;
@@ -1438,6 +1558,9 @@ function formatToolResponse(toolResults) {
       case 'get_token_info':
       case 'get_token_balance':
       case 'get_nft_info':
+        if (payload.requiresSigning || payload.requiresCsprClick) {
+          return `${tool} prepared for wallet signing. Approve in CSPR.click to broadcast.`;
+        }
         return `${tool} succeeded. ${payload.transactionHash || payload.deployHash ? `Tx: ${payload.transactionHash || payload.deployHash}.` : ''} ${payload.tokenAddress || payload.collectionAddress || payload.contractHash || ''}`.trim();
       case 'post_message':
         return `Message posted to topic "${payload.topic}". Tx: ${payload.deployHash}.`;

@@ -121,8 +121,14 @@ function getAuditWaitMs() {
 }
 
 function extractExplicitAddressFromMessage(message = '') {
-  const match = String(message).match(/0x[a-fA-F0-9]{40}/);
-  return match ? match[0] : null;
+  if (!message) return null;
+  const ethMatch = String(message).match(/0x[a-fA-F0-9]{40}/);
+  if (ethMatch) return ethMatch[0];
+  const casperMatch = String(message).match(/\b0[12][0-9a-fA-F]{64}\b/);
+  if (casperMatch) return casperMatch[0];
+  const accountHashMatch = String(message).match(/\baccount-hash-[0-9a-fA-F]{64}\b/);
+  if (accountHashMatch) return accountHashMatch[0];
+  return null;
 }
 
 function extractExplicitChainFromMessage(message = '') {
@@ -579,10 +585,10 @@ async function chat(req, res) {
     if (routingPlan.requires_tools && routingPlan.execution_plan?.steps?.length > 0) {
       // Filter missing_info: remove items that tools in the plan can resolve
       const toolResolvablePatterns = [
-        /price/i, /eth.*price/i, /token.*price/i, /current.*price/i,
-        /balance/i, /wallet.*balance/i, /eth.*balance/i,
+        /price/i, /(?:eth|cspr).*price/i, /token.*price/i, /current.*price/i,
+        /balance/i, /wallet.*balance/i, /(?:eth|cspr).*balance/i,
         /token.*info/i, /contract.*info/i,
-        /convert.*eth.*usd/i, /usd.*value/i
+        /convert.*(?:eth|cspr).*usd/i, /usd.*value/i
       ];
       
       const trulyMissingInfo = (routingPlan.missing_info || []).filter(info => {
@@ -606,11 +612,11 @@ async function chat(req, res) {
           return false;
         }
         // Check if the missing info might already be in conversation context
-        if (/address/i.test(info) && /0x[a-fA-F0-9]{40}/.test(contextStr)) {
+        if (/address/i.test(info) && (/(?:0x[a-fA-F0-9]{40})|(?:\b0[12][0-9a-fA-F]{64}\b)|(?:\baccount-hash-[0-9a-fA-F]{64}\b)/i.test(contextStr))) {
           console.log(`[Chat] Address found in context, removing from missing: "${info}"`);
           return false;
         }
-        if (/balance/i.test(info) && /\d+\.?\d*\s*ETH/i.test(contextStr)) {
+        if (/balance/i.test(info) && /\d+\.?\d*\s*(?:ETH|CSPR)/i.test(contextStr)) {
           console.log(`[Chat] Balance found in context, removing from missing: "${info}"`);
           return false;
         }
@@ -748,9 +754,9 @@ async function chat(req, res) {
       console.log('[Chat] Simple conversation, using direct AI');
       
       const defaultSystemPrompt = systemPrompt || 
-        `You are a specialized blockchain operations assistant for CasperOPs with Flow EVM Testnet as the default execution chain and Arbitrum Sepolia available for legacy tools. You help with: cryptocurrency prices, wallet operations, automation, smart contracts, blockchain transactions, and email notifications.
+        `You are a specialized blockchain operations assistant for CasperOPs with Casper Testnet as the default execution chain. You help with: cryptocurrency prices, wallet operations, automation, smart contracts, blockchain transactions, and email notifications.
         
-        CRITICAL: If the user asks a question that requires blockchain data (prices, balances, calculations), and you don't have tools available, tell them what you would need to look up and suggest they ask directly (e.g., "fetch price of ETH", "check balance of 0x..."). 
+        CRITICAL: If the user asks a question that requires blockchain data (prices, balances, calculations), and you don't have tools available, tell them what you would need to look up and suggest they ask directly (e.g., "fetch price of CSPR", "check balance of [wallet]"). 
         
         When data from previous messages is available in the conversation, USE IT to answer follow-up questions. If the user says "calculate" or "how much" after previous data was discussed, perform the calculation using that data.
         

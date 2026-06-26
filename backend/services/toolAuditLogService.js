@@ -161,6 +161,7 @@ function extractTxHash(rawResultPayload = {}) {
     rawResultPayload.txHash,
     rawResultPayload.tx_hash,
     rawResultPayload.hash,
+    rawResultPayload.deploy?.hash,
     rawResultPayload.transaction?.hash,
     rawResultPayload.receipt?.transactionHash,
     rawResultPayload.receipt?.txHash,

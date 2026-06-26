@@ -10,9 +10,13 @@ function getKeysFromHex(hexPrivateKey, algorithm = 'ed25519') {
     const privateKeyBuffer = Buffer.from(rawPrivKey, 'hex');
 
     if (algorithm === 'ed25519') {
-      return Keys.Ed25519.loadKeyPairFromPrivateKey(privateKeyBuffer);
+      const privKey = Keys.Ed25519.parsePrivateKey(privateKeyBuffer);
+      const pubKey = Keys.Ed25519.privateToPublicKey(privKey);
+      return Keys.Ed25519.parseKeyPair(pubKey, privKey);
     } else {
-      return Keys.Secp256K1.loadKeyPairFromPrivateKey(privateKeyBuffer);
+      const privKey = Keys.Secp256K1.parsePrivateKey(privateKeyBuffer);
+      const pubKey = Keys.Secp256K1.privateToPublicKey(privKey);
+      return Keys.Secp256K1.parseKeyPair(pubKey, privKey);
     }
   } catch (error) {
     console.error('Failed to load key pair:', error);
@@ -99,7 +103,14 @@ async function sendDeploy(signedDeploy) {
   const { CasperServiceByJsonRPC } = require('casper-js-sdk');
   const url = process.env.CASPER_RPC_URL || 'https://rpc.testnet.casper.live/rpc';
   const client = new CasperServiceByJsonRPC(url);
-  return client.deploy(signedDeploy);
+  if (url.includes('cspr.cloud') && process.env.CSPR_CLOUD_API_KEY) {
+    const transport = client.client?.requestManager?.transports?.[0];
+    if (transport && transport.headers && typeof transport.headers.set === 'function') {
+      transport.headers.set('authorization', process.env.CSPR_CLOUD_API_KEY);
+    }
+  }
+  const result = await client.deploy(signedDeploy);
+  return result?.deploy_hash || result;
 }
 
 function getRpcHealth() {

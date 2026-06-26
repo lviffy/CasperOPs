@@ -1,6 +1,12 @@
+const fs = require('fs');
+const path = require('path');
 const { DeployUtil, Keys, RuntimeArgs, CLValueBuilder, CLPublicKey } = require('casper-js-sdk');
 const { getClient, getKeysFromHex } = require('../utils/blockchain');
 const { successResponse, errorResponse, validateRequiredFields } = require('../utils/helpers');
+
+// Load WASM binaries once at startup
+const WASM_DIR = path.resolve(__dirname, '../../contract/wasm');
+const CEP78_WASM = fs.readFileSync(path.join(WASM_DIR, 'Cep78Nft.wasm'));
 
 async function deployNFTCollection(req, res) {
   try {
@@ -33,7 +39,7 @@ async function deployNFTCollection(req, res) {
     
     const payment = DeployUtil.standardPayment(500_000_000_000); // 500 CSPR
     const session = DeployUtil.ExecutableDeployItem.newModuleBytes(
-      new Uint8Array([]),
+      new Uint8Array(CEP78_WASM),
       args
     );
     

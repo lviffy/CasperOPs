@@ -52,7 +52,7 @@ const AVAILABLE_TOOLS = {
   deploy_cep18: {
     name: 'deploy_cep18',
     description: 'Deploys a CEP-18 fungible token (ERC-20 equivalent) on Casper Testnet.',
-    parameters: ['name', 'symbol', 'decimals', 'totalSupply'],
+    parameters: ['name', 'symbol', 'decimals', 'initialSupply'],
     examples: ['Deploy a CEP-18 token called BOUSD'],
   },
   deploy_cep78: {
@@ -239,7 +239,7 @@ function buildRoutingPrompt({ userMessage, conversationHistory, toolsList, chain
 1. Determine if the request is blockchain / Casper-related.
 2. Create a COMPLETE multi-step tool execution plan.
 3. Auto-resolve dependencies by chaining tools — NEVER ask the user for data a tool can provide.
-4. Only put truly user-dependent info in missing_info (signing keys, unknown destination public keys, ambiguous token names).
+4. Only put truly user-dependent info in missing_info (unknown destination public keys, ambiguous token names). Do NOT ask for signing keys or private keys, as the frontend handles wallet signatures automatically.
 
 ## CRITICAL RULE — RESOLVE, DON'T ASK
 If the user's question requires data a tool can fetch, ADD THAT TOOL TO THE PLAN.
@@ -447,7 +447,16 @@ function detectToolsWithRegex(message) {
     });
   }
   if (/\b(deploy.*cep18|deploy.*token|create.*token|new.*token|launch.*token)\b/i.test(message)) {
-    tools.push({ tool: 'deploy_cep18', reason: 'User wants to deploy a CEP-18 token', parameters: {}, depends_on: [] });
+    const params = {};
+    const nameMatch = message.match(/named?\s+([A-Za-z0-9_]+)/i);
+    if (nameMatch) params.name = nameMatch[1];
+    const symbolMatch = message.match(/symbol\s+([A-Za-z0-9_]+)/i);
+    if (symbolMatch) params.symbol = symbolMatch[1].toUpperCase();
+    const supplyMatch = message.match(/supply(?:\s+to)?\s+([0-9,]+)/i);
+    if (supplyMatch) params.initialSupply = supplyMatch[1].replace(/,/g, '');
+    const decimalsMatch = message.match(/decimals(?:\s+to)?\s+([0-9]+)/i);
+    if (decimalsMatch) params.decimals = decimalsMatch[1];
+    tools.push({ tool: 'deploy_cep18', reason: 'User wants to deploy a CEP-18 token', parameters: params, depends_on: [] });
   }
   if (/\b(deploy.*cep78|deploy.*nft|create.*nft|new.*nft|nft.*collection)\b/i.test(message)) {
     tools.push({ tool: 'deploy_cep78', reason: 'User wants to deploy a CEP-78 NFT collection', parameters: {}, depends_on: [] });

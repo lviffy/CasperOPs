@@ -42,20 +42,21 @@ TOOL_DEFINITIONS = {
         "name": "deploy_cep18",
         "description": (
             "Deploy a new CEP-18 fungible token (Casper's ERC-20 equivalent) on Casper Testnet. "
-            "Returns a deploy hash. Requires privateKey, name, symbol, initialSupply. Optional: decimals (default 9)."
+            "Returns a prepared deploy requiring wallet signature. Requires deployerAddress, name, symbol, initialSupply. Optional: decimals (default 9). "
+            "IMPORTANT: Do NOT hallucinate a transaction hash or contract address! Inform the user they must sign the transaction in their wallet. The contract address is not available until after the transaction is executed."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "privateKey":    {"type": "string", "description": "Deployer private key (hex)"},
+                "deployerAddress": {"type": "string", "description": "Deployer Casper public key (01... or 02...)"},
                 "name":          {"type": "string", "description": "Token name (e.g. 'MyToken')"},
                 "symbol":        {"type": "string", "description": "Token symbol (e.g. 'MTK')"},
                 "initialSupply": {"type": "string", "description": "Total token supply"},
                 "decimals":      {"type": "number", "description": "Token decimals (optional, default 9)"},
             },
-            "required": ["privateKey", "name", "symbol", "initialSupply"],
+            "required": ["deployerAddress", "name", "symbol", "initialSupply"],
         },
-        "endpoint": f"{BACKEND_URL}/token/deploy",
+        "endpoint": f"{BACKEND_URL}/token/prepare-deploy",
         "method": "POST",
     },
 
@@ -64,7 +65,8 @@ TOOL_DEFINITIONS = {
         "name": "deploy_cep78",
         "description": (
             "Deploy a new CEP-78 NFT collection (Casper's ERC-721 equivalent) on Casper Testnet. "
-            "Requires privateKey, name, and symbol."
+            "Requires privateKey, name, and symbol. "
+            "IMPORTANT: Do NOT hallucinate a transaction hash or contract address! Inform the user they must sign the transaction in their wallet. The contract address is not available until after the transaction is executed."
         ),
         "parameters": {
             "type": "object",
@@ -82,7 +84,7 @@ TOOL_DEFINITIONS = {
 
     "mint_nft": {
         "name": "mint_nft",
-        "description": "Mint a new NFT into an existing CEP-78 collection. Requires privateKey, collectionAddress (contract hash), and toAddress.",
+        "description": "Mint a new NFT into an existing CEP-78 collection. Requires privateKey, collectionAddress (contract hash), and toAddress. IMPORTANT: Do NOT hallucinate a transaction hash or contract address! Inform the user they must sign the transaction in their wallet.",
         "parameters": {
             "type": "object",
             "properties": {

@@ -66,16 +66,28 @@ function getKeys() {
   let keys;
   try {
     if (secretBytes.length === 32) {
-      keys = Keys.Ed25519.loadKeyPairFromPrivateKey(secretBytes);
+      const privKey = Keys.Ed25519.parsePrivateKey(secretBytes);
+      const pubKey = Keys.Ed25519.privateToPublicKey(privKey);
+      keys = Keys.Ed25519.parseKeyPair(pubKey, privKey);
       if (!keys.publicKey.isEd25519()) throw new Error('not ed25519');
     } else {
-      keys = Keys.Secp256K1.loadKeyPairFromPrivateKey(secretBytes);
+      const privKey = Keys.Secp256K1.parsePrivateKey(secretBytes);
+      const pubKey = Keys.Secp256K1.privateToPublicKey(privKey);
+      keys = Keys.Secp256K1.parseKeyPair(pubKey, privKey);
     }
   } catch (err) {
     // casper-js-sdk may throw a specific error if the bytes are not a valid
     // Ed25519 seed; fall back to secp256k1.
     if (secretBytes.length === 32) {
-      keys = Keys.Secp256K1.loadKeyPairFromPrivateKey(secretBytes);
+      try {
+        const privKey = Keys.Secp256K1.parsePrivateKey(secretBytes);
+        const pubKey = Keys.Secp256K1.privateToPublicKey(privKey);
+        keys = Keys.Secp256K1.parseKeyPair(pubKey, privKey);
+      } catch (secpErr) {
+        throw new Error(
+          `backendSigner: failed to load ${SECRET_ENV} (${secretBytes.length} bytes): ${err.message}`
+        );
+      }
     } else {
       throw new Error(
         `backendSigner: failed to load ${SECRET_ENV} (${secretBytes.length} bytes): ${err.message}`
