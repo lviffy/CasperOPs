@@ -8,6 +8,7 @@
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
 import { CHAIN_CONFIGS, DEFAULT_CHAIN_ID } from '@/lib/chains';
+import { CLPublicKey } from 'casper-js-sdk';
 
 export interface PaymentVerificationRequest {
   paymentHash: string;
@@ -65,18 +66,93 @@ async function verifyCasperDeploy(deployHash: string, expectedRecipient: string,
     if (!deploy) {
       return { ok: false, error: 'Deploy not found' }
     }
-    if (deploy?.execution_result?.Executions?.[0]?.result?.Failure) {
-      return { ok: false, error: 'Deploy execution failed on-chain' }
+    
+    // Check execution results for errors (handle nested Failure error message)
+    const exec = deploy?.execution_result?.Executions?.[0] || deploy?.execution_results?.[0]
+    const execFailure = exec?.result?.Failure || exec?.error_message;
+    if (execFailure) {
+      const errMsg = typeof execFailure === 'object' ? execFailure.error_message : String(execFailure);
+      return { ok: false, error: `Deploy execution failed on-chain: ${errMsg}` }
     }
-    const transfers: any[] = deploy?.execution_result?.Executions?.[0]?.result?.Success?.transfers ?? []
+    
     const minMotes = BigInt(Math.round(parseFloat(minAmountCspr) * 10 ** CSPR_DECIMALS))
     let matched = BigInt(0)
+    
+    // 1. Try native transfers list
+    const transfers: any[] = exec?.result?.Success?.transfers ?? []
     for (const t of transfers) {
       const to = String(t?.to ?? '')
       if (to.toLowerCase() === expectedRecipient.toLowerCase()) {
         try { matched += BigInt(t.amount) } catch { /* ignore */ }
       }
     }
+    
+    // 2. Fallback: Parse session arguments if no native transfers matched (CEP-18 token / native contract transfers)
+    if (matched === BigInt(0)) {
+      try {
+        const session = deploy?.deploy?.session || deploy?.session;
+        if (session) {
+          const contractCall = session?.StoredContractByHash || 
+                               session?.StoredContractByName || 
+                               session?.StoredVersionedContractByHash || 
+                               session?.StoredVersionedContractByName ||
+                               session?.Transfer;
+          const args = contractCall?.args || session?.args || session?.Transfer?.args;
+          if (args) {
+            let actualRecipient = "";
+            let actualAmount = "";
+            for (const arg of args) {
+              const name = typeof arg[0] === 'string' ? arg[0] : arg?.[0]?.toString?.();
+              if (name === 'recipient' || name === 'target') {
+                const val = arg[1];
+                const bytes = val?.bytes || val?.parsed?.bytes;
+                if (bytes) {
+                  const hex = Buffer.from(bytes, 'hex').toString('hex');
+                  actualRecipient = hex.length === 64 ? '01' + hex : hex;
+                } else if (val?.parsed) {
+                  actualRecipient = typeof val.parsed === 'string' ? val.parsed : JSON.stringify(val.parsed);
+                } else if (typeof val === 'string') {
+                  actualRecipient = val;
+                }
+              }
+              if (name === 'amount') {
+                const val = arg[1];
+                actualAmount = val?.parsed !== undefined ? String(val.parsed) : String(val);
+              }
+            }
+            
+            // Normalize and compare (recipient public key or derived account hash)
+            let expectedRecipientHash = "";
+            try {
+              expectedRecipientHash = CLPublicKey.fromHex(expectedRecipient).toAccountHashStr();
+            } catch { /* ignore */ }
+            
+            const cleanKey = (str: string) => {
+              if (!str) return '';
+              let cleaned = str.toLowerCase().replace(/^account-hash-/, '');
+              if (cleaned.length === 66 && (cleaned.startsWith('01') || cleaned.startsWith('02'))) {
+                cleaned = cleaned.slice(2);
+              }
+              return cleaned;
+            };
+
+            const normExpected = cleanKey(expectedRecipient);
+            const normExpectedHash = cleanKey(expectedRecipientHash);
+            const normActual = cleanKey(actualRecipient);
+            
+            if (
+              (normActual === normExpected || (normExpectedHash && normActual === normExpectedHash)) && 
+              actualAmount
+            ) {
+              matched = BigInt(actualAmount);
+            }
+          }
+        }
+      } catch (parseErr) {
+        console.warn('[verifyCasperDeploy] session parse failed:', parseErr);
+      }
+    }
+    
     if (matched < minMotes) {
       return { ok: false, error: `Payment of ${motesToCspr(matched)} CSPR is below required ${minAmountCspr} CSPR` }
     }

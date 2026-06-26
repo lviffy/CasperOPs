@@ -17,6 +17,7 @@
  */
 
 const { getToolPrice, motesToCspr } = require('../utils/chains');
+const { CLPublicKey } = require('casper-js-sdk');
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const verifyCache = new Map(); // deployHash → { expiresAt, challenge }
@@ -25,6 +26,15 @@ const RPC_URL = process.env.CASPER_RPC_URL || 'https://rpc.testnet.casper.live/r
 const RECIPIENT = process.env.CASPER_PAYMENT_RECIPIENT_PUBLIC_KEY ||
   '010101010101010101010101010101010101010101010101010101010101010101';
 const TOKEN_HASH = process.env.CASPER_CEP18_CONTRACT_HASH || null;
+
+const RECIPIENT_ACCOUNT_HASH = (() => {
+  try {
+    return CLPublicKey.fromHex(RECIPIENT).toAccountHashStr();
+  } catch (err) {
+    console.warn('[x402] failed to derive account hash for recipient:', err?.message);
+    return '';
+  }
+})();
 
 async function rpc(method, params = {}) {
   const res = await fetch(RPC_URL, {
@@ -70,29 +80,51 @@ function challengeFor(toolId) {
 }
 
 function extractPaymentFromDeploy(deployJson) {
-  // Casper deploys have a session.runtime_args listing the entry point
-  // arguments. For a CEP-18 transfer we expect { recipient, amount }.
   const session = deployJson?.deploy?.session || deployJson?.session;
   if (!session) return null;
-  const args = session?.StoredContractByHash?.args || session?.args;
+
+  // Handles StoredContractByHash, StoredContractByName, Transfer, etc.
+  const contractCall = session?.StoredContractByHash || 
+                       session?.StoredContractByName || 
+                       session?.StoredVersionedContractByHash || 
+                       session?.StoredVersionedContractByName ||
+                       session?.Transfer;
+
+  const args = contractCall?.args || session?.args || session?.Transfer?.args;
   if (!args) return null;
+
   const out = {};
   for (const arg of args) {
     const name = typeof arg[0] === 'string' ? arg[0] : arg?.[0]?.toString?.();
-    if (name === 'recipient') {
-      const bytes = arg[1]?.parsed?.bytes || arg[1]?.bytes;
-      if (bytes) out.recipient = '01' + Buffer.from(bytes, 'hex' === 'string' ? 'hex' : 'base64').toString('hex').slice(0, 64);
+    if (name === 'recipient' || name === 'target') {
+      const val = arg[1];
+      const bytes = val?.bytes || val?.parsed?.bytes;
+      if (bytes) {
+        // Casper RPC always returns bytes as a hex string.
+        const hex = Buffer.from(bytes, 'hex').toString('hex');
+        if (hex.length === 64) {
+          out.recipient = '01' + hex;
+        } else {
+          out.recipient = hex;
+        }
+      } else if (val?.parsed) {
+        out.recipient = typeof val.parsed === 'string' ? val.parsed : JSON.stringify(val.parsed);
+      } else if (typeof val === 'string') {
+        out.recipient = val;
+      }
     }
     if (name === 'amount') {
-      out.amount = arg[1]?.parsed || String(arg[1]);
+      const val = arg[1];
+      out.amount = val?.parsed !== undefined ? String(val.parsed) : String(val);
     }
   }
-  // Alternative path: serialised JSON form
-  if (!out.recipient && !out.amount && deployJson?.deploy?.session?.StoredContractByHash) {
-    const raw = deployJson.deploy.session.StoredContractByHash.args || [];
+
+  // Alternative path: serialised JSON form fallback
+  if (!out.recipient && !out.amount) {
+    const raw = args || [];
     for (const arg of raw) {
       const name = typeof arg[0] === 'string' ? arg[0] : arg?.[0]?.toString?.();
-      if (name === 'recipient') out.recipient = arg[1];
+      if (name === 'recipient' || name === 'target') out.recipient = arg[1];
       if (name === 'amount') out.amount = String(arg[1]);
     }
   }
@@ -143,28 +175,69 @@ function x402Verify() {
           error: 'Payment deploy not yet included in a block. Retry in 30 seconds.',
         });
       }
-      if (exec.error_message) {
+
+      const errorMessage = exec?.result?.Failure?.error_message || exec?.error_message;
+      if (errorMessage) {
         return res.status(402).json({
           ...challengeFor(toolId),
-          error: `Payment deploy reverted: ${exec.error_message}`,
+          error: `Payment deploy reverted: ${errorMessage}`,
         });
       }
 
-      // Best-effort amount check: extract {recipient, amount} from the raw
-      // deploy shape returned by the RPC. We do NOT round-trip through
-      // DeployUtil.deployFromJson because it requires a fully-formed deploy
-      // (header, approvals, payment, body_hash, valid TTL unit, ...) and
-      // would throw on the lightweight shape returned by info_get_deploy.
-      try {
-        const payment = extractPaymentFromDeploy({ deploy: result.deploy });
-        if (payment?.amount && BigInt(payment.amount) < BigInt(price.priceMotes)) {
-          return res.status(402).json({
-            ...challengeFor(toolId),
-            error: `Payment amount ${payment.amount} below required ${price.priceMotes} motes.`,
-          });
+      // Verify deploy signer matches the payer header
+      const deploySigner = result?.deploy?.header?.account;
+      if (deploySigner && deploySigner.toLowerCase() !== payer.toLowerCase()) {
+        return res.status(402).json({
+          ...challengeFor(toolId),
+          error: `Payment deploy signer ${deploySigner} does not match expected payer ${payer}.`,
+        });
+      }
+
+      const payment = extractPaymentFromDeploy({ deploy: result.deploy });
+      if (!payment) {
+        return res.status(402).json({
+          ...challengeFor(toolId),
+          error: 'Could not extract payment details from deploy.',
+        });
+      }
+
+      const cleanKey = (str) => {
+        if (!str) return '';
+        let cleaned = str.toLowerCase().replace(/^account-hash-/, '');
+        if (cleaned.length === 66 && (cleaned.startsWith('01') || cleaned.startsWith('02'))) {
+          cleaned = cleaned.slice(2);
         }
-      } catch (parseErr) {
-        console.warn('[x402] deploy parse failed (best-effort):', parseErr?.message);
+        return cleaned;
+      };
+
+      // Verify recipient matches expected treasury (normalizing account hashes and public keys)
+      const expectedRecipient = cleanKey(RECIPIENT);
+      const expectedRecipientHash = cleanKey(RECIPIENT_ACCOUNT_HASH);
+      const actualRecipient = cleanKey(payment.recipient);
+
+      if (
+        actualRecipient !== expectedRecipient &&
+        actualRecipient !== expectedRecipientHash
+      ) {
+        return res.status(402).json({
+          ...challengeFor(toolId),
+          error: `Payment recipient ${payment.recipient} does not match expected recipient ${RECIPIENT}.`,
+        });
+      }
+
+      // Verify amount is sufficient
+      if (!payment.amount) {
+        return res.status(402).json({
+          ...challengeFor(toolId),
+          error: 'Could not extract payment amount from deploy.',
+        });
+      }
+
+      if (BigInt(payment.amount) < BigInt(price.priceMotes)) {
+        return res.status(402).json({
+          ...challengeFor(toolId),
+          error: `Payment amount ${payment.amount} below required ${price.priceMotes} motes.`,
+        });
       }
 
       const challenge = {

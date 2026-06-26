@@ -108,7 +108,7 @@ describe('x402 middleware', () => {
             session: {
               StoredContractByHash: {
                 args: [
-                  ['recipient', payer.slice(2)],
+                  ['recipient', process.env.CASPER_PAYMENT_RECIPIENT_PUBLIC_KEY.slice(2)],
                   ['amount', '500000000'],
                 ],
               },
@@ -148,7 +148,7 @@ describe('x402 middleware', () => {
             session: {
               StoredContractByHash: {
                 args: [
-                  ['recipient', payer.slice(2)],
+                  ['recipient', process.env.CASPER_PAYMENT_RECIPIENT_PUBLIC_KEY.slice(2)],
                   ['amount', '100000000'], // too small
                 ],
               },
@@ -159,5 +159,172 @@ describe('x402 middleware', () => {
     })
     await mw(req, res, () => { throw new Error('next() should not be called') })
     assert.equal(res.status.calledWith(402), true)
+  })
+
+  it('x402Verify rejects a deploy where the signer does not match the payer header', async () => {
+    const mw = x402Verify()
+    const deployHash = 'hash-' + '1'.repeat(64)
+    const payer = '01' + '2'.repeat(64)
+    const actualSigner = '01' + '3'.repeat(64) // mismatch
+    const req = {
+      method: 'POST',
+      params: { toolId: 'register_agent' },
+      body: {},
+      header: (h) => {
+        if (h === 'X-Casper-Payment-Deploy-Hash') return deployHash
+        if (h === 'X-Casper-Payment-Payer-PublicKey') return payer
+        return undefined
+      },
+    }
+    const res = { status: sinon.stub().returnsThis(), json: sinon.spy() }
+    global.fetch = sinon.stub().resolves({
+      ok: true,
+      json: async () => ({
+        result: {
+          execution_results: [{ error_message: null }],
+          deploy: {
+            header: { account: actualSigner },
+            session: {
+              StoredContractByHash: {
+                args: [
+                  ['recipient', process.env.CASPER_PAYMENT_RECIPIENT_PUBLIC_KEY.slice(2)],
+                  ['amount', '500000000'],
+                ],
+              },
+            },
+          },
+        },
+      }),
+    })
+    await mw(req, res, () => { throw new Error('next() should not be called') })
+    assert.equal(res.status.calledWith(402), true)
+  })
+
+  it('x402Verify rejects a deploy where the recipient does not match treasury', async () => {
+    const mw = x402Verify()
+    const deployHash = 'hash-' + '4'.repeat(64)
+    const payer = '01' + '5'.repeat(64)
+    const wrongRecipient = 'wrong-recipient'
+    const req = {
+      method: 'POST',
+      params: { toolId: 'register_agent' },
+      body: {},
+      header: (h) => {
+        if (h === 'X-Casper-Payment-Deploy-Hash') return deployHash
+        if (h === 'X-Casper-Payment-Payer-PublicKey') return payer
+        return undefined
+      },
+    }
+    const res = { status: sinon.stub().returnsThis(), json: sinon.spy() }
+    global.fetch = sinon.stub().resolves({
+      ok: true,
+      json: async () => ({
+        result: {
+          execution_results: [{ error_message: null }],
+          deploy: {
+            header: { account: payer },
+            session: {
+              StoredContractByHash: {
+                args: [
+                  ['recipient', wrongRecipient],
+                  ['amount', '500000000'],
+                ],
+              },
+            },
+          },
+        },
+      }),
+    })
+    await mw(req, res, () => { throw new Error('next() should not be called') })
+    assert.equal(res.status.calledWith(402), true)
+  })
+
+  it('x402Verify rejects a reverted deploy with nested Failure error message', async () => {
+    const mw = x402Verify()
+    const deployHash = 'hash-' + '6'.repeat(64)
+    const payer = '01' + '7'.repeat(64)
+    const req = {
+      method: 'POST',
+      params: { toolId: 'register_agent' },
+      body: {},
+      header: (h) => {
+        if (h === 'X-Casper-Payment-Deploy-Hash') return deployHash
+        if (h === 'X-Casper-Payment-Payer-PublicKey') return payer
+        return undefined
+      },
+    }
+    const res = { status: sinon.stub().returnsThis(), json: sinon.spy() }
+    global.fetch = sinon.stub().resolves({
+      ok: true,
+      json: async () => ({
+        result: {
+          execution_results: [{
+            result: {
+              Failure: {
+                error_message: 'Out of gas'
+              }
+            }
+          }],
+          deploy: {
+            header: { account: payer },
+            session: {
+              StoredContractByHash: {
+                args: [
+                  ['recipient', process.env.CASPER_PAYMENT_RECIPIENT_PUBLIC_KEY.slice(2)],
+                  ['amount', '500000000'],
+                ],
+              },
+            },
+          },
+        },
+      }),
+    })
+    await mw(req, res, () => { throw new Error('next() should not be called') })
+    assert.equal(res.status.calledWith(402), true)
+  })
+
+  it('x402Verify accepts a valid native CSPR Transfer deploy', async () => {
+    const mw = x402Verify()
+    const deployHash = 'hash-' + '8'.repeat(64)
+    const payer = '01' + '9'.repeat(64)
+    const req = {
+      method: 'POST',
+      params: { toolId: 'register_agent' },
+      body: {},
+      header: (h) => {
+        if (h === 'X-Casper-Payment-Deploy-Hash') return deployHash
+        if (h === 'X-Casper-Payment-Payer-PublicKey') return payer
+        return undefined
+      },
+    }
+    const res = { status: sinon.stub().returnsThis(), json: sinon.spy() }
+    let nextCalled = false
+    
+    const { CLPublicKey } = require('casper-js-sdk')
+    const expectedHash = CLPublicKey.fromHex(process.env.CASPER_PAYMENT_RECIPIENT_PUBLIC_KEY).toAccountHashStr()
+    
+    global.fetch = sinon.stub().resolves({
+      ok: true,
+      json: async () => ({
+        result: {
+          execution_results: [{ result: { Success: {} } }],
+          deploy: {
+            header: { account: payer },
+            session: {
+              Transfer: {
+                args: [
+                  ['target', { cl_type: 'Key', parsed: expectedHash }],
+                  ['amount', { cl_type: 'U512', parsed: '500000000' }],
+                ],
+              },
+            },
+          },
+        },
+      }),
+    })
+
+    await mw(req, res, () => { nextCalled = true })
+    assert.equal(nextCalled, true)
+    assert.equal(typeof req.x402, 'object')
   })
 })

@@ -54,7 +54,10 @@ async function fetchDeployStatus(deployHash: string, rpcUrl: string): Promise<De
     const json: any = await res.json()
     const exec = json?.result?.execution_results?.[0]
     if (!exec) return "pending"
-    if (exec.error_message) return "failed"
+    
+    const errorMessage = exec?.result?.Failure?.error_message || exec?.error_message
+    if (errorMessage) return "failed"
+    
     const block = json?.result?.execution_results?.length ?? 1
     // Casper returns multiple execution_results when the deploy is included
     // in a finalized block. Treat ≥2 as "finalized".
