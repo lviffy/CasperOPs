@@ -214,15 +214,6 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
     return () => document.removeEventListener("mousedown", handleClick)
   }, [])
 
-  // Pre-load Yield Optimizer template on first visit (no agentId, no existing workflow)
-  useEffect(() => {
-    if (!agentId && !templateLoaded && reactFlowInstance) {
-      const templates = getTemplates()
-      if (templates.length > 0) {
-        loadTemplate(templates[0])
-      }
-    }
-  }, [agentId, templateLoaded, reactFlowInstance, loadTemplate])
 
   // Initialize CSPR.click once on mount
   useEffect(() => {

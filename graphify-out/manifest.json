@@ -1225,9 +1225,9 @@
     "semantic_hash": "4194e239621b0a97656c7eef97b960fe"
   },
   "frontend/components/workflow-builder.tsx": {
-    "mtime": 1782394539.459154,
-    "ast_hash": "e18207bbcb6061d46b5c06d33cbb01aa",
-    "semantic_hash": "e18207bbcb6061d46b5c06d33cbb01aa"
+    "mtime": 1782469166.7376447,
+    "ast_hash": "e1215c962eb5336872fd36ec28a2cacd",
+    "semantic_hash": ""
   },
   "frontend/e2e/accessibility.spec.ts": {
     "mtime": 1782370114.5439858,

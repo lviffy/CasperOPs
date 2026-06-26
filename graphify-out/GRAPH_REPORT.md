@@ -1,15 +1,16 @@
-# Graph Report - .  (2026-06-26)
+# Graph Report - casper  (2026-06-26)
 
 ## Corpus Check
-- cluster-only mode — file stats not available
+- 353 files · ~259,319 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4058 nodes · 9259 edges · 176 communities (152 shown, 24 thin omitted)
+- 4058 nodes · 9259 edges · 175 communities (151 shown, 24 thin omitted)
 - Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 346 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f335a37b`
+- Built from commit: `58ad9322`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -170,19 +171,18 @@
 - [[_COMMUNITY_Community 161|Community 161]]
 - [[_COMMUNITY_Community 162|Community 162]]
 - [[_COMMUNITY_Community 163|Community 163]]
-- [[_COMMUNITY_Community 175|Community 175]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `cn()` - 292 edges
-2. `l()` - 92 edges
-3. `i()` - 76 edges
-4. `n()` - 75 edges
-5. `o` - 69 edges
-6. `m()` - 68 edges
-7. `h()` - 65 edges
-8. `v()` - 62 edges
-9. `s()` - 60 edges
-10. `g()` - 60 edges
+1. `_()` - 369 edges
+2. `cn()` - 292 edges
+3. `_()` - 247 edges
+4. `l()` - 92 edges
+5. `i()` - 76 edges
+6. `n()` - 75 edges
+7. `o` - 69 edges
+8. `m()` - 68 edges
+9. `h()` - 65 edges
+10. `v()` - 62 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `withFakeRedis()` --calls--> `Fn()`  [INFERRED]
@@ -199,19 +199,19 @@
 ## Import Cycles
 - None detected.
 
-## Communities (176 total, 24 thin omitted)
+## Communities (175 total, 24 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.02
-Nodes (152): useIsMobile(), cn(), BreadcrumbEllipsis(), BreadcrumbItem(), BreadcrumbLink(), BreadcrumbList(), BreadcrumbPage(), BreadcrumbSeparator() (+144 more)
+Nodes (147): useIsMobile(), cn(), BreadcrumbEllipsis(), BreadcrumbItem(), BreadcrumbLink(), BreadcrumbList(), BreadcrumbPage(), BreadcrumbSeparator() (+139 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.02
-Nodes (74): Yo(), aa(), ac, ah(), Ao, ba(), bs(), Bt() (+66 more)
+Nodes (75): Yo(), _(), aa(), ac, ah(), Ao, ba(), bs() (+67 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.03
-Nodes (63): Ak(), bk(), bu(), Ck(), Dv(), Ea(), ed(), Ek() (+55 more)
+Nodes (72): _(), Ak(), bk(), bu(), Ck(), De(), Dv(), Ea() (+64 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.05
@@ -219,7 +219,7 @@ Nodes (11): b(), c(), d(), f(), g(), m(), p(), remove() (+3 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.03
-Nodes (23): al, Bl, Ce(), df, fa(), fl, Fs(), gf (+15 more)
+Nodes (18): ae(), al, Bl, Ce(), fl, gf, He(), Le() (+10 more)
 
 ### Community 5 - "Community 5"
 Cohesion: 0.05
@@ -227,7 +227,7 @@ Nodes (23): getPrecomputes(), ie(), j(), k(), mr(), pr(), precompute(), precompu
 
 ### Community 6 - "Community 6"
 Cohesion: 0.04
-Nodes (4): Kf, l(), n(), sa()
+Nodes (7): constructor(), Kf, n(), r(), s(), sa(), T()
 
 ### Community 7 - "Community 7"
 Cohesion: 0.06
@@ -235,39 +235,39 @@ Nodes (57): AgentWalletModal(), AgentWalletModalProps, EscrowPage(), EscrowState
 
 ### Community 8 - "Community 8"
 Cohesion: 0.06
-Nodes (52): AgentBuilderContent(), Home(), NumberTicker(), AgentChatPage(), AIChatModal(), AIChatModalProps, Message, ContractInteraction() (+44 more)
+Nodes (51): AgentBuilderContent(), AgentChatPage(), AIChatModal(), AIChatModalProps, Message, ContractInteraction(), PrivateKeySetupModal(), PrivateKeySetupModalProps (+43 more)
 
 ### Community 9 - "Community 9"
-Cohesion: 0.06
-Nodes (9): cl, clone(), constructor(), ea(), Eu(), gs(), r(), removeItem() (+1 more)
+Cohesion: 0.04
+Nodes (16): cl, df, ea(), Eu(), fa(), Fs(), gs(), kl (+8 more)
 
 ### Community 10 - "Community 10"
 Cohesion: 0.04
-Nodes (21): at, Be(), clear(), cr(), De(), dispose(), e(), ee() (+13 more)
+Nodes (18): at, Be(), clear(), De(), dispose(), e(), ee(), forEach() (+10 more)
 
 ### Community 11 - "Community 11"
 Cohesion: 0.03
 Nodes (62): dependencies, casper-js-sdk, class-variance-authority, clsx, cmdk, date-fns, embla-carousel-react, @google/generative-ai (+54 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.05
-Nodes (30): AnalyticsData, X402Data, ApiKey, CreatedKey, BillingInfo, Invoice, AIQuotaDisplay(), TIERS (+22 more)
+Cohesion: 0.06
+Nodes (30): AnalyticsData, X402Data, ApiKey, CreatedKey, BillingInfo, Invoice, AgentManifest, CasperAgentSummary (+22 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.06
 Nodes (51): runTransfer(), { checkAddressCompliance }, { DeployUtil, Keys, CLPublicKey }, { getClient, getKeysFromHex, getAccountBalance }, { successResponse, errorResponse, validateRequiredFields }, transfer(), attest_agent(), attest_performance() (+43 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.05
-Nodes (10): a(), ca(), cc, Jr, lc, Ni, qr, Ri (+2 more)
+Cohesion: 0.04
+Nodes (12): a(), ca(), cc, cr(), Jr, lc, Nf, Ni (+4 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.05
-Nodes (10): close(), off(), on(), once(), onClose(), onOpen(), pull(), Tl (+2 more)
+Cohesion: 0.06
+Nodes (9): close(), off(), on(), once(), onClose(), onOpen(), pull(), Tl (+1 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.17
-Nodes (37): ae(), Bi(), cc(), ci(), Da(), dc(), di(), fc() (+29 more)
+Cohesion: 0.12
+Nodes (49): ae(), al(), Bi(), bo(), cc(), ci(), co(), Da() (+41 more)
 
 ### Community 17 - "Community 17"
 Cohesion: 0.06
@@ -278,16 +278,16 @@ Cohesion: 0.05
 Nodes (44): accountRoutes, agentRoutes, analyticsRoutes, apiKeyAuth, app, authGuard, billingRoutes, compilerRouter (+36 more)
 
 ### Community 19 - "Community 19"
-Cohesion: 0.09
-Nodes (32): A(), ar(), b(), cr(), d(), dr(), Eh(), en() (+24 more)
+Cohesion: 0.07
+Nodes (45): ar(), b(), be(), cr(), dr(), e(), ee(), en() (+37 more)
 
 ### Community 20 - "Community 20"
 Cohesion: 0.05
-Nodes (31): AuditDetailField(), AuditJsonBlock(), AuditLogsSheet(), AuditScopeFilter, getReminderDisplayStatus(), getReminderStatusClass(), getTransferDisplayStatus(), getTransferStatusClass() (+23 more)
+Nodes (32): AuditDetailField(), AuditJsonBlock(), AuditLogsSheet(), AuditScopeFilter, getReminderDisplayStatus(), getReminderStatusClass(), getTransferDisplayStatus(), getTransferStatusClass() (+24 more)
 
 ### Community 21 - "Community 21"
-Cohesion: 0.11
-Nodes (19): SandboxDemoModalProps, Step, SandboxSection(), Step, CloseIcon(), Modal(), ModalBody(), ModalContent() (+11 more)
+Cohesion: 0.10
+Nodes (21): Home(), NumberTicker(), SandboxDemoModalProps, Step, SandboxSection(), Step, CloseIcon(), Modal() (+13 more)
 
 ### Community 22 - "Community 22"
 Cohesion: 0.08
@@ -306,8 +306,8 @@ Cohesion: 0.08
 Nodes (34): buildChallenge(), { getToolPrice, motesToCspr, CASPER_NETWORK_CONFIG }, cacheGet(), cacheSet(), challengeFor(), extractPaymentFromDeploy(), getDeployFromRpc(), { getToolPrice, motesToCspr } (+26 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.12
-Nodes (7): et(), mu, nt(), rt(), st, tt(), Xe()
+Cohesion: 0.08
+Nodes (10): clone(), et(), i(), mu, nt(), o, removeListener(), rt() (+2 more)
 
 ### Community 26 - "Community 26"
 Cohesion: 0.05
@@ -315,11 +315,11 @@ Nodes (40): author, dependencies, axios, bcrypt, casper-js-sdk, dotenv, express,
 
 ### Community 27 - "Community 27"
 Cohesion: 0.08
-Nodes (13): metrics(), Popen, Response, _free_port(), HttpSseSmokeTests, Smoke tests for the CasperOPs MCP server (HTTP/SSE + stdio).  Boots the FastAPI, End-to-end smoke against the FastAPI HTTP/SSE transport., register_agent is a paid tool that proxies to the CasperOPs backend.          We (+5 more)
+Nodes (13): metrics(), Popen, _Response, _free_port(), HttpSseSmokeTests, Smoke tests for the CasperOPs MCP server (HTTP/SSE + stdio).  Boots the FastAPI, End-to-end smoke against the FastAPI HTTP/SSE transport., register_agent is a paid tool that proxies to the CasperOPs backend.          We (+5 more)
 
 ### Community 28 - "Community 28"
-Cohesion: 0.08
-Nodes (33): AIQuotaBadge(), AIQuotaBadgeCompact(), AIQuotaBadgeProps, QuotaStatus, PaymentStatus, PaymentDetails, PaymentStatus, PaymentStatusBadge() (+25 more)
+Cohesion: 0.09
+Nodes (32): AIQuotaBadge(), AIQuotaBadgeCompact(), AIQuotaBadgeProps, QuotaStatus, PaymentStatus, PaymentDetails, PaymentStatus, PaymentStatusBadge() (+24 more)
 
 ### Community 29 - "Community 29"
 Cohesion: 0.07
@@ -365,13 +365,9 @@ Nodes (33): activeTasks, addIntervalToNow(), applyScheduleScope(), cancelSchedul
 Cohesion: 0.07
 Nodes (6): motesToCspr(), PaymentService, PaymentStatus, PaymentVerificationRequest, PaymentVerificationResponse, verifyCasperDeploy()
 
-### Community 39 - "Community 39"
-Cohesion: 0.16
-Nodes (6): ae(), ne, oe(), se(), T(), te()
-
 ### Community 40 - "Community 40"
-Cohesion: 0.09
-Nodes (24): CodeEditorProps, ContractFunction, ContractInteractionProps, NodeConfigPanelProps, WorkflowNode, Accordion(), AccordionContent(), AccordionItem() (+16 more)
+Cohesion: 0.10
+Nodes (22): Field(), FieldContent(), FieldDescription(), FieldError(), FieldGroup(), FieldLabel(), FieldLegend(), FieldSeparator() (+14 more)
 
 ### Community 42 - "Community 42"
 Cohesion: 0.10
@@ -390,28 +386,35 @@ Cohesion: 0.16
 Nodes (19): Cep18TokenHostRef, HostEnv, Burn, Cep18Token, deploy_with_supply(), Error, test_cep18_approve_and_transfer_from(), test_cep18_burn_emits_event() (+11 more)
 
 ### Community 46 - "Community 46"
-Cohesion: 0.13
-Nodes (25): as(), bs(), cs(), es(), fe(), fs(), ge(), gs() (+17 more)
+Cohesion: 0.12
+Nodes (28): as(), bl(), bs(), cs(), es(), fe(), fs(), ge() (+20 more)
 
 ### Community 47 - "Community 47"
 Cohesion: 0.11
 Nodes (22): deployAction(), deployDescription(), DeployStatus, deployTitle(), DeployTrackingState, showStatusToast(), TrackingToastOptions, useDeployStatusToast() (+14 more)
 
 ### Community 48 - "Community 48"
-Cohesion: 0.07
-Nodes (48): Aa(), ad(), Ai(), ba(), Cm(), De(), Df(), e() (+40 more)
+Cohesion: 0.08
+Nodes (41): A(), Aa(), ad(), Ai(), ba(), Cm(), d(), Df() (+33 more)
 
 ### Community 49 - "Community 49"
 Cohesion: 0.11
 Nodes (22): colors, { intelligentToolRouting, convertToAgentFormat }, log(), printSeparator(), runTests(), testCases, chatWithAI(), chatWithGemini() (+14 more)
 
 ### Community 50 - "Community 50"
-Cohesion: 0.15
-Nodes (25): getAgentById(), verifyApiKey(), axios, bcrypt, clearChatConversationSessions(), decryptStoredPrivateKey(), { getAgentById, verifyApiKey }, getConversationSessionKey() (+17 more)
+Cohesion: 0.12
+Nodes (28): express, {
+  processUpdate,
+  sendMessage,
+  registerWebhook,
+  getWebhookInfo,
+  getBotInfo,
+  stopLongPolling
+}, router, { successResponse, errorResponse }, axios, bcrypt, decryptStoredPrivateKey(), { getAgentById, verifyApiKey } (+20 more)
 
 ### Community 51 - "Community 51"
-Cohesion: 0.10
-Nodes (33): Ao(), be(), br(), co(), dt(), ee(), et(), gt() (+25 more)
+Cohesion: 0.22
+Nodes (14): Ao(), br(), dt(), ht(), K(), Kt(), _l(), ot() (+6 more)
 
 ### Community 52 - "Community 52"
 Cohesion: 0.10
@@ -553,8 +556,12 @@ Cohesion: 0.14
 Nodes (4): McpState, Fan out a result to the in-memory SSE queue (if a stream is open)         and to, Combined Redis + Postgres state for the MCP server., Queue
 
 ### Community 84 - "Community 84"
-Cohesion: 0.13
-Nodes (27): al(), bl(), bo(), Do(), ei(), El(), Eo(), Ho() (+19 more)
+Cohesion: 0.17
+Nodes (17): Do(), Eo(), Ho(), io(), ko(), ll(), ml(), Mo() (+9 more)
+
+### Community 85 - "Community 85"
+Cohesion: 0.10
+Nodes (11): Button(), buttonVariants, Calendar(), CalendarDayButton(), Pagination(), PaginationContent(), PaginationEllipsis(), PaginationLink() (+3 more)
 
 ### Community 86 - "Community 86"
 Cohesion: 0.18
@@ -614,15 +621,8 @@ Cohesion: 0.15
 Nodes (10): askContractQuestion(), CommandExecutionResponse, ContractChatResponse, ContractDiscoveryResponse, ContractFunction, discoverContract(), executeNaturalLanguageCommand(), ExecutionPlan (+2 more)
 
 ### Community 101 - "Community 101"
-Cohesion: 0.19
-Nodes (12): express, {
-  processUpdate,
-  sendMessage,
-  registerWebhook,
-  getWebhookInfo,
-  getBotInfo,
-  stopLongPolling
-}, router, { successResponse, errorResponse }, getBotInfo(), getWebhookInfo(), registerWebhook(), startCsprFansVoteDaemon() (+4 more)
+Cohesion: 0.36
+Nodes (9): getAgentById(), verifyApiKey(), clearChatConversationSessions(), getTelegramUser(), handleAgent(), handleConnect(), handleDisconnect(), handleSwitch() (+1 more)
 
 ### Community 102 - "Community 102"
 Cohesion: 0.21
@@ -768,10 +768,6 @@ Nodes (3): name, private, version
 Cohesion: 0.50
 Nodes (3): assert, { describe, it, before, afterEach }, sinon
 
-### Community 175 - "Community 175"
-Cohesion: 0.43
-Nodes (5): ToggleGroup(), ToggleGroupContext, ToggleGroupItem(), Toggle(), toggleVariants
-
 ## Knowledge Gaps
 - **840 isolated node(s):** `{ describe, it, after }`, `assert`, `{ schemas }`, `{ CASPER_SUPPORTED_TOOLS, TOOL_PRICING }`, `{
   update_account_weights,
@@ -786,17 +782,17 @@ Nodes (5): ToggleGroup(), ToggleGroupContext, ToggleGroupItem(), Toggle(), toggl
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
+- **Why does `_()` connect `Community 1` to `Community 65`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 39`, `Community 9`, `Community 10`, `Community 41`, `Community 14`, `Community 15`, `Community 48`, `Community 51`, `Community 23`, `Community 87`, `Community 56`, `Community 25`, `Community 29`?**
+  _High betweenness centrality (0.126) - this node is a cross-community bridge._
 - **Why does `makeFallbackLogger()` connect `Community 44` to `Community 15`?**
   _High betweenness centrality (0.115) - this node is a cross-community bridge._
-- **Why does `cn()` connect `Community 0` to `Community 98`, `Community 8`, `Community 40`, `Community 12`, `Community 175`, `Community 112`, `Community 17`, `Community 20`, `Community 21`, `Community 58`, `Community 28`?**
-  _High betweenness centrality (0.075) - this node is a cross-community bridge._
-- **Why does `dr()` connect `Community 19` to `Community 48`, `Community 2`, `Community 29`?**
-  _High betweenness centrality (0.063) - this node is a cross-community bridge._
+- **Why does `_()` connect `Community 2` to `Community 1`, `Community 34`, `Community 46`, `Community 48`, `Community 16`, `Community 51`, `Community 19`, `Community 55`, `Community 84`, `Community 23`?**
+  _High betweenness centrality (0.088) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `l()` (e.g. with `c()` and `ci()`) actually correct?**
   _`l()` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 3 inferred relationships involving `i()` (e.g. with `so()` and `o`) actually correct?**
   _`i()` has 3 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 34 inferred relationships involving `n()` (e.g. with `Aa()` and `c()`) actually correct?**
-  _`n()` has 34 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 26 inferred relationships involving `o` (e.g. with `A()` and `Aa()`) actually correct?**
-  _`o` has 26 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `Convert natural language workflow description to structured JSON     Primary: Gr`, `Get list of available tools in the platform`, `Health check endpoint` to the rest of the system?**
+  _896 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Community 0` be split into smaller, more focused modules?**
+  _Cohesion score 0.018964583025466726 - nodes in this community are weakly interconnected._
