@@ -95,19 +95,30 @@ describe('contractDeploymentService.js — Casper CEP-18 + CEP-78 deploys', () =
       assert.equal(args.total_supply.data.toString(), '1000000');
     });
 
-    test('declares exactly the four required CEP-18 init args', () => {
+    test('declares exactly the required CEP-18 init and configuration args', () => {
       const args = svc.buildCep18InitArgs({
         name: 'X',
         symbol: 'X',
         decimals: 9,
         totalSupply: '1',
       });
-      assert.deepEqual(Object.keys(args).sort(), ['decimals', 'name', 'symbol', 'total_supply']);
+      const expectedKeys = [
+        'decimals',
+        'name',
+        'odra_cfg_allow_key_override',
+        'odra_cfg_constructor',
+        'odra_cfg_is_upgradable',
+        'odra_cfg_is_upgrade',
+        'odra_cfg_package_hash_key_name',
+        'symbol',
+        'total_supply'
+      ];
+      assert.deepEqual(Object.keys(args).sort(), expectedKeys.sort());
     });
   });
 
   describe('buildCep78InitArgs', () => {
-    test('declares the nine required CEP-78 init args', () => {
+    test('declares the required CEP-78 init and configuration args', () => {
       const args = svc.buildCep78InitArgs({
         name: 'Sample Collection',
         symbol: 'SAMPLE',
@@ -116,39 +127,38 @@ describe('contractDeploymentService.js — Casper CEP-18 + CEP-78 deploys', () =
       const expectedKeys = [
         'collection_name',
         'collection_symbol',
-        'identifier_mode',
-        'metadata_mutability',
-        'nft_kind',
-        'nft_metadata_kind',
-        'ownership_mode',
+        'odra_cfg_allow_key_override',
+        'odra_cfg_constructor',
+        'odra_cfg_is_upgradable',
+        'odra_cfg_is_upgrade',
+        'odra_cfg_package_hash_key_name',
         'total_token_supply',
       ];
       assert.deepEqual(Object.keys(args).sort(), expectedKeys.sort());
     });
 
-    test('uses the documented v1.0 defaults for ownership/metadata modes', () => {
+    test('uses the documented v2.x Odra defaults for configuration options', () => {
       const args = svc.buildCep78InitArgs({
         name: 'X',
         symbol: 'X',
         totalTokenSupply: 100,
       });
-      assert.equal(args.ownership_mode.data.toString(), String(svc.CEP78_OWNERSHIP_MODE_TRANSFERABLE));
-      assert.equal(args.nft_kind.data.toString(), String(svc.CEP78_NFT_KIND_DIGITAL));
-      assert.equal(args.nft_metadata_kind.data.toString(), String(svc.CEP78_METADATA_KIND_CEP78));
-      assert.equal(args.identifier_mode.data.toString(), String(svc.CEP78_IDENTIFIER_MODE_ORDINAL));
-      assert.equal(args.metadata_mutability.data.toString(), String(svc.CEP78_METADATA_IMMUTABLE));
+      assert.equal(args.odra_cfg_package_hash_key_name.data, 'cep78_x');
+      assert.equal(args.odra_cfg_allow_key_override.data, true);
+      assert.equal(args.odra_cfg_is_upgradable.data, false);
+      assert.equal(args.odra_cfg_is_upgrade.data, false);
+      assert.equal(args.odra_cfg_constructor.data, 'init');
     });
 
-    test('matches the literal mode values from the CEP-78 standard', () => {
-      // ownership_mode: 0=Minter-based, 1=Assigned, 2=Transferable.
-      // We hardcode the int values too so accidental refactors that swap
-      // the constants are caught by CI.
-      const args = svc.buildCep78InitArgs({ name: 'X', symbol: 'X', totalTokenSupply: 1 });
-      assert.equal(args.ownership_mode.data.toString(), '2', 'ownership_mode = Transferable (2)');
-      assert.equal(args.nft_kind.data.toString(), '1', 'nft_kind = Digital (1)');
-      assert.equal(args.nft_metadata_kind.data.toString(), '0', 'metadata_kind = CEP-78 standard (0)');
-      assert.equal(args.identifier_mode.data.toString(), '0', 'identifier_mode = Ordinal (0)');
-      assert.equal(args.metadata_mutability.data.toString(), '0', 'metadata_mutability = Immutable (0)');
+    test('correctly wraps the minter address in a Key when provided', () => {
+      const keys = Keys.Ed25519.new();
+      const args = svc.buildCep78InitArgs({
+        name: 'X',
+        symbol: 'X',
+        totalTokenSupply: 1,
+        minter: keys.publicKey,
+      });
+      assert.equal(args.minter.clType().linksTo, 'Key');
     });
 
     test('defaults totalTokenSupply to 1000 (matches deploy script)', () => {

@@ -1,16 +1,16 @@
 # Graph Report - casper  (2026-06-26)
 
 ## Corpus Check
-- 353 files · ~260,670 words
+- 353 files · ~260,699 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4071 nodes · 9284 edges · 175 communities (151 shown, 24 thin omitted)
+- 4071 nodes · 9284 edges · 174 communities (150 shown, 24 thin omitted)
 - Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 346 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `49e1084a`
+- Built from commit: `96aec369`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -154,7 +154,6 @@
 - [[_COMMUNITY_Community 140|Community 140]]
 - [[_COMMUNITY_Community 141|Community 141]]
 - [[_COMMUNITY_Community 142|Community 142]]
-- [[_COMMUNITY_Community 143|Community 143]]
 - [[_COMMUNITY_Community 144|Community 144]]
 - [[_COMMUNITY_Community 145|Community 145]]
 - [[_COMMUNITY_Community 147|Community 147]]
@@ -199,27 +198,27 @@
 ## Import Cycles
 - None detected.
 
-## Communities (175 total, 24 thin omitted)
+## Communities (174 total, 24 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.02
-Nodes (161): useIsMobile(), cn(), BreadcrumbEllipsis(), BreadcrumbItem(), BreadcrumbLink(), BreadcrumbList(), BreadcrumbPage(), BreadcrumbSeparator() (+153 more)
+Nodes (162): useIsMobile(), cn(), BreadcrumbEllipsis(), BreadcrumbItem(), BreadcrumbLink(), BreadcrumbList(), BreadcrumbPage(), BreadcrumbSeparator() (+154 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.02
-Nodes (71): Yo(), _(), aa(), ac, ah(), Ao, Bt(), ch() (+63 more)
+Nodes (72): Yo(), _(), aa(), ac, ah(), Ao, bs(), Bt() (+64 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.03
-Nodes (74): _(), ad(), Ak(), bk(), bu(), Ck(), Dv(), Ea() (+66 more)
+Nodes (62): _(), Ak(), bk(), bu(), Ck(), Dv(), Ea(), ed() (+54 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.09
 Nodes (4): b(), g(), m(), p()
 
 ### Community 4 - "Community 4"
-Cohesion: 0.03
-Nodes (18): ae(), al, Bl, Ce(), fl, gf, He(), Le() (+10 more)
+Cohesion: 0.02
+Nodes (22): ae(), al, Bl, Ce(), fl, ge(), gf, He() (+14 more)
 
 ### Community 5 - "Community 5"
 Cohesion: 0.05
@@ -235,7 +234,7 @@ Nodes (17): ContractInteraction(), UserProfileProps, ContractExplorerPage(), Ava
 
 ### Community 9 - "Community 9"
 Cohesion: 0.04
-Nodes (15): cl, clone(), df, ea(), Eu(), Fs(), gs(), kl (+7 more)
+Nodes (14): cl, clone(), df, ea(), Eu(), Fs(), gs(), la() (+6 more)
 
 ### Community 10 - "Community 10"
 Cohesion: 0.05
@@ -274,8 +273,8 @@ Cohesion: 0.05
 Nodes (44): accountRoutes, agentRoutes, analyticsRoutes, apiKeyAuth, app, authGuard, billingRoutes, compilerRouter (+36 more)
 
 ### Community 19 - "Community 19"
-Cohesion: 0.10
-Nodes (29): Ao(), ar(), cr(), dr(), dt(), en(), fr(), Gr() (+21 more)
+Cohesion: 0.08
+Nodes (37): Ao(), ar(), b(), cr(), De(), dr(), dt(), en() (+29 more)
 
 ### Community 20 - "Community 20"
 Cohesion: 0.06
@@ -283,7 +282,7 @@ Nodes (26): AuditDetailField(), AuditJsonBlock(), AuditLogsSheet(), AuditScopeFi
 
 ### Community 21 - "Community 21"
 Cohesion: 0.04
-Nodes (13): Sh(), a(), c(), d(), f(), i(), o, oe() (+5 more)
+Nodes (18): Sh(), a(), Be(), c(), clear(), d(), De(), dispose() (+10 more)
 
 ### Community 22 - "Community 22"
 Cohesion: 0.08
@@ -298,8 +297,8 @@ Cohesion: 0.12
 Nodes (43): ac(), at(), bc(), br(), cl(), Ct(), dl(), ec() (+35 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.13
-Nodes (22): buildChallenge(), { getToolPrice, motesToCspr, CASPER_NETWORK_CONFIG }, cacheGet(), cacheSet(), challengeFor(), extractPaymentFromDeploy(), getDeployFromRpc(), { getToolPrice, motesToCspr } (+14 more)
+Cohesion: 0.09
+Nodes (24): buildChallenge(), { getToolPrice, motesToCspr, CASPER_NETWORK_CONFIG }, x402Challenge(), { x402ChallengesTotal }, apiKeyAuth, crypto, express, { logger } (+16 more)
 
 ### Community 25 - "Community 25"
 Cohesion: 0.12
@@ -363,7 +362,7 @@ Nodes (6): motesToCspr(), PaymentService, PaymentStatus, PaymentVerificationRequ
 
 ### Community 39 - "Community 39"
 Cohesion: 0.05
-Nodes (7): bs(), fa(), l(), Nf, onClose(), onOpen(), ua()
+Nodes (5): fa(), l(), onClose(), onOpen(), ua()
 
 ### Community 40 - "Community 40"
 Cohesion: 0.20
@@ -394,20 +393,27 @@ Cohesion: 0.11
 Nodes (22): deployAction(), deployDescription(), DeployStatus, deployTitle(), DeployTrackingState, showStatusToast(), TrackingToastOptions, useDeployStatusToast() (+14 more)
 
 ### Community 48 - "Community 48"
-Cohesion: 0.07
-Nodes (50): A(), Aa(), Ai(), b(), ba(), c(), Cm(), d() (+42 more)
+Cohesion: 0.06
+Nodes (54): A(), Aa(), ad(), Ai(), ba(), c(), Cm(), d() (+46 more)
 
 ### Community 49 - "Community 49"
 Cohesion: 0.11
 Nodes (22): colors, { intelligentToolRouting, convertToAgentFormat }, log(), printSeparator(), runTests(), testCases, chatWithAI(), chatWithGemini() (+14 more)
 
 ### Community 50 - "Community 50"
-Cohesion: 0.15
-Nodes (25): getAgentById(), verifyApiKey(), axios, bcrypt, clearChatConversationSessions(), decryptStoredPrivateKey(), { getAgentById, verifyApiKey }, getConversationSessionKey() (+17 more)
+Cohesion: 0.12
+Nodes (28): express, {
+  processUpdate,
+  sendMessage,
+  registerWebhook,
+  getWebhookInfo,
+  getBotInfo,
+  stopLongPolling
+}, router, { successResponse, errorResponse }, axios, bcrypt, decryptStoredPrivateKey(), { getAgentById, verifyApiKey } (+20 more)
 
 ### Community 51 - "Community 51"
-Cohesion: 0.22
-Nodes (8): apiKeyAuth, crypto, express, { logger }, router, sendDunningEmail(), stripeService, supabase
+Cohesion: 0.29
+Nodes (9): cacheGet(), cacheSet(), challengeFor(), extractPaymentFromDeploy(), getDeployFromRpc(), { getToolPrice, motesToCspr }, rpc(), verifyCache (+1 more)
 
 ### Community 52 - "Community 52"
 Cohesion: 0.14
@@ -476,10 +482,6 @@ Nodes (12): co(), di(), fi(), gt(), ke(), li(), Nt(), si() (+4 more)
 ### Community 67 - "Community 67"
 Cohesion: 0.16
 Nodes (22): archiveToolExecutionLogs(), buildResultSummary(), CHAIN_ID_MAP, detectChain(), extractAmount(), extractTxHash(), findFirstByKeyPattern(), formatExecutionAuditForChat() (+14 more)
-
-### Community 68 - "Community 68"
-Cohesion: 0.50
-Nodes (3): assert, chains, { test, describe }
 
 ### Community 69 - "Community 69"
 Cohesion: 0.10
@@ -590,15 +592,8 @@ Cohesion: 0.16
 Nodes (11): AuthRpcClient, CONTRACTS, deployContract(), fs, getAccountNamedKeys(), main(), path, rpc (+3 more)
 
 ### Community 95 - "Community 95"
-Cohesion: 0.19
-Nodes (12): express, {
-  processUpdate,
-  sendMessage,
-  registerWebhook,
-  getWebhookInfo,
-  getBotInfo,
-  stopLongPolling
-}, router, { successResponse, errorResponse }, getBotInfo(), getWebhookInfo(), registerWebhook(), startCsprFansVoteDaemon() (+4 more)
+Cohesion: 0.36
+Nodes (9): getAgentById(), verifyApiKey(), clearChatConversationSessions(), getTelegramUser(), handleAgent(), handleConnect(), handleDisconnect(), handleSwitch() (+1 more)
 
 ### Community 96 - "Community 96"
 Cohesion: 0.14
@@ -701,8 +696,8 @@ Cohesion: 0.29
 Nodes (6): headers, options, TEST_ADDRESSES, workflowFailure, workflowsCompleted, workflowsStarted
 
 ### Community 124 - "Community 124"
-Cohesion: 0.04
-Nodes (20): at, ba(), Be(), clear(), De(), dispose(), e(), ee() (+12 more)
+Cohesion: 0.06
+Nodes (11): at, ba(), e(), ee(), forEach(), ha(), pa(), pf (+3 more)
 
 ### Community 125 - "Community 125"
 Cohesion: 0.29
@@ -784,7 +779,7 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `makeFallbackLogger()` connect `Community 44` to `Community 39`?**
   _High betweenness centrality (0.123) - this node is a cross-community bridge._
-- **Why does `_()` connect `Community 1` to `Community 65`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 39`, `Community 9`, `Community 10`, `Community 41`, `Community 76`, `Community 15`, `Community 48`, `Community 21`, `Community 23`, `Community 56`, `Community 124`, `Community 29`?**
+- **Why does `_()` connect `Community 1` to `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 9`, `Community 10`, `Community 15`, `Community 19`, `Community 21`, `Community 23`, `Community 29`, `Community 39`, `Community 41`, `Community 48`, `Community 56`, `Community 65`, `Community 68`, `Community 76`, `Community 124`?**
   _High betweenness centrality (0.120) - this node is a cross-community bridge._
 - **Why does `_()` connect `Community 2` to `Community 1`, `Community 66`, `Community 34`, `Community 46`, `Community 48`, `Community 16`, `Community 19`, `Community 84`, `Community 55`, `Community 21`, `Community 23`?**
   _High betweenness centrality (0.085) - this node is a cross-community bridge._
@@ -795,4 +790,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **What connects `Convert natural language workflow description to structured JSON     Primary: Gr`, `Get list of available tools in the platform`, `Health check endpoint` to the rest of the system?**
   _904 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.017735274940230385 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.017227065172270652 - nodes in this community are weakly interconnected._

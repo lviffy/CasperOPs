@@ -12,7 +12,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { DeployUtil, Keys, RuntimeArgs, CLValueBuilder } = require('casper-js-sdk');
+const { DeployUtil, Keys, RuntimeArgs, CLValueBuilder, CLPublicKey } = require('casper-js-sdk');
 const { getClient, getKeysFromHex } = require('../utils/blockchain');
 const { getChainMetadata } = require('../utils/chains');
 const { logger } = require('../utils/logger');
@@ -56,8 +56,13 @@ function buildCep18InitArgs({ name, symbol, decimals = 9, totalSupply }) {
   return {
     name: CLValueBuilder.string(name),
     symbol: CLValueBuilder.string(symbol),
-    decimals: CLValueBuilder.u8(decimals),
+    decimals: CLValueBuilder.u8(Number(decimals)),
     total_supply: CLValueBuilder.u256(String(totalSupply)),
+    odra_cfg_package_hash_key_name: CLValueBuilder.string(`cep18_${symbol.toLowerCase()}`),
+    odra_cfg_allow_key_override: CLValueBuilder.bool(true),
+    odra_cfg_is_upgradable: CLValueBuilder.bool(false),
+    odra_cfg_is_upgrade: CLValueBuilder.bool(false),
+    odra_cfg_constructor: CLValueBuilder.string('init'),
   };
 }
 
@@ -65,17 +70,23 @@ function buildCep18InitArgs({ name, symbol, decimals = 9, totalSupply }) {
  * Pure helper: build the CEP-78 init-args map for `RuntimeArgs.fromMap`.
  * Exported so tests can assert on the arg shape without mocking the SDK.
  */
-function buildCep78InitArgs({ name, symbol, totalTokenSupply = 1000 }) {
-  return {
+function buildCep78InitArgs({ name, symbol, totalTokenSupply = 1000, minter }) {
+  const args = {
     collection_name: CLValueBuilder.string(name),
     collection_symbol: CLValueBuilder.string(symbol),
     total_token_supply: CLValueBuilder.u64(totalTokenSupply),
-    ownership_mode: CLValueBuilder.u8(CEP78_OWNERSHIP_MODE_TRANSFERABLE),
-    nft_kind: CLValueBuilder.u8(CEP78_NFT_KIND_DIGITAL),
-    nft_metadata_kind: CLValueBuilder.u8(CEP78_METADATA_KIND_CEP78),
-    identifier_mode: CLValueBuilder.u8(CEP78_IDENTIFIER_MODE_ORDINAL),
-    metadata_mutability: CLValueBuilder.u8(CEP78_METADATA_IMMUTABLE),
+    odra_cfg_package_hash_key_name: CLValueBuilder.string(`cep78_${symbol.toLowerCase()}`),
+    odra_cfg_allow_key_override: CLValueBuilder.bool(true),
+    odra_cfg_is_upgradable: CLValueBuilder.bool(false),
+    odra_cfg_is_upgrade: CLValueBuilder.bool(false),
+    odra_cfg_constructor: CLValueBuilder.string('init'),
   };
+
+  if (minter) {
+    args.minter = minter instanceof CLPublicKey ? CLValueBuilder.key(minter) : minter;
+  }
+
+  return args;
 }
 
 /**
@@ -134,7 +145,7 @@ async function deployCep78Collection({ privateKey, name, symbol, totalTokenSuppl
 
   const deployParams = new DeployUtil.DeployParams(keys.publicKey, 'casper-test');
   const args = RuntimeArgs.fromMap(
-    buildCep78InitArgs({ name, symbol, totalTokenSupply })
+    buildCep78InitArgs({ name, symbol, totalTokenSupply, minter: keys.publicKey })
   );
   const payment = DeployUtil.standardPayment(CEP78_PAYMENT_MOTES);
   const session = DeployUtil.ExecutableDeployItem.newModuleBytes(wasm, args);

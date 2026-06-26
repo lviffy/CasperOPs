@@ -33,8 +33,13 @@ async function deployToken(req, res) {
     const args = RuntimeArgs.fromMap({
       name: CLValueBuilder.string(name),
       symbol: CLValueBuilder.string(symbol),
-      decimals: CLValueBuilder.u8(decimals),
-      total_supply: CLValueBuilder.u256(initialSupply)
+      decimals: CLValueBuilder.u8(Number(decimals)),
+      total_supply: CLValueBuilder.u256(String(initialSupply)),
+      odra_cfg_package_hash_key_name: CLValueBuilder.string(`cep18_${symbol.toLowerCase()}`),
+      odra_cfg_allow_key_override: CLValueBuilder.bool(true),
+      odra_cfg_is_upgradable: CLValueBuilder.bool(false),
+      odra_cfg_is_upgrade: CLValueBuilder.bool(false),
+      odra_cfg_constructor: CLValueBuilder.string('init')
     });
     
     const payment = DeployUtil.standardPayment(200_000_000_000); // 200 CSPR
@@ -110,8 +115,13 @@ async function prepareDeployToken(req, res) {
     const args = RuntimeArgs.fromMap({
       name: CLValueBuilder.string(name),
       symbol: CLValueBuilder.string(symbol),
-      decimals: CLValueBuilder.u8(decimals),
-      total_supply: CLValueBuilder.u256(initialSupply)
+      decimals: CLValueBuilder.u8(Number(decimals)),
+      total_supply: CLValueBuilder.u256(String(initialSupply)),
+      odra_cfg_package_hash_key_name: CLValueBuilder.string(`cep18_${symbol.toLowerCase()}`),
+      odra_cfg_allow_key_override: CLValueBuilder.bool(true),
+      odra_cfg_is_upgradable: CLValueBuilder.bool(false),
+      odra_cfg_is_upgrade: CLValueBuilder.bool(false),
+      odra_cfg_constructor: CLValueBuilder.string('init')
     });
     
     const payment = DeployUtil.standardPayment(200_000_000_000); // 200 CSPR

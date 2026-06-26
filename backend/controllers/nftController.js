@@ -32,9 +32,13 @@ async function deployNFTCollection(req, res) {
     const args = RuntimeArgs.fromMap({
       collection_name: CLValueBuilder.string(name),
       collection_symbol: CLValueBuilder.string(symbol),
-      nft_metadata_kind: CLValueBuilder.u8(1),
-      identifier_mode: CLValueBuilder.u8(0),
-      metadata_mutability: CLValueBuilder.u8(0)
+      total_token_supply: CLValueBuilder.u64(10000), // Sensible default cap of 10,000
+      minter: CLValueBuilder.key(keys.publicKey),
+      odra_cfg_package_hash_key_name: CLValueBuilder.string(`cep78_${symbol.toLowerCase()}`),
+      odra_cfg_allow_key_override: CLValueBuilder.bool(true),
+      odra_cfg_is_upgradable: CLValueBuilder.bool(false),
+      odra_cfg_is_upgrade: CLValueBuilder.bool(false),
+      odra_cfg_constructor: CLValueBuilder.string('init')
     });
     
     const payment = DeployUtil.standardPayment(500_000_000_000); // 500 CSPR
@@ -84,8 +88,7 @@ async function mintNFT(req, res) {
     );
     
     const args = RuntimeArgs.fromMap({
-      token_owner: CLValueBuilder.key(CLPublicKey.fromHex(toAddress)),
-      token_meta_data: CLValueBuilder.string('{"name":"CasperOPs Agent Asset"}')
+      recipient: CLValueBuilder.key(CLPublicKey.fromHex(toAddress))
     });
     
     const payment = DeployUtil.standardPayment(5_000_000_000); // 5 CSPR
