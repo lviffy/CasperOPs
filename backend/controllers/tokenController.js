@@ -50,7 +50,8 @@ async function deployToken(req, res) {
     
     const deploy = DeployUtil.makeDeploy(deployParams, session, payment);
     const signedDeploy = DeployUtil.signDeploy(deploy, keys);
-    const deployHash = await client.deploy(signedDeploy);
+    const deployResponse = await client.deploy(signedDeploy);
+    const deployHash = deployResponse.deploy_hash || deployResponse;
 
     return res.json(successResponse({
       message: 'CEP-18 Token deploy submitted successfully',
@@ -64,7 +65,8 @@ async function deployToken(req, res) {
 
   } catch (error) {
     console.error('Deploy token error:', error);
-    return res.status(500).json(errorResponse(error.message));
+    const msg = error.data ? `${error.message}: ${error.data}` : error.message;
+    return res.status(500).json(errorResponse(msg));
   }
 }
 

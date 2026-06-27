@@ -83,7 +83,7 @@ function normalizePrivateKey(privateKey) {
 // public keys start with `01`, secp256k1 with `02`). We accept both with
 // and without the prefix and let downstream Casper SDK calls validate
 // the curve. EVM-style 0x + 40 hex addresses are no longer recognised.
-const CASPER_KEY_REGEX = /^(0x)?0[12][0-9a-fA-F]{64}$/;
+const CASPER_KEY_REGEX = /^(0x)?(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})$/;
 
 function normalizeAddress(address) {
   if (!address || typeof address !== 'string') return null;
@@ -323,8 +323,8 @@ async function handleBalance(chatId, args) {
       );
     }
   }
-  if (!/^(0x)?0[12][0-9a-fA-F]{64}$/.test(address)) {
-    return sendMessage(chatId, '❌ Invalid Casper address. It should be a 66-char hex string starting with `01` or `02`.');
+  if (!CASPER_KEY_REGEX.test(address)) {
+    return sendMessage(chatId, '❌ Invalid Casper address. It should be a valid Casper public key starting with `01` (66 hex chars) or `02` (68 hex chars).');
   }
   try {
     const bal = await csprBalance(address);
@@ -400,8 +400,8 @@ async function handleTransfer(chatId, args) {
       [[{ text: '💸 Transfer', callback_data: 'cmd_transfer' }]]
     );
   }
-  if (!/^(0x)?0[12][0-9a-fA-F]{64}$/.test(recipient)) {
-    return sendMessage(chatId, '❌ Invalid Casper recipient address. Must be a 66-char hex string starting with `01` or `02`.');
+  if (!CASPER_KEY_REGEX.test(recipient)) {
+    return sendMessage(chatId, '❌ Invalid Casper recipient address. Must be a valid Casper public key starting with `01` (66 hex chars) or `02` (68 hex chars).');
   }
   try {
     const { data } = await axios.post(

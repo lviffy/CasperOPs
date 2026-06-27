@@ -218,7 +218,7 @@ function buildRoutingPrompt({ userMessage, conversationHistory, toolsList, chain
     const extractedEntities = [];
     for (const msg of recentMessages) {
       const content = msg.content || '';
-      const casperKeys = content.match(/\b0[12][0-9a-fA-F]{64}\b/g);
+      const casperKeys = content.match(/\b(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})\b/g);
       if (casperKeys) extractedEntities.push(`Casper public keys mentioned: ${casperKeys.join(', ')}`);
       const hashMatches = content.match(/\b[0-9a-fA-F]{64,}\b/g);
       if (hashMatches) extractedEntities.push(`Hashes mentioned: ${hashMatches.join(', ')}`);
@@ -247,6 +247,9 @@ If the user's question requires data a tool can fetch, ADD THAT TOOL TO THE PLAN
 - Need a balance? → Add get_balance step.
 - Need token info? → Add get_token_info step.
 "missing_info" is ONLY for things NO tool can resolve.
+
+- If the user asks to mint an NFT but doesn't specify a metadata URL or URI, use "ipfs://metadata" as the default "tokenUri" parameter. Do NOT list "tokenUri" or "uri" in missing_info.
+- If the user refers to "my wallet" or "my connected wallet", set the recipient parameter (e.g., "toPublicKey" or "toAddress") to "{user_connected_wallet}". Do NOT list it in missing_info (the frontend resolves it automatically).
 
 ## Network Context
 - Chain: ${chainMeta.name} (${chainMeta.chain})
@@ -326,7 +329,18 @@ async function intelligentToolRouting(userMessage, conversationHistory = [], rou
     if (!jsonMatch) throw new Error('AI response did not contain valid JSON');
 
     const jsonStr = jsonMatch[1] || jsonMatch[0];
-    const routingPlan = JSON.parse(jsonStr.trim());
+    
+    function cleanAndParseJSON(str) {
+      let clean = str.trim();
+      clean = clean.replace(/^```json\s*/i, '').replace(/```$/, '');
+      clean = clean.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (match, p1) => {
+        return '"' + p1.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t') + '"';
+      });
+      clean = clean.replace(/,\s*([}\]])/g, '$1');
+      return JSON.parse(clean);
+    }
+
+    const routingPlan = cleanAndParseJSON(jsonStr);
 
     const fallbackSteps = detectToolsWithRegex(userMessage);
     const hasAIFoundSteps = Array.isArray(routingPlan.execution_plan?.steps) && routingPlan.execution_plan.steps.length > 0;
@@ -352,7 +366,7 @@ async function intelligentToolRouting(userMessage, conversationHistory = [], rou
       const hasGetBalance = steps.some((s) => s.tool === 'get_balance');
       if (needsBalance && !hasGetBalance) {
         const historyStr = (conversationHistory || []).map((m) => m.content || '').join(' ');
-        const casperKeyMatch = historyStr.match(/\b0[12][0-9a-fA-F]{64}\b/);
+        const casperKeyMatch = historyStr.match(/\b(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})\b/);
         const walletAddress = casperKeyMatch ? casperKeyMatch[0] : null;
         steps.unshift({
           tool: 'get_balance',
@@ -418,7 +432,7 @@ async function intelligentToolRouting(userMessage, conversationHistory = [], rou
 function detectToolsWithRegex(message) {
   const tools = [];
   const hasEmailIntent = /\b(email|send.*email|mail|notify|notification)\b/i.test(message);
-  const casperKeyRegex = /\b0[12][0-9a-fA-F]{64}\b/;
+  const casperKeyRegex = /\b(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})\b/;
   const hasCsprKeyHint = casperKeyRegex.test(message) || /\b\d+(?:\.\d+)?\s*cspr\b/i.test(message);
   const hasTransferIntent =
     /\b(transfer|pay|move|send)\b/i.test(message) ||
@@ -446,23 +460,59 @@ function detectToolsWithRegex(message) {
       depends_on: hasTransferStep ? ['transfer'] : [],
     });
   }
-  if (/\b(deploy.*cep18|deploy.*token|create.*token|new.*token|launch.*token)\b/i.test(message)) {
-    const params = {};
-    const nameMatch = message.match(/named?\s+([A-Za-z0-9_]+)/i);
-    if (nameMatch) params.name = nameMatch[1];
-    const symbolMatch = message.match(/symbol\s+([A-Za-z0-9_]+)/i);
-    if (symbolMatch) params.symbol = symbolMatch[1].toUpperCase();
-    const supplyMatch = message.match(/supply(?:\s+to)?\s+([0-9,]+)/i);
-    if (supplyMatch) params.initialSupply = supplyMatch[1].replace(/,/g, '');
-    const decimalsMatch = message.match(/decimals(?:\s+to)?\s+([0-9]+)/i);
-    if (decimalsMatch) params.decimals = decimalsMatch[1];
-    tools.push({ tool: 'deploy_cep18', reason: 'User wants to deploy a CEP-18 token', parameters: params, depends_on: [] });
+  const hasCep18Match = /\b(deploy.*cep18|deploy.*token|create.*token|new.*token|launch.*token)\b/i.test(message);
+  const hasCep78Match = /\b(deploy.*cep78|deploy.*nft|create.*nft|new.*nft|nft.*collection)\b/i.test(message);
+
+  if (hasCep18Match) {
+    const isActuallyNftOnly = hasCep78Match && !/\b(cep18|cep-18|fungible|erc20|erc-20|bousd)\b/i.test(message);
+    if (!isActuallyNftOnly) {
+      const params = {};
+      let nameMatch = message.match(/(?:called|named?)\s+['"]([^'"]+)['"]/i);
+      if (!nameMatch) nameMatch = message.match(/(?:called|named?)\s+([A-Za-z0-9_ -]+)/i);
+      if (nameMatch) params.name = nameMatch[1].trim();
+      let symbolMatch = message.match(/symbol\s+['"]([^'"]+)['"]/i);
+      if (!symbolMatch) symbolMatch = message.match(/symbol\s+([A-Za-z0-9_]+)/i);
+      if (symbolMatch) params.symbol = symbolMatch[1].toUpperCase().trim();
+      const supplyMatch = message.match(/supply(?:\s+to)?\s+([0-9,]+)/i);
+      if (supplyMatch) params.initialSupply = supplyMatch[1].replace(/,/g, '');
+      const decimalsMatch = message.match(/decimals(?:\s+to)?\s+([0-9]+)/i);
+      if (decimalsMatch) params.decimals = decimalsMatch[1];
+      tools.push({ tool: 'deploy_cep18', reason: 'User wants to deploy a CEP-18 token', parameters: params, depends_on: [] });
+    }
   }
-  if (/\b(deploy.*cep78|deploy.*nft|create.*nft|new.*nft|nft.*collection)\b/i.test(message)) {
-    tools.push({ tool: 'deploy_cep78', reason: 'User wants to deploy a CEP-78 NFT collection', parameters: {}, depends_on: [] });
+  if (hasCep78Match) {
+    const params = {};
+    let nameMatch = message.match(/(?:called|named?)\s+['"]([^'"]+)['"]/i);
+    if (!nameMatch) nameMatch = message.match(/(?:called|named?)\s+([A-Za-z0-9_ -]+)/i);
+    if (nameMatch) params.name = nameMatch[1].trim();
+    let symbolMatch = message.match(/symbol\s+['"]([^'"]+)['"]/i);
+    if (!symbolMatch) symbolMatch = message.match(/symbol\s+([A-Za-z0-9_]+)/i);
+    if (symbolMatch) params.symbol = symbolMatch[1].toUpperCase().trim();
+    const supplyMatch = message.match(/supply(?:\s+of|\s+to)?\s+([0-9,]+)/i);
+    if (supplyMatch) params.totalTokenSupply = parseInt(supplyMatch[1].replace(/,/g, ''), 10);
+    else params.totalTokenSupply = 10000;
+    tools.push({ tool: 'deploy_cep78', reason: 'User wants to deploy a CEP-78 NFT collection', parameters: params, depends_on: [] });
   }
   if (/\b(mint.*nft|mint.*token|create.*nft)\b/i.test(message)) {
-    tools.push({ tool: 'mint_nft', reason: 'User wants to mint an NFT', parameters: {}, depends_on: [] });
+    const params = {};
+    const addressMatch = message.match(/\b(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})\b/);
+    if (addressMatch) params.toAddress = addressMatch[0];
+    const hashMatch = message.match(/\b(hash-)?[0-9a-fA-F]{64}\b/);
+    if (hashMatch) {
+      params.collectionHash = hashMatch[0].replace(/^hash-/, '');
+    } else if (tools.some(t => t.tool === 'deploy_cep78')) {
+      params.collectionHash = '{result_of_step_0}';
+    }
+    const uriMatch = message.match(/\b(ipfs|http|https):\/\/\S+/);
+    params.tokenUri = uriMatch ? uriMatch[0] : 'ipfs://metadata';
+    
+    const hasDeployStep = tools.some(t => t.tool === 'deploy_cep78');
+    tools.push({ 
+      tool: 'mint_nft', 
+      reason: 'User wants to mint an NFT', 
+      parameters: params, 
+      depends_on: hasDeployStep ? ['deploy_cep78'] : [] 
+    });
   }
   if (/\b(attest|compliance|verify|kyc)\b/i.test(message)) {
     if (/\b(check|status|is|are|query)\b/i.test(message) || /\b(compliant|check_compliance)\b/i.test(message)) {

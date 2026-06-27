@@ -35,6 +35,7 @@ import time
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
+# pyrefly: ignore [missing-import]
 import httpx
 
 from validateEnv import validate_env

@@ -32,8 +32,8 @@ const TOOL_ENDPOINTS = {
   transfer: { method: 'POST', path: '/transfer' },
   batch_transfer: { method: 'POST', path: '/batch/transfer' },
   deploy_cep18: { method: 'POST', path: '/token/prepare-deploy' },
-  deploy_cep78: { method: 'POST', path: '/nft/deploy-collection' },
-  mint_nft: { method: 'POST', path: '/nft/mint' },
+  deploy_cep78: { method: 'POST', path: '/nft/prepare-deploy-collection' },
+  mint_nft: { method: 'POST', path: '/nft/prepare-mint' },
   get_token_info: { method: 'GET', path: '/token/info/{tokenHash}' },
   get_token_balance: { method: 'GET', path: '/token/balance/{tokenHash}/{ownerAddress}' },
   get_nft_info: { method: 'GET', path: '/nft/info/{collectionHash}/{tokenId}' },
@@ -77,7 +77,7 @@ const LOCAL_TOOL_HANDLERS = {
  */
 function extractCasperAddressFromText(text = '') {
   if (!text) return null;
-  const pubKeyMatch = text.match(/\b0[12][0-9a-fA-F]{64}\b/);
+  const pubKeyMatch = text.match(/\b(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})\b/);
   if (pubKeyMatch) return pubKeyMatch[0];
   const accountHashMatch = text.match(/\baccount-hash-[0-9a-fA-F]{64}\b/);
   if (accountHashMatch) return accountHashMatch[0];
@@ -160,7 +160,7 @@ function parseCasperPublicKey(value) {
   const cleaned = String(value || '').trim();
   if (!cleaned) throw new Error('Missing public key');
   const hex = cleaned.startsWith('0x') ? cleaned.slice(2) : cleaned;
-  if (!/^0[12][0-9a-fA-F]{64}$/.test(hex)) {
+  if (!/^(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})$/.test(hex)) {
     throw new Error(`Invalid Casper public key: ${cleaned}`);
   }
   return CLPublicKey.fromHex(hex);
@@ -769,10 +769,29 @@ function stringifyInterpolatedValue(value) {
   return String(value);
 }
 
-function interpolateParameters(params, previousResults) {
+function interpolateParameters(params, previousResults, executionContext = {}) {
   if (!params) return params;
   const interpolated = { ...params };
-  if (!previousResults || previousResults.length === 0) return interpolated;
+  if (!previousResults || previousResults.length === 0) {
+    // Even if no previous results, we can still interpolate wallet address context
+    const applyContextOnly = (input) => {
+      if (typeof input !== 'string') return input;
+      let value = input;
+      if (executionContext?.walletAddress) {
+        value = value.replace(/\{(?:user_connected_wallet|connected wallet public key|connected_wallet_public_key|connected wallet|walletAddress|wallet_address)\}/gi, executionContext.walletAddress);
+        if (value.toLowerCase() === 'my connected wallet' || value.toLowerCase() === '{user_connected_wallet}') {
+          value = executionContext.walletAddress;
+        }
+      }
+      return value;
+    };
+    Object.keys(interpolated).forEach((key) => {
+      if (typeof interpolated[key] === 'string') {
+        interpolated[key] = applyContextOnly(interpolated[key]);
+      }
+    });
+    return interpolated;
+  }
 
   const resultsByTool = {};
   for (const result of previousResults) {
@@ -834,6 +853,29 @@ function interpolateParameters(params, previousResults) {
       const resolved = readPathWithAliases(toolResult, path);
       return resolved === undefined ? _match : stringifyInterpolatedValue(resolved);
     });
+    // Substitute {result_of_toolName} (e.g. {result_of_deploy_cep78_step})
+    value = value.replace(/\{result_of_([A-Za-z0-9_ -]+)\}/gi, (_match, toolNameRaw) => {
+      const toolName = toolNameRaw.replace(/_step$| step$/i, '').trim();
+      const toolResult = resultsByTool[toolName];
+      if (!toolResult) return _match;
+      const resolved = toolResult.collectionAddress || toolResult.tokenAddress || toolResult.contractHash || toolResult.contractPackageHash || toolResult.deployHash || toolResult.transactionHash || toolResult.hash || toolResult.result;
+      return resolved === undefined ? _match : stringifyInterpolatedValue(resolved);
+    });
+    // Substitute {result_of_step_N} (e.g. {result_of_step_0})
+    value = value.replace(/\{result_of_step_(\d+)\}/g, (_match, indexStr) => {
+      const idx = parseInt(indexStr, 10);
+      const stepResult = previousResults[idx]?.result;
+      if (!stepResult) return _match;
+      const resolved = stepResult.collectionAddress || stepResult.tokenAddress || stepResult.contractHash || stepResult.contractPackageHash || stepResult.deployHash || stepResult.transactionHash || stepResult.hash || stepResult.result;
+      return resolved === undefined ? _match : stringifyInterpolatedValue(resolved);
+    });
+    // Substitute connected wallet placeholders
+    if (executionContext?.walletAddress) {
+      value = value.replace(/\{(?:user_connected_wallet|connected wallet public key|connected_wallet_public_key|connected wallet|walletAddress|wallet_address)\}/gi, executionContext.walletAddress);
+      if (value.toLowerCase() === 'my connected wallet' || value.toLowerCase() === '{user_connected_wallet}') {
+        value = executionContext.walletAddress;
+      }
+    }
     // Substitute ${var} using autoVars
     value = value.replace(/\$\{([A-Za-z0-9_]+)\}/g, (_match, varName) => {
       const vn = varName.toLowerCase();
@@ -951,14 +993,12 @@ function mapToolParams(tool, params = {}, fallbackMessage = '', executionContext
     }
     case 'deploy_cep18':
     case 'deploy_cep78': {
-      const privateKey = params.privateKey || params.private_key || executionContext.privateKey;
       const deployerAddress = params.deployerAddress || params.walletAddress || executionContext.walletAddress || contextualAddress;
       
       // Normalize supply parameter: AI/fallback may use totalSupply, initial_supply, or supply
       const initialSupply = params.initialSupply || params.totalSupply || params.initial_supply || params.supply;
       
-      // If we are calling the prepare endpoint (e.g. deploy_cep18), we want to use deployerAddress
-      // But deploy_cep78 might still use /nft/deploy-collection which expects privateKey.
+      // Both CEP-18 and CEP-78 now use the prepare pattern (unsigned deploy for client signing)
       if (tool === 'deploy_cep18') {
         mapped = {
           deployerAddress,
@@ -967,11 +1007,18 @@ function mapToolParams(tool, params = {}, fallbackMessage = '', executionContext
           decimals: params.decimals || 9,
           initialSupply,
         };
-        if (!deployerAddress && !privateKey) missing.push('deployerAddress');
+        if (!deployerAddress) missing.push('deployerAddress');
         if (!initialSupply) missing.push('initialSupply');
       } else {
-        mapped = { privateKey, ...params };
-        if (!privateKey) missing.push('privateKey');
+        const baseURI = params.baseURI || params.base_uri || params.tokenUri || params.token_uri || 'ipfs://metadata';
+        mapped = { 
+          deployerAddress, 
+          name: params.name, 
+          symbol: params.symbol, 
+          baseURI,
+          totalTokenSupply: params.totalTokenSupply || 10000
+        };
+        if (!deployerAddress) missing.push('deployerAddress');
       }
       
       if (!params.name) missing.push('name');
@@ -979,10 +1026,17 @@ function mapToolParams(tool, params = {}, fallbackMessage = '', executionContext
       break;
     }
     case 'mint_nft': {
-      const collectionHash = params.collectionHash || params.contract_address || params.collectionAddress;
+      const deployerAddress_mint = params.deployerAddress || params.walletAddress || executionContext.walletAddress || contextualAddress;
+      const collectionAddress = params.collectionAddress || params.collectionHash || params.contract_address || params.contractAddress;
       const toAddress = params.toAddress || params.to_address || contextualAddress;
-      mapped = { collectionHash, toAddress, tokenUri: params.tokenUri || params.token_uri };
-      if (!collectionHash) missing.push('collectionHash');
+      mapped = { 
+        deployerAddress: deployerAddress_mint, 
+        collectionAddress, 
+        toAddress, 
+        tokenUri: params.tokenUri || params.token_uri || 'ipfs://metadata' 
+      };
+      if (!deployerAddress_mint) missing.push('deployerAddress');
+      if (!collectionAddress) missing.push('collectionAddress');
       if (!toAddress) missing.push('toAddress');
       break;
     }
@@ -1334,7 +1388,7 @@ async function executeToolStep(step, fallbackMessage = '', executionContext = {}
 
 function interpolateStepParameters(step, previousResults, fallbackMessage = '', executionContext = {}) {
   const tool = step?.tool;
-  const interpolated = interpolateParameters(step?.parameters || {}, previousResults);
+  const interpolated = interpolateParameters(step?.parameters || {}, previousResults, executionContext);
   if (tool === 'lookup_deploy' && !interpolated.deployHash && !interpolated.hash) {
     const latestTransfer = [...previousResults].reverse().find((r) => r?.tool === 'transfer' && r?.success);
     const transferHash = latestTransfer?.result?.deployHash || latestTransfer?.result?.hash || latestTransfer?.result?.transactionHash;
@@ -1468,8 +1522,33 @@ async function executeToolsDirectly(routingPlan, fallbackMessage, executionConte
       parameters: interpolateStepParameters(step, toolResults, fallbackMessage, executionContext),
     };
     const { tool_call, result } = await executeToolStep(interpolatedStep, fallbackMessage, executionContext);
+    
+    let latestResult = result;
+    if (result && result.success && (step.tool === 'deploy_cep78' || step.tool === 'deploy_cep18')) {
+      const txHash = result.transactionHash || result.deployHash;
+      if (txHash) {
+        log.info({ txHash, tool: step.tool }, 'Waiting for deploy execution on Casper Network...');
+        // Poll lookup_deploy up to 12 times (60 seconds total)
+        for (let i = 0; i < 12; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+          const statusResult = await lookup_deploy({ deployHash: txHash });
+          if (statusResult.success) {
+            if (statusResult.status === 'success') {
+              log.info({ txHash, status: statusResult.status, contractHash: statusResult.contractHash }, 'Deploy executed successfully on-chain');
+              latestResult = { ...result, ...statusResult };
+              break;
+            } else if (statusResult.status === 'failed') {
+              log.warn({ txHash, status: statusResult.status, error: statusResult.error }, 'Deploy failed on-chain');
+              latestResult = { ...result, success: false, error: statusResult.error || 'On-chain deploy execution failed' };
+              break;
+            }
+          }
+        }
+      }
+    }
+
     toolCalls.push(tool_call);
-    toolResults.push(result);
+    toolResults.push(latestResult);
   }
   log.info({
     ok: toolResults.filter((r) => r?.success).length,

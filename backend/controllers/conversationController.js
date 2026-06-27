@@ -124,7 +124,7 @@ function extractExplicitAddressFromMessage(message = '') {
   if (!message) return null;
   const ethMatch = String(message).match(/0x[a-fA-F0-9]{40}/);
   if (ethMatch) return ethMatch[0];
-  const casperMatch = String(message).match(/\b0[12][0-9a-fA-F]{64}\b/);
+  const casperMatch = String(message).match(/\b(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})\b/);
   if (casperMatch) return casperMatch[0];
   const accountHashMatch = String(message).match(/\baccount-hash-[0-9a-fA-F]{64}\b/);
   if (accountHashMatch) return accountHashMatch[0];
@@ -611,9 +611,16 @@ async function chat(req, res) {
           console.log(`[Chat] Private key already provided, removing from missing: "${info}"`);
           return false;
         }
-        // Check if the missing info might already be in conversation context
-        if (/address/i.test(info) && (/(?:0x[a-fA-F0-9]{40})|(?:\b0[12][0-9a-fA-F]{64}\b)|(?:\baccount-hash-[0-9a-fA-F]{64}\b)/i.test(contextStr))) {
-          console.log(`[Chat] Address found in context, removing from missing: "${info}"`);
+        // Check if the missing info might already be resolved from context or connected wallet
+        if (/address|public\s*key|publickey|recipient/i.test(info)) {
+          if (walletAddress || /(?:0x[a-fA-F0-9]{40})|(?:\b(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})\b)|(?:\baccount-hash-[0-9a-fA-F]{64}\b)/i.test(contextStr)) {
+            console.log(`[Chat] Address resolved from connected wallet or context, removing from missing: "${info}"`);
+            return false;
+          }
+        }
+        // tokenUri is optional and defaults to ipfs://metadata
+        if (/token\s*uri|metadata|uri|tokenuri/i.test(info)) {
+          console.log(`[Chat] tokenUri is optional and defaults to ipfs://metadata, removing from missing: "${info}"`);
           return false;
         }
         if (/balance/i.test(info) && /\d+\.?\d*\s*(?:ETH|CSPR)/i.test(contextStr)) {

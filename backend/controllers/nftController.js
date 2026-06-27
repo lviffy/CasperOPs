@@ -32,7 +32,7 @@ async function deployNFTCollection(req, res) {
     const args = RuntimeArgs.fromMap({
       collection_name: CLValueBuilder.string(name),
       collection_symbol: CLValueBuilder.string(symbol),
-      total_token_supply: CLValueBuilder.u64(10000), // Sensible default cap of 10,000
+      total_token_supply: CLValueBuilder.u64(10000),
       minter: CLValueBuilder.key(keys.publicKey),
       odra_cfg_package_hash_key_name: CLValueBuilder.string(`cep78_${symbol.toLowerCase()}`),
       odra_cfg_allow_key_override: CLValueBuilder.bool(true),
@@ -49,7 +49,8 @@ async function deployNFTCollection(req, res) {
     
     const deploy = DeployUtil.makeDeploy(deployParams, session, payment);
     const signedDeploy = DeployUtil.signDeploy(deploy, keys);
-    const deployHash = await client.deploy(signedDeploy);
+    const deployResponse = await client.deploy(signedDeploy);
+    const deployHash = deployResponse.deploy_hash || deployResponse;
 
     return res.json(successResponse({
       message: 'CEP-78 NFT Collection deploy submitted successfully',
@@ -62,6 +63,67 @@ async function deployNFTCollection(req, res) {
 
   } catch (error) {
     console.error('Deploy NFT Collection error:', error);
+    const msg = error.data ? `${error.message}: ${error.data}` : error.message;
+    return res.status(500).json(errorResponse(msg));
+  }
+}
+
+/**
+ * Prepare an unsigned CEP-78 NFT collection deploy for client-side signing.
+ * Returns { requiresSigning: true, deploy: <JSON> } — the frontend will
+ * sign via CSPR.click and broadcast through /token/broadcast.
+ */
+async function prepareDeployNFTCollection(req, res) {
+  try {
+    const { deployerAddress, name, symbol, baseURI, totalTokenSupply } = req.body;
+
+    const validationError = validateRequiredFields(req.body, ['deployerAddress', 'name', 'symbol']);
+    if (validationError) {
+      return res.status(400).json(validationError);
+    }
+
+    const deployerPubKey = CLPublicKey.fromHex(deployerAddress);
+
+    const deployParams = new DeployUtil.DeployParams(
+      deployerPubKey,
+      'casper-test'
+    );
+
+    const supply = totalTokenSupply || 10000;
+    const uri = baseURI || 'ipfs://metadata';
+
+    const args = RuntimeArgs.fromMap({
+      collection_name: CLValueBuilder.string(name),
+      collection_symbol: CLValueBuilder.string(symbol),
+      total_token_supply: CLValueBuilder.u64(supply),
+      minter: CLValueBuilder.key(deployerPubKey),
+      odra_cfg_package_hash_key_name: CLValueBuilder.string(`cep78_${symbol.toLowerCase()}`),
+      odra_cfg_allow_key_override: CLValueBuilder.bool(true),
+      odra_cfg_is_upgradable: CLValueBuilder.bool(false),
+      odra_cfg_is_upgrade: CLValueBuilder.bool(false),
+      odra_cfg_constructor: CLValueBuilder.string('init')
+    });
+
+    const payment = DeployUtil.standardPayment(500_000_000_000); // 500 CSPR
+    const session = DeployUtil.ExecutableDeployItem.newModuleBytes(
+      new Uint8Array(CEP78_WASM),
+      args
+    );
+
+    const deploy = DeployUtil.makeDeploy(deployParams, session, payment);
+    const deployJson = DeployUtil.deployToJson(deploy);
+
+    return res.json(successResponse({
+      requiresSigning: true,
+      deploy: deployJson,
+      name,
+      symbol,
+      baseURI: uri,
+      totalTokenSupply: supply,
+    }));
+
+  } catch (error) {
+    console.error('Prepare deploy NFT Collection error:', error);
     return res.status(500).json(errorResponse(error.message));
   }
 }
@@ -93,14 +155,15 @@ async function mintNFT(req, res) {
     
     const payment = DeployUtil.standardPayment(5_000_000_000); // 5 CSPR
     const session = DeployUtil.ExecutableDeployItem.newStoredContractByHash(
-      Uint8Array.from(Buffer.from(collectionAddress, 'hex')),
+      Uint8Array.from(Buffer.from(collectionAddress.replace(/^hash-/, ''), 'hex')),
       'mint',
       args
     );
     
     const deploy = DeployUtil.makeDeploy(deployParams, session, payment);
     const signedDeploy = DeployUtil.signDeploy(deploy, keys);
-    const deployHash = await client.deploy(signedDeploy);
+    const deployResponse = await client.deploy(signedDeploy);
+    const deployHash = deployResponse.deploy_hash || deployResponse;
 
     return res.json(successResponse({
       message: 'CEP-78 NFT minted successfully',
@@ -112,6 +175,54 @@ async function mintNFT(req, res) {
 
   } catch (error) {
     console.error('Mint NFT error:', error);
+    const msg = error.data ? `${error.message}: ${error.data}` : error.message;
+    return res.status(500).json(errorResponse(msg));
+  }
+}
+
+/**
+ * Prepare an unsigned CEP-78 mint deploy for client-side signing.
+ */
+async function prepareMintNFT(req, res) {
+  try {
+    const { deployerAddress, collectionAddress, toAddress, tokenUri } = req.body;
+
+    const validationError = validateRequiredFields(req.body, ['deployerAddress', 'collectionAddress', 'toAddress']);
+    if (validationError) {
+      return res.status(400).json(validationError);
+    }
+
+    const deployerPubKey = CLPublicKey.fromHex(deployerAddress);
+
+    const deployParams = new DeployUtil.DeployParams(
+      deployerPubKey,
+      'casper-test'
+    );
+
+    const args = RuntimeArgs.fromMap({
+      recipient: CLValueBuilder.key(CLPublicKey.fromHex(toAddress))
+    });
+
+    const payment = DeployUtil.standardPayment(5_000_000_000); // 5 CSPR
+    const session = DeployUtil.ExecutableDeployItem.newStoredContractByHash(
+      Uint8Array.from(Buffer.from(collectionAddress.replace(/^hash-/, ''), 'hex')),
+      'mint',
+      args
+    );
+
+    const deploy = DeployUtil.makeDeploy(deployParams, session, payment);
+    const deployJson = DeployUtil.deployToJson(deploy);
+
+    return res.json(successResponse({
+      requiresSigning: true,
+      deploy: deployJson,
+      collectionAddress,
+      toAddress,
+      tokenUri: tokenUri || 'ipfs://metadata',
+    }));
+
+  } catch (error) {
+    console.error('Prepare mint NFT error:', error);
     return res.status(500).json(errorResponse(error.message));
   }
 }
@@ -134,6 +245,8 @@ async function getNFTInfo(req, res) {
 
 module.exports = {
   deployNFTCollection,
+  prepareDeployNFTCollection,
   mintNFT,
+  prepareMintNFT,
   getNFTInfo
 };

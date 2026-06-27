@@ -34,7 +34,7 @@ const log = logger.child({ component: 'accountRoutes' });
  */
 router.get('/account/:publicKey/keys', async (req, res) => {
   const { publicKey } = req.params;
-  if (!publicKey || !/^0[12][0-9a-fA-F]{64}$/.test(publicKey)) {
+  if (!publicKey || !/^(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})$/.test(publicKey)) {
     return res.status(400).json({ ok: false, error: 'Invalid Casper public key format' });
   }
 
@@ -104,7 +104,7 @@ router.post('/account/update-weights', async (req, res) => {
  */
 router.get('/account/:publicKey/delegated-keys', async (req, res) => {
   const { publicKey } = req.params;
-  if (!publicKey || !/^0[12][0-9a-fA-F]{64}$/.test(publicKey)) {
+  if (!publicKey || !/^(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})$/.test(publicKey)) {
     return res.status(400).json({ ok: false, error: 'Invalid Casper public key format' });
   }
 

@@ -16,7 +16,7 @@ const { logger } = require('../utils/logger')
 
 const publicKeySchema = z
   .string()
-  .regex(/^0[12][0-9a-fA-F]{64}$/, 'public key must be 0x/01/02-prefixed 64-char hex')
+  .regex(/^(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})$/, 'public key must be Ed25519 (01-prefixed 66-char) or Secp256K1 (02-prefixed 68-char) hex')
 const hashSchema = z.string().regex(/^hash-[0-9a-fA-F]{64}$/, 'must be hash-<64hex>')
 const motesSchema = z.string().regex(/^[0-9]+$/, 'amount must be an integer in motes')
 
@@ -168,7 +168,7 @@ const schemas = {
         z.object({
           account_hash: z
             .string()
-            .regex(/^account-hash-[0-9a-fA-F]{64}$|^0[12][0-9a-fA-F]{64}$/, 'must be account-hash or public key'),
+            .regex(/^account-hash-[0-9a-fA-F]{64}$|^(?:01[0-9a-fA-F]{64}|02[0-9a-fA-F]{66})$/, 'must be account-hash or public key'),
           weight: z.number().int().min(1).max(255),
         }),
       )
