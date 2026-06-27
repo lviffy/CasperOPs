@@ -249,7 +249,7 @@ async function getAgentRegistry(req, res) {
     }
 
     if (!data) {
-      return res.status(404).json({ success: false, error: 'Registry entry not found' });
+      return res.json({ success: true, registry: null });
     }
 
     return res.json({
@@ -303,6 +303,45 @@ async function discoverAgentRegistry(req, res) {
     }
 
     let visibleRows = data || [];
+    const existingAgentIds = new Set(visibleRows.map((row) => row.agent_id).filter(Boolean));
+
+    // Also fetch all agents from the `agents` table that are public or registered on-chain
+    let agentQuery = supabase
+      .from('agents')
+      .select('id, user_id, name, description, enabled_tools, wallet_address, status, is_public, on_chain_id, created_at, updated_at');
+    
+    if (String(mineOnly).toLowerCase() === 'true') {
+      agentQuery = agentQuery.eq('user_id', userId);
+    } else {
+      agentQuery = agentQuery.or('is_public.eq.true,on_chain_id.not.is.null');
+    }
+
+    const { data: allPublicAgents } = await agentQuery;
+    if (allPublicAgents) {
+      for (const agent of allPublicAgents) {
+        if (!existingAgentIds.has(agent.id)) {
+          visibleRows.push({
+            id: `synthetic-${agent.id}`,
+            agent_id: agent.id,
+            user_id: agent.user_id,
+            display_name: agent.name,
+            description: agent.description,
+            capabilities: agent.enabled_tools || [],
+            supported_chains: ['casper-testnet'],
+            metadata: {
+              onChainId: agent.on_chain_id || null,
+              operatorWallet: agent.wallet_address || null,
+            },
+            status: agent.status || 'active',
+            version: 1,
+            created_at: agent.created_at || new Date().toISOString(),
+            updated_at: agent.updated_at || new Date().toISOString(),
+          });
+          existingAgentIds.add(agent.id);
+        }
+      }
+    }
+
     if (String(mineOnly).toLowerCase() !== 'true') {
       const agentIds = Array.from(new Set(visibleRows.map((row) => row.agent_id).filter(Boolean)));
 
@@ -312,26 +351,21 @@ async function discoverAgentRegistry(req, res) {
           .select('id, user_id, is_public, on_chain_id')
           .in('id', agentIds);
 
-        if (agentLookupError) {
-          console.error('[AgentRegistry] Discover visibility lookup error:', agentLookupError);
-          return res.status(500).json({ success: false, error: agentLookupError.message });
+        if (!agentLookupError && agents) {
+          const visibilityMap = new Map(agents.map((agent) => [agent.id, agent]));
+          visibleRows = visibleRows.filter((row) => {
+            const visibility = visibilityMap.get(row.agent_id);
+            if (!visibility) {
+              return true; // allow synthetic or valid rows
+            }
+
+            if (visibility.is_public || visibility.on_chain_id) {
+              return true;
+            }
+
+            return Boolean(userId) && visibility.user_id === userId;
+          });
         }
-
-        const visibilityMap = new Map((agents || []).map((agent) => [agent.id, agent]));
-        visibleRows = visibleRows.filter((row) => {
-          const visibility = visibilityMap.get(row.agent_id);
-          if (!visibility) {
-            return false;
-          }
-
-          if (visibility.is_public || visibility.on_chain_id) {
-            return true;
-          }
-
-          return Boolean(userId) && visibility.user_id === userId;
-        });
-      } else {
-        visibleRows = [];
       }
     }
 

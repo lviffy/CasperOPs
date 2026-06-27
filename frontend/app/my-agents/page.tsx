@@ -344,7 +344,7 @@ export default function MyAgents() {
                       </Badge>
                       {agent.on_chain_id && (
                         <Badge variant="outline" className="text-[9px] font-medium px-1.5 py-0 h-4 shrink-0 border-primary/30 bg-primary/5 text-primary">
-                          ERC-8004 ID: {agent.on_chain_id}
+                          Casper On-Chain ID: {agent.on_chain_id}
                         </Badge>
                       )}
                     </div>

@@ -99,39 +99,24 @@ interface CasperAgentSummary {
 }
 
 async function fetchCasperAgents(): Promise<CasperAgentSummary[]> {
-  if (!AGENT_REGISTRY_CONTRACT_HASH) return []
   try {
-    const url = `${CSPR_CLOUD_BASE}/contracts/${AGENT_REGISTRY_CONTRACT_HASH}/events?entry_point=agent_registered&limit=200`
+    const url = `${BLOCKCHAIN_BACKEND_URL}/agents/registry/discover?limit=100`
     const res = await fetch(url, { headers: { accept: "application/json" } })
     if (!res.ok) return []
     const json = await res.json().catch(() => null)
-    const events: CasperEvent[] = json?.data ?? json?.events ?? []
-    const summaries = await Promise.all(
-      events.map(async (ev) => {
-        const onChainId = String(ev.data?.agent_id ?? ev.data?.agentId ?? "")
-        const owner = String(ev.data?.owner ?? "")
-        const manifestUri = String(ev.data?.agent_uri ?? ev.data?.agentURI ?? "")
-        let score = 0
-        let executions = 0
-        if (REPUTATION_CONTRACT_HASH && onChainId) {
-          try {
-            const repUrl = `${CSPR_CLOUD_BASE}/contracts/${REPUTATION_CONTRACT_HASH}/query?entry_point=get_average_score&args=${encodeURIComponent(JSON.stringify({ agent_id: onChainId, tag: "successRate" }))}`
-            const repRes = await fetch(repUrl)
-            if (repRes.ok) {
-              const rep = await repRes.json().catch(() => null)
-              score = Number(rep?.data?.score ?? rep?.score ?? 0)
-              executions = Number(rep?.data?.count ?? rep?.count ?? 0)
-            }
-          } catch {
-            // ignore reputation failures
-          }
-        }
-        return { onChainId, owner, manifestUri, score, executions } satisfies CasperAgentSummary
-      }),
-    )
-    return summaries
+    const items = json?.registry ?? []
+    
+    return items.map((item: any) => {
+      const agentId = item.agentId || item.id || ""
+      const onChainId = item.metadata?.onChainId || item.metadata?.on_chain_id || agentId
+      const owner = item.metadata?.operatorWallet || item.userId || ""
+      const manifestUri = `${BLOCKCHAIN_BACKEND_URL}/agents/${agentId}/manifest`
+      const score = Number(item.metadata?.score ?? 5.0)
+      const executions = Number(item.metadata?.executions ?? 1)
+      return { onChainId, owner, manifestUri, score, executions } satisfies CasperAgentSummary
+    })
   } catch (err) {
-    console.warn("[marketplace] Casper event fetch failed:", err)
+    console.warn("[marketplace] Discovery fetch failed:", err)
     return []
   }
 }
@@ -329,7 +314,7 @@ export default function MarketplacePage() {
               const ownerLabel = shortenAddress(owner)
               const detailSummary =
                 capabilities.length > 0
-                  ? `${capabilities.length} capability${capabilities.length === 1 ? "" : "ies"} available`
+                  ? `${capabilities.length} ${capabilities.length === 1 ? "capability" : "capabilities"} available`
                   : localAgentId
                     ? "Registered CasperOPs agent"
                     : "On-chain registered agent"
@@ -409,7 +394,7 @@ export default function MarketplacePage() {
           <div>
             <h1 className="text-3xl font-serif font-normal tracking-tight text-foreground">Marketplace</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Discover agents registered on-chain via ERC-8004.
+              Discover agents registered on-chain on Casper Network.
             </p>
           </div>
           <Button asChild variant="outline" size="sm" className="h-8 text-xs font-medium">
@@ -505,20 +490,20 @@ export default function MarketplacePage() {
                   )}
 
                   <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-                    <div className="rounded-md border border-border px-3 py-2">
+                    <div className="rounded-md border border-border px-3 py-2 min-w-0 overflow-hidden">
                       <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground/60">Agent ID</div>
-                      <div className="flex items-center gap-2 text-foreground">
-                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>{agent.onChainId}</span>
+                      <div className="flex items-center gap-1.5 text-foreground" title={agent.onChainId}>
+                        <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate font-mono text-[11px]">{shortenAddress(agent.onChainId)}</span>
                       </div>
                     </div>
-                    <div className="rounded-md border border-border px-3 py-2">
+                    <div className="rounded-md border border-border px-3 py-2 min-w-0">
                       <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground/60">Reputation</div>
-                      <div className="text-foreground">{agent.executions} rating{agent.executions === 1 ? "" : "s"}</div>
+                      <div className="text-foreground truncate">{agent.executions} rating{agent.executions === 1 ? "" : "s"}</div>
                     </div>
-                    <div className="rounded-md border border-border px-3 py-2">
+                    <div className="rounded-md border border-border px-3 py-2 min-w-0">
                       <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground/60">Protocol</div>
-                      <div className="text-foreground">{agent.price}</div>
+                      <div className="text-foreground truncate">{agent.price}</div>
                     </div>
                   </div>
 

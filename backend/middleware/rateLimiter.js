@@ -52,6 +52,9 @@ const priceLimiter = makeLimiter({ windowMs: 60 * 1000, max: 60, keyGenerator: i
 // 20 requests per minute — for transaction-signing endpoints
 const txLimiter = makeLimiter({ windowMs: 60 * 1000, max: 20, keyGenerator: ipKey });
 
+// 120 requests per minute — for agent management and discovery endpoints
+const agentLimiter = makeLimiter({ windowMs: 60 * 1000, max: 120, keyGenerator: ipKey });
+
 // 20 requests per minute per authenticated user — for tool-execution endpoints.
 // Per-user (not per-IP) prevents one user behind a shared NAT from blocking
 // the entire network.
@@ -207,7 +210,7 @@ setInterval(() => {
 }, 60_000).unref();
 
 module.exports = {
-  globalLimiter, chatLimiter, priceLimiter, txLimiter, userTxLimiter,
+  globalLimiter, chatLimiter, priceLimiter, txLimiter, agentLimiter, userTxLimiter,
   perToolLimiter, tierFor, FREE_TOOLS, PAID_TOOLS, WRITE_TOOLS,
   // Phase 29: tier-based rate limits for self-serve API key holders.
   tierRateLimiter,

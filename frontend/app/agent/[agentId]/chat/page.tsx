@@ -113,7 +113,7 @@ function ToolDetailsView({ toolResults }: { toolResults: ToolResults }) {
               <TooltipTrigger asChild>
                 <Badge variant="outline" className="text-[9px] h-4 bg-primary/10 text-primary border-primary/20 cursor-help flex items-center gap-1">
                   <CircleDot className="h-2 w-2" />
-                  ERC-8004 ID: {runtime.onChainId}
+                  Casper On-Chain ID: {runtime.onChainId}
                 </Badge>
               </TooltipTrigger>
               <TooltipContent side="top">
@@ -1260,15 +1260,14 @@ export default function AgentChatPage() {
 
   const fetchReputation = async (onChainId: string) => {
     try {
-      const cfg = CHAIN_CONFIGS[selectedChain] ?? CHAIN_CONFIGS["casper-test"]
-      const url = `${cfg.csprCloudUrl.replace(/\/$/, "")}/reputation/${encodeURIComponent(onChainId)}`
+      const url = `${BLOCKCHAIN_BACKEND_URL}/agents/on-chain/${encodeURIComponent(onChainId)}/reputation`
       const res = await fetch(url, { headers: { accept: "application/json" } })
       if (!res.ok) {
         setReputationScore(null)
         return
       }
       const data = await res.json().catch(() => null)
-      const score = Number(data?.averageScore ?? data?.score ?? data?.data?.averageScore ?? 0)
+      const score = Number(data?.averageScore ?? data?.score ?? data?.rating ?? 0)
       setReputationScore(Number.isFinite(score) ? score : null)
     } catch (e) {
       console.error("Error fetching reputation:", e)
@@ -1558,7 +1557,7 @@ export default function AgentChatPage() {
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="text-[10px] p-2 max-w-[200px]">
                         <p className="font-semibold mb-1">Decentralized Reputation</p>
-                        <p className="text-muted-foreground">This score is calculated from on-chain feedback and verified execution proofs (ERC-8004).</p>
+                        <p className="text-muted-foreground">This score is calculated from on-chain feedback and verified execution proofs on Casper Network.</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -1571,12 +1570,12 @@ export default function AgentChatPage() {
                           onClick={() => window.open(`${BLOCKCHAIN_BACKEND_URL}/agents/${agent.id}/manifest`, '_blank')}
                         >
                           <ShieldCheck className="h-2 w-2" />
-                          ERC-8004
+                          Casper On-Chain
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="text-[10px] p-2 max-w-[200px]">
                         <p className="font-semibold mb-1">On-Chain Identity Verified</p>
-                        <p className="text-muted-foreground mb-2">This agent is registered in the CasperOPs Identity Registry with ID #{agent.on_chain_id}.</p>
+                        <p className="text-muted-foreground mb-2">This agent is registered in the CasperOPs AgentFactory contract with address {agent.on_chain_id}.</p>
                         <p className="text-primary hover:underline cursor-pointer">Click to view manifest</p>
                       </TooltipContent>
                     </Tooltip>

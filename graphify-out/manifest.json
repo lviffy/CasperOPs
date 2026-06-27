@@ -125,14 +125,14 @@
     "semantic_hash": "3eab2fd21c6ea7b631c059d23c56e3ca"
   },
   "backend/controllers/agentController.js": {
-    "mtime": 1782370192.1021621,
-    "ast_hash": "039617a9e88e6bae3b17bb5b3b962373",
-    "semantic_hash": "039617a9e88e6bae3b17bb5b3b962373"
+    "mtime": 1782592442.0963352,
+    "ast_hash": "c5a7a61fe228d7154edd85dcfb1e381c",
+    "semantic_hash": ""
   },
   "backend/controllers/agentRegistryController.js": {
-    "mtime": 1782399330.333722,
-    "ast_hash": "f5973b7e95dd201ed654c0c9abffc16a",
-    "semantic_hash": "f5973b7e95dd201ed654c0c9abffc16a"
+    "mtime": 1782592862.6413252,
+    "ast_hash": "1c878691a3c83b14f40bb8dd811a5e39",
+    "semantic_hash": ""
   },
   "backend/controllers/contractChatController.js": {
     "mtime": 1782370192.101619,
@@ -140,8 +140,8 @@
     "semantic_hash": "acabb76fdcd0dd9840e6b4117c6d6914"
   },
   "backend/controllers/conversationController.js": {
-    "mtime": 1782469569.6948662,
-    "ast_hash": "e2d70144721467c7b220d932c8ab7c18",
+    "mtime": 1782588173.1113603,
+    "ast_hash": "c0a8c01598ec536ca6c9f33c30834b75",
     "semantic_hash": ""
   },
   "backend/controllers/emailController.js": {
@@ -150,8 +150,8 @@
     "semantic_hash": "596a12c676c6c8b97655180a751415e2"
   },
   "backend/controllers/nftController.js": {
-    "mtime": 1782480187.8302696,
-    "ast_hash": "51e9233df0fd2a8d1dd88fe05c766fba",
+    "mtime": 1782587312.5259597,
+    "ast_hash": "f495a55d186352b1f3dd1b3485977615",
     "semantic_hash": ""
   },
   "backend/controllers/priceController.js": {
@@ -175,14 +175,14 @@
     "semantic_hash": "389fcf79080cd42d2aedc88a4406767d"
   },
   "backend/controllers/tokenController.js": {
-    "mtime": 1782480179.5242527,
-    "ast_hash": "3484d4a5fc50727a6d4873e8aea101ce",
+    "mtime": 1782586750.9827397,
+    "ast_hash": "fc58fa944958f1e8c10af51edd02da1b",
     "semantic_hash": ""
   },
   "backend/controllers/transferController.js": {
-    "mtime": 1782370192.102008,
-    "ast_hash": "931c20750341518e1cb1be9f3dd88c67",
-    "semantic_hash": "931c20750341518e1cb1be9f3dd88c67"
+    "mtime": 1782586761.344664,
+    "ast_hash": "885f640ebcf775250e7bd17ee6688932",
+    "semantic_hash": ""
   },
   "backend/controllers/webhookController.js": {
     "mtime": 1782370192.102753,
@@ -245,9 +245,9 @@
     "semantic_hash": "70ef8a3e08a1d882121db2e8326e44ae"
   },
   "backend/middleware/validate.js": {
-    "mtime": 1782404723.2053297,
-    "ast_hash": "cb3efd284b1f52dee741567c0fa31662",
-    "semantic_hash": "cb3efd284b1f52dee741567c0fa31662"
+    "mtime": 1782588154.049309,
+    "ast_hash": "ec37095f0711911b4f911c58b151a670",
+    "semantic_hash": ""
   },
   "backend/middleware/validateEnv.js": {
     "mtime": 1782370192.1168108,
@@ -255,7 +255,7 @@
     "semantic_hash": "e2f9b30409581f602cc3f215f4998752"
   },
   "backend/middleware/x402-refund.js": {
-    "mtime": 1782370192.116332,
+    "mtime": 1782584055.3180606,
     "ast_hash": "a1a93df9daf8040777def2ce8d008bb1",
     "semantic_hash": "a1a93df9daf8040777def2ce8d008bb1"
   },
@@ -275,14 +275,14 @@
     "semantic_hash": "d0fae3c4b4d539518e90aa12ba557b7e"
   },
   "backend/routes/accountRoutes.js": {
-    "mtime": 1782370192.1107612,
-    "ast_hash": "e7602b466b7536a5af01027fc9e31609",
-    "semantic_hash": "e7602b466b7536a5af01027fc9e31609"
+    "mtime": 1782588276.4536455,
+    "ast_hash": "eb6eb3adbd90b65f36a58b04aef9e7d6",
+    "semantic_hash": ""
   },
   "backend/routes/agentRoutes.js": {
-    "mtime": 1782399458.8904352,
-    "ast_hash": "2238dcb804125b6f5efb0f106c3a411f",
-    "semantic_hash": "2238dcb804125b6f5efb0f106c3a411f"
+    "mtime": 1782592207.0700016,
+    "ast_hash": "18fb63075601045c607215f379ffee08",
+    "semantic_hash": ""
   },
   "backend/routes/analyticsRoutes.js": {
     "mtime": 1782370192.1119013,
@@ -330,9 +330,9 @@
     "semantic_hash": "35dccbca3d38d28bab26ae1701e93893"
   },
   "backend/routes/nftRoutes.js": {
-    "mtime": 1782370192.110444,
-    "ast_hash": "3cdf04cd581d6462dc441c4a8a526030",
-    "semantic_hash": "3cdf04cd581d6462dc441c4a8a526030"
+    "mtime": 1782587321.645958,
+    "ast_hash": "55086644dd7e31e0aa95dc3506e82aef",
+    "semantic_hash": ""
   },
   "backend/routes/priceRoutes.js": {
     "mtime": 1782370192.111108,
@@ -405,8 +405,8 @@
     "semantic_hash": ""
   },
   "backend/services/directToolExecutor.js": {
-    "mtime": 1782477641.1811497,
-    "ast_hash": "0cdc760392705e67321f7df95435d563",
+    "mtime": 1782592030.1287766,
+    "ast_hash": "57c31ff12c8ca2410328dfba8eb439f9",
     "semantic_hash": ""
   },
   "backend/services/emailService.js": {
@@ -430,9 +430,9 @@
     "semantic_hash": "03f4287ce05eed54ff7948158f755400"
   },
   "backend/services/telegramService.js": {
-    "mtime": 1782399433.4434857,
-    "ast_hash": "571d3a5b006f1a84b6bc19d9f2417cf6",
-    "semantic_hash": "571d3a5b006f1a84b6bc19d9f2417cf6"
+    "mtime": 1782588250.0105715,
+    "ast_hash": "ce1f824630222fef141b750c67c69dd6",
+    "semantic_hash": ""
   },
   "backend/services/toolAuditLogService.js": {
     "mtime": 1782474776.118564,
@@ -440,8 +440,8 @@
     "semantic_hash": ""
   },
   "backend/services/toolRouter.js": {
-    "mtime": 1782475440.8772943,
-    "ast_hash": "7ae3ab03f2602f9e29f35bad277d93f7",
+    "mtime": 1782588224.1214995,
+    "ast_hash": "a128bc72d7557d38f171556f1397b63a",
     "semantic_hash": ""
   },
   "backend/services/webhookService.js": {
@@ -615,8 +615,8 @@
     "semantic_hash": "0d7a37ce111308fd41f0b3ff95a21cb8"
   },
   "frontend/app/agent/[agentId]/chat/page.tsx": {
-    "mtime": 1782547633.6447957,
-    "ast_hash": "32fc25fab7a2a280421577c1d746260c",
+    "mtime": 1782592696.6427255,
+    "ast_hash": "257d1c850a20ff84880488359dff7508",
     "semantic_hash": ""
   },
   "frontend/app/agent/[agentId]/error.tsx": {
@@ -735,8 +735,8 @@
     "semantic_hash": "5119a6c8e187c55168f551b7766e9cfb"
   },
   "frontend/app/marketplace/page.tsx": {
-    "mtime": 1782547503.6979628,
-    "ast_hash": "5b0ed3c6c44118f152077372b0fd1dff",
+    "mtime": 1782593081.177826,
+    "ast_hash": "c6767392f28a721d7ce4b42dbeaa2c99",
     "semantic_hash": ""
   },
   "frontend/app/my-agents/error.tsx": {
@@ -750,8 +750,8 @@
     "semantic_hash": "5226de7c20bd490f1e810660b96a49c3"
   },
   "frontend/app/my-agents/page.tsx": {
-    "mtime": 1782546515.9978235,
-    "ast_hash": "b7dbbeb27b97c9f30ab24b34602bbbbc",
+    "mtime": 1782592681.9667022,
+    "ast_hash": "7e50d44939340d0ea0ab779b871e2bb3",
     "semantic_hash": ""
   },
   "frontend/app/page.tsx": {
@@ -1590,9 +1590,9 @@
     "semantic_hash": "a93b8994b591971ca409984ca3c5ee8b"
   },
   "n8n_agent_backend/dispatcher.py": {
-    "mtime": 1782370139.5925298,
-    "ast_hash": "7e7cc9c4c41192066f9c0308e22c43b9",
-    "semantic_hash": "7e7cc9c4c41192066f9c0308e22c43b9"
+    "mtime": 1782589357.7017343,
+    "ast_hash": "2fb40cfb91eb60a02f80b7f42ce4c996",
+    "semantic_hash": ""
   },
   "n8n_agent_backend/examples/crewai_agent.py": {
     "mtime": 1782370139.5867534,
@@ -1763,5 +1763,10 @@
     "mtime": 1782371558.8209963,
     "ast_hash": "a8d54fbaee9f3ff4a6ed50ebca4d2542",
     "semantic_hash": "a8d54fbaee9f3ff4a6ed50ebca4d2542"
+  },
+  "backend/__tests__/agentRoutes.test.js": {
+    "mtime": 1782592589.845559,
+    "ast_hash": "56cadcb16759ce4385ef352f4721a691",
+    "semantic_hash": ""
   }
 }

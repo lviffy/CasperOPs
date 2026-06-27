@@ -298,7 +298,7 @@ async function register_agent({ agentAddress, secretKey }) {
       'deploy_agent',
       args
     );
-    const payment = DeployUtil.standardPayment(100_000_000);
+    const payment = DeployUtil.standardPayment(3_000_000_000);
     const deploy = DeployUtil.makeDeploy(params, session, payment);
     const signed = DeployUtil.signDeploy(deploy, keys);
     const client = getClient();
@@ -360,7 +360,7 @@ async function attest_agent({ agentAddress, verified, metadataUri, secretKey }) 
       'attest_agent',
       args
     );
-    const payment = DeployUtil.standardPayment(150_000_000);
+    const payment = DeployUtil.standardPayment(3_000_000_000);
     const deploy = DeployUtil.makeDeploy(params, session, payment);
     const signed = DeployUtil.signDeploy(deploy, keys);
     const deployHash = await getClient().deploy(signed);
@@ -520,7 +520,7 @@ async function recordOnChainReputation(agentAddress, success) {
       entrypoint,
       args
     );
-    const payment = DeployUtil.standardPayment(100_000_000); // 0.1 CSPR
+    const payment = DeployUtil.standardPayment(3_000_000_000); // 3 CSPR
     const deploy = DeployUtil.makeDeploy(params, session, payment);
     const signed = DeployUtil.signDeploy(deploy, keys);
     const client = getClient();
@@ -587,7 +587,7 @@ async function post_message({ topic, message, secretKey }) {
       'post_message',
       args
     );
-    const payment = DeployUtil.standardPayment(150_000_000); // 0.15 CSPR
+    const payment = DeployUtil.standardPayment(3_000_000_000); // 3 CSPR
     const deploy = DeployUtil.makeDeploy(params, session, payment);
     const signed = DeployUtil.signDeploy(deploy, keys);
     const deployHash = await getClient().deploy(signed);

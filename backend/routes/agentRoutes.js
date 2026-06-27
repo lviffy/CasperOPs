@@ -16,7 +16,8 @@ const {
   regenerateApiKey,
   registerAgentOnChain,
   getAgentManifest,
-  deleteAgent
+  deleteAgent,
+  getAgentReputation
 } = require('../controllers/agentController');
 const apiKeyAuth = require('../middleware/apiKeyAuth');
 const {
@@ -36,6 +37,12 @@ const {
  * Get public agent manifest for ERC-8004
  */
 router.get('/:id/manifest', getAgentManifest);
+
+/**
+ * GET /agents/on-chain/:onChainId/reputation
+ * Get public agent reputation rating from on-chain Reputation contract
+ */
+router.get('/on-chain/:onChainId/reputation', getAgentReputation);
 
 /**
  * GET /agents/registry/discover

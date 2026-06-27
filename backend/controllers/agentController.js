@@ -390,12 +390,119 @@ async function getAgentManifest(req, res) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function registerAgentOnChain(req, res) {
-  return res.status(410).json({
-    success: false,
-    error: 'ERC-8004 on-chain registration has been removed in Phase 23. '
-      + 'Casper agents are anchored via POST /v1/tools/register_agent '
-      + 'against the AgentFactory contract.',
-  });
+  try {
+    const { id } = req.params;
+    const { data: agent, error: agentError } = await supabase
+      .from('agents')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (agentError || !agent) {
+      return res.status(404).json({ success: false, error: 'Agent not found' });
+    }
+
+    const { signerPublicKey } = req.body || {};
+    const agentAddress = agent.wallet_address || signerPublicKey;
+
+    if (!agentAddress) {
+      return res.status(400).json({
+        success: false,
+        error: 'Agent does not have a wallet address. Please connect your Casper wallet first.'
+      });
+    }
+
+    const { register_agent } = require('../services/directToolExecutor');
+    const result = await register_agent({ agentAddress });
+
+    if (!result || !result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result?.error || 'Failed to register agent on-chain against the AgentFactory contract.'
+      });
+    }
+
+    const updateData = { on_chain_id: agentAddress };
+    if (!agent.wallet_address) {
+      updateData.wallet_address = agentAddress;
+    }
+
+    const { error: updateError } = await supabase
+      .from('agents')
+      .update(updateData)
+      .eq('id', id);
+
+    if (updateError) {
+      return res.status(500).json({
+        success: false,
+        error: `Agent registered on-chain (Tx: ${result.deployHash}), but database update failed: ${updateError.message}`
+      });
+    }
+
+    // Automatically upsert default agent registry record with on-chain registration proof
+    const registryPayload = {
+      onChainRegistration: {
+        transactionHash: result.deployHash,
+        transactionExplorerUrl: `${process.env.CASPER_EXPLORER_URL || 'https://testnet.cspr.live'}/deploy/${result.deployHash}`,
+        registeredAt: new Date().toISOString(),
+      }
+    };
+
+    await supabase
+      .from('agent_registry')
+      .upsert({
+        agent_id: id,
+        user_id: agent.user_id,
+        display_name: agent.name,
+        description: agent.description,
+        capabilities: agent.enabled_tools || [],
+        supported_chains: ['casper-testnet'],
+        metadata: registryPayload,
+        status: 'active',
+        version: 1,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'agent_id' });
+
+    return res.json({
+      success: true,
+      onChainId: agentAddress,
+      transactionHash: result.deployHash
+    });
+  } catch (err) {
+    console.error('[Agent] On-chain registration error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+async function getAgentReputation(req, res) {
+  try {
+    const { onChainId } = req.params;
+    if (!onChainId) {
+      return res.status(400).json({ success: false, error: 'onChainId is required' });
+    }
+
+    const { get_reputation } = require('../services/directToolExecutor');
+    const result = await get_reputation({ agentAddress: onChainId });
+
+    if (!result || !result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result?.error || 'Failed to fetch agent reputation from contract.'
+      });
+    }
+
+    return res.json({
+      success: true,
+      rating: result.rating,
+      score: result.rating,
+      averageScore: result.rating,
+      successCount: result.successCount,
+      failureCount: result.failureCount,
+    });
+  } catch (err) {
+    console.error('[Agent] getAgentReputation error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 }
 
 module.exports = {
@@ -409,4 +516,5 @@ module.exports = {
   getAgentManifest,
   getAgentById,
   verifyApiKey,
+  getAgentReputation,
 };
