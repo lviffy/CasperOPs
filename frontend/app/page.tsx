@@ -130,19 +130,17 @@ export default function Home() {
       {/* Navigation */}
       <nav className="sticky top-2 sm:top-4 z-50 px-3 sm:px-6">
         <div className="container mx-auto max-w-6xl bg-white/80 backdrop-blur-md rounded-xl sm:rounded-2xl border border-slate-200 shadow-lg shadow-slate-900/5">
-          <div className="px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
+          <div className="px-3 sm:px-6 py-0 flex items-center justify-between">
+            <Link href="/" className="flex items-center group">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 relative transition-transform group-hover:scale-105">
                 <Image 
-                  src="/logo.jpeg" 
+                  src="/casperops-logo.png" 
                   alt="CasperOPs Logo" 
                   fill
                   priority
-                  className="object-cover"
+                  className="object-contain"
                 />
               </div>
-              <span className="text-lg sm:text-xl font-semibold text-slate-900">CasperOPs</span>
             </Link>
 
             {/* Desktop Nav Links */}
@@ -298,10 +296,10 @@ export default function Home() {
           </div>
 
           {/* Main Heading */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-6 max-w-4xl mt-2 sm:mt-4 px-4">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-serif font-normal tracking-tight mb-4 sm:mb-6 max-w-4xl mt-2 sm:mt-4 px-4">
             <span className="text-slate-900">Build AI agents that</span>
             <br />
-            <span className="text-primary">automate blockchain</span>
+            <span className="text-primary italic">automate blockchain</span>
           </h1>
 
           {/* Subheading */}
@@ -403,9 +401,9 @@ export default function Home() {
             <p className="text-white/50 text-xs sm:text-sm font-medium mb-3 sm:mb-4 tracking-wide">
               Limitless Possibilities
             </p>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 max-w-4xl">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-normal text-white mb-4 max-w-4xl">
               Automate anything on-chain{" "}
-              <span className="text-white/50">with powerful, composable blocks.</span>
+              <span className="text-white/50 italic">with powerful, composable blocks.</span>
             </h2>
           </div>
 
@@ -470,7 +468,7 @@ export default function Home() {
       <section className="bg-slate-50 py-16 sm:py-20 lg:py-24">
         <div className="container mx-auto px-4 sm:px-6 max-w-6xl">
           <div className="text-center mb-12 sm:mb-16 lg:mb-20">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 sm:mb-4">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-normal text-slate-900 mb-3 sm:mb-4">
               Everything you need
             </h2>
             <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto px-4">
@@ -485,7 +483,7 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section className="relative w-full pt-12 lg:pt-20 pb-8 lg:pb-12 bg-slate-50 overflow-hidden">
+      <section className="relative w-full pt-12 lg:pt-20 pb-8 lg:pb-12 bg-slate-100 overflow-hidden">
         <div className="w-full px-[2vw]">
           <div className="max-w-[2000px] mx-auto">
             <div className="relative bg-[#1A1214] rounded-3xl overflow-hidden">
@@ -625,7 +623,7 @@ export default function Home() {
                 <p className="text-xs sm:text-sm font-semibold tracking-widest uppercase text-emerald-400">
                   HOW IT WORKS
                 </p>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold leading-tight text-white">
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-serif font-normal leading-tight text-white">
                   Automation Made Simple
                 </h1>
               </div>
@@ -659,21 +657,20 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-white py-12 sm:py-16">
+      <footer className="bg-black text-white py-12 sm:py-16">
         <div className="container mx-auto px-4 sm:px-6 max-w-6xl">
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 lg:gap-12 mb-10 sm:mb-12">
             {/* Company Info */}
             <div className="col-span-2 sm:col-span-1">
-              <Link href="/" className="flex items-center gap-2 mb-4 group">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
+              <Link href="/" className="flex mb-4 group -mt-[26px] sm:-mt-[34px]">
+                <div className="w-28 h-28 sm:w-32 sm:h-32 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
                   <Image 
-                    src="/logo.jpeg" 
+                    src="/casperops-logo.png" 
                     alt="CasperOPs Logo" 
                     fill
-                    className="object-cover"
+                    className="object-contain"
                   />
                 </div>
-                <span className="text-base sm:text-lg font-semibold">CasperOPs</span>
               </Link>
               <p className="text-slate-400 text-sm leading-relaxed">
                 Building the future of blockchain automation.
@@ -712,7 +709,7 @@ export default function Home() {
           {/* Bottom Bar */}
           <div className="border-t border-slate-800 pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-slate-400 text-xs sm:text-sm text-center sm:text-left">
-              © 2025 CasperOPs. All rights reserved.
+              © 2026 CasperOPs. All rights reserved.
             </p>
             <div className="flex gap-5 sm:gap-6">
               <a href="#" className="text-slate-400 hover:text-white transition-colors">

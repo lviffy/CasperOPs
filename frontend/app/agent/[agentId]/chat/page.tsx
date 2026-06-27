@@ -36,7 +36,7 @@ import {
 import type { Agent } from "@/lib/supabase"
 import { supabase } from "@/lib/supabase"
 import { signDeploy, sendDeploy, casperDeployUrl } from "@/lib/wallet"
-import { CHAIN_CONFIGS, getChainConfig, getStoredChain, type SupportedChainId } from "@/lib/chains"
+import { CHAIN_CONFIGS, getChainConfig, getStoredChain, setStoredChain, type SupportedChainId } from "@/lib/chains"
 
 const DEFAULT_EMAIL_RECIPIENT_KEY = "casperops.defaultEmailRecipient"
 const AUDIT_LOG_FETCH_LIMIT = 200
@@ -1156,7 +1156,7 @@ export default function AgentChatPage() {
   const [isAuditSheetOpen, setIsAuditSheetOpen] = useState(false)
   const [isReminderSheetOpen, setIsReminderSheetOpen] = useState(false)
   const [conversationId, setConversationId] = useState<string | undefined>(undefined)
-  const [selectedChain, setSelectedChain] = useState<SupportedChainId>("casper-testnet")
+  const [selectedChain, setSelectedChain] = useState<SupportedChainId>("casper-test")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const sendInFlightRef = useRef(false)
@@ -1260,7 +1260,7 @@ export default function AgentChatPage() {
 
   const fetchReputation = async (onChainId: string) => {
     try {
-      const cfg = CHAIN_CONFIGS[selectedChain] ?? CHAIN_CONFIGS["casper-testnet"]
+      const cfg = CHAIN_CONFIGS[selectedChain] ?? CHAIN_CONFIGS["casper-test"]
       const url = `${cfg.csprCloudUrl.replace(/\/$/, "")}/reputation/${encodeURIComponent(onChainId)}`
       const res = await fetch(url, { headers: { accept: "application/json" } })
       if (!res.ok) {
@@ -1327,7 +1327,7 @@ export default function AgentChatPage() {
       const savedEmailRecipient = typeof window !== "undefined"
         ? window.localStorage.getItem(DEFAULT_EMAIL_RECIPIENT_KEY)?.trim()
         : ""
-      const effectiveDefaultEmailTo = savedEmailRecipient || user?.email?.address || undefined
+      const effectiveDefaultEmailTo = savedEmailRecipient || (user as any)?.email?.address || undefined
       const effectiveWalletAddress =
         dbUser?.wallet_address ||
         signerPublicKey ||
@@ -1342,12 +1342,12 @@ export default function AgentChatPage() {
         deliveryPlatform: "web",
         systemPrompt: `You are a helpful AI assistant for blockchain operations. The agent has these tools: ${agent.tools?.map((t) => t.tool).join(", ")}`,
         walletAddress: effectiveWalletAddress,
-        walletType: "csprclick",
+        walletType: "csprclick" as any,
         pkpPublicKey: undefined,
         pkpTokenId: undefined,
         privateKey: undefined,
         defaultEmailTo: effectiveDefaultEmailTo,
-        userEmail: user?.email?.address || undefined,
+        userEmail: (user as any)?.email?.address || undefined,
       })
 
       if (data.isNewConversation) {

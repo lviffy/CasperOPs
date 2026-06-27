@@ -45,7 +45,7 @@ export function UserProfile({ onLogout }: UserProfileProps) {
   // Get user initials for avatar - NO LONGER USED, keeping for reference
   const getUserInitials = () => {
     // Check if user has an email (from Privy user object structure)
-    const email = user?.email?.address
+    const email = (user as any)?.email?.address
     if (email) {
       return email.substring(0, 2).toUpperCase()
     }
@@ -95,9 +95,9 @@ export function UserProfile({ onLogout }: UserProfileProps) {
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">Account</p>
-              {user?.email?.address && (
+              {(user as any)?.email?.address && (
                 <p className="text-xs leading-none text-muted-foreground">
-                  {user.email.address}
+                  {(user as any).email.address}
                 </p>
               )}
             </div>

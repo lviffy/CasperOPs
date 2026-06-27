@@ -95,7 +95,7 @@ export function useDeployStatusToast() {
         dismiss(toastIdRef.current)
         toastIdRef.current = null
       }
-      const id = showStatusToast({
+      const id = showStatusToast(toast, {
         ...stateRef.current,
       })
       toastIdRef.current = id
@@ -113,7 +113,7 @@ export function useDeployStatusToast() {
         message: "Submitted to Casper network…",
       }
       setActive({ ...stateRef.current })
-      const id = showStatusToast({ ...stateRef.current })
+      const id = showStatusToast(toast, { ...stateRef.current })
       toastIdRef.current = id
 
       if (immediateError) {
@@ -154,7 +154,7 @@ export function useDeployStatusToast() {
   return { trackingToast, activeTracking: active, stopTracking: stop }
 }
 
-function showStatusToast(state: DeployTrackingState): string {
+function showStatusToast(toast: any, state: DeployTrackingState): string {
   const { id } = toast({
     title: deployTitle(state),
     description: deployDescription(state),

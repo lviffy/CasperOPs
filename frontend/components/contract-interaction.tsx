@@ -361,7 +361,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
         const planResponse = await executeNaturalLanguageCommand(
           contractHash,
           userMessage,
-          { walletType: 'csprclick', publicKey },
+          { walletType: 'csprclick', pkpPublicKey: publicKey },
           false,
         )
 

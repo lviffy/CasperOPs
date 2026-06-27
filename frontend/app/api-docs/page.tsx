@@ -30,7 +30,7 @@ export default function ApiDocs() {
               Back to Home
             </Link>
           </Button>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-4">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-normal tracking-tight mb-4">
             API Documentation
           </h1>
           <p className="text-muted-foreground text-lg">

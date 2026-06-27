@@ -8,7 +8,7 @@
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
 import { CHAIN_CONFIGS, DEFAULT_CHAIN_ID } from '@/lib/chains';
-import { CLPublicKey } from 'casper-js-sdk';
+import { PublicKey } from 'casper-js-sdk';
 
 export interface PaymentVerificationRequest {
   paymentHash: string;
@@ -124,7 +124,7 @@ async function verifyCasperDeploy(deployHash: string, expectedRecipient: string,
             // Normalize and compare (recipient public key or derived account hash)
             let expectedRecipientHash = "";
             try {
-              expectedRecipientHash = CLPublicKey.fromHex(expectedRecipient).toAccountHashStr();
+              expectedRecipientHash = (PublicKey.fromHex(expectedRecipient) as any).toAccountHashStr();
             } catch { /* ignore */ }
             
             const cleanKey = (str: string) => {
@@ -163,7 +163,7 @@ async function verifyCasperDeploy(deployHash: string, expectedRecipient: string,
 }
 
 export class PaymentService {
-  private _supabase: ReturnType<typeof createClient> | null = null
+  private _supabase: any = null
   private jwtSecret: string;
   private paymentRecipient: string;
 
@@ -175,7 +175,7 @@ export class PaymentService {
       '';
   }
 
-  private get supabase() {
+  private get supabase(): any {
     if (!this._supabase) {
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const key = process.env.SUPABASE_SERVICE_ROLE_KEY;

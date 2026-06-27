@@ -71,7 +71,6 @@ export default function PaymentDemo() {
                 <p className="text-sm text-muted-foreground">AI Generation</p>
                 <ToolPricingBadge 
                   toolName="ai_workflow_generation"
-                  size="md"
                   showTooltip={true}
                 />
               </div>
@@ -79,7 +78,6 @@ export default function PaymentDemo() {
                 <p className="text-sm text-muted-foreground">Deploy ERC-20</p>
                 <ToolPricingBadge 
                   toolName="deploy_erc20"
-                  size="md"
                   showTooltip={true}
                 />
               </div>
@@ -87,7 +85,6 @@ export default function PaymentDemo() {
                 <p className="text-sm text-muted-foreground">Deploy NFT</p>
                 <ToolPricingBadge 
                   toolName="deploy_nft"
-                  size="md"
                   showTooltip={true}
                 />
               </div>
@@ -95,7 +92,6 @@ export default function PaymentDemo() {
                 <p className="text-sm text-muted-foreground">Transfer Token</p>
                 <ToolPricingBadge 
                   toolName="transfer"
-                  size="md"
                   showTooltip={true}
                 />
               </div>
@@ -147,9 +143,7 @@ export default function PaymentDemo() {
             {paymentHash && (
               <PaymentStatusIndicator
                 paymentHash={paymentHash}
-                autoRefresh={true}
                 showDetails={true}
-                size="md"
               />
             )}
             {!paymentHash && (

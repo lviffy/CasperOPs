@@ -364,7 +364,7 @@ export default function EscrowPage() {
             {authenticated ? (
               <UserProfile onLogout={() => { logout(); router.push("/") }} />
             ) : (
-              <Button size="sm" onClick={login} className="bg-purple-600 hover:bg-purple-500 text-white border-0 text-xs px-4 h-8 rounded-lg">
+              <Button size="sm" onClick={() => login()} className="bg-purple-600 hover:bg-purple-500 text-white border-0 text-xs px-4 h-8 rounded-lg">
                 Connect Wallet
               </Button>
             )}
@@ -384,7 +384,7 @@ export default function EscrowPage() {
               Connect your Casper wallet via CSPR.click to manage smart escrow accounts, delegate budgets, and configure spending limits for your AI agents.
             </p>
           </div>
-          <Button onClick={login} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold px-8 py-2.5 rounded-lg border-0 shadow-lg shadow-purple-500/10 w-full">
+          <Button onClick={() => login()} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold px-8 py-2.5 rounded-lg border-0 shadow-lg shadow-purple-500/10 w-full">
             Connect Casper Wallet
           </Button>
         </div>

@@ -160,7 +160,7 @@ export default function ContractExplorerPage() {
                 >
                   <ArrowLeft className="size-4" />
                 </button>
-                <h1 className="text-2xl font-semibold tracking-tight">
+                <h1 className="text-3xl font-serif font-normal tracking-tight">
                   Contract Explorer
                 </h1>
               </div>

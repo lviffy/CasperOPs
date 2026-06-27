@@ -186,9 +186,9 @@ This script is engineered to show the deep technical implementation within the 5
 
 * **Visual**: Show Slide 1 (Title), then transition to a split screen: the React Flow canvas on the left, and the Express backend code (`x402-verify.js`) and Odra smart contract workspace on the right.
 * **Voiceover**:
-  > *"Hi, I'm [Name]. CasperOPs is a no-code and low-code platform that enables anyone to execute daily blockchain operations and establishes state-level trust and on-chain accountability for autonomous AI agents on Casper.*
+  > *"Hi, I'm Rohan. Casper-ops is a no-code and low-code platform that enables anyone to execute daily blockchain operations and establishes state-level trust and on-chain accountability for autonomous A-I agents on Casper.*
   > 
-  > *At its core, CasperOPs solves the 'agent trust problem' by combining a visual workflow canvas, a Python MCP server for external framework agents, and 6 robust Odra smart contracts on the Casper Testnet that handle registry, reputation, escrow, and compliance."*
+  > *At its core, Casper-ops solves the 'agent trust problem' by combining a visual workflow canvas, a Python M-C-P server for external framework agents, and six robust Odra smart contracts on the Casper Testnet that handle registry, reputation, escrow, and compliance."*
 
 ---
 
@@ -196,7 +196,7 @@ This script is engineered to show the deep technical implementation within the 5
 
 * **Visual**: Show the visual canvas. Drag the `deploy_cep18` tool node onto the screen and connect it to a `mint_nft` node. Select the **RWA Verifier** template from the dropdown, showing the pre-configured workflow. Show the **Live Reasoning Terminal** on the side streaming logs: `[Routing] Analyzing request... [Plan] Step 1: deploy_cep18...`
 * **Voiceover**:
-  > *"Users build workflows by connecting tools on our React Flow canvas. CasperOPs acts as a visual gateway for daily operations: you can deploy CEP-18 tokens, mint CEP-78 NFTs, and manage portfolios without writing a line of code.*
+  > *"Users build workflows by connecting tools on our React Flow canvas. Casper-ops acts as a visual gateway for daily operations: you can deploy C-E-P eighteen tokens, mint C-E-P seventy-eight N-F-Ts, and manage portfolios without writing a line of code.*
   > 
   > *Behind the scenes, our intelligent routing engine analyzes the user's natural language input, constructs a dependency graph of tool executions, and streams the reasoning logs to this live terminal in real-time."*
 
@@ -206,9 +206,9 @@ This script is engineered to show the deep technical implementation within the 5
 
 * **Visual**: Click **Run**. Show the CSPR.click login. Click **Pay 0.5 CSPR**. Show the CSPR.click popup signing the deploy. Once signed, show the green success toast appearing with a link to `testnet.cspr.live/deploy/...`.
 * **Voiceover**:
-  > *"When a paid tool is invoked, the backend returns an HTTP 402 challenge with a pre-configured Casper deploy template. The client signs this micropayment via CSPR.click with a single tap, keeping their private keys completely secure and non-custodial.*
+  > *"When a paid tool is invoked, the backend returns an H-T-T-P four-oh-two challenge with a pre-configured Casper deploy template. The client signs this micropayment via C-S-P-R dot click with a single tap, keeping their private keys completely secure and non-custodial.*
   > 
-  > *The frontend broadcasts the deploy and retries the request with the deploy hash. The backend verifies the deploy's on-chain execution, asserts that the signer matches the payer, validates the treasury recipient, and caches the transaction in-memory for 5 minutes to prevent double-spending."*
+  > *The frontend broadcasts the deploy and retries the request with the deploy hash. The backend verifies the deploy's on-chain execution, asserts that the signer matches the payer, validates the treasury recipient, and caches the transaction in-memory for five minutes to prevent double-spending."*
 
 ---
 
@@ -218,7 +218,7 @@ This script is engineered to show the deep technical implementation within the 5
 * **Voiceover**:
   > *"To protect users from rogue agent behavior, we've implemented an Odra Escrow contract. Users deposit their transaction budget into a secure, time-locked vault. The funds are only released to the agent's developer when successful execution is proven on-chain.*
   > 
-  > *Every success and failure is logged by our Reputation contract, maintaining an immutable, decentralized rating index for all AI nodes, with an attestation cooldown mechanism to prevent spam."*
+  > *Every success and failure is logged by our Reputation contract, maintaining an immutable, decentralized rating index for all A-I nodes, with an attestation cooldown mechanism to prevent spam."*
 
 ---
 
@@ -226,7 +226,7 @@ This script is engineered to show the deep technical implementation within the 5
 
 * **Visual**: Switch to the Telegram desktop client. Send `/balance` to the bot, showing the balance return. Send `/agents` to show the list of on-chain registered agents. Send `/transfer` to execute a transfer, displaying the deploy hash with a CSPR.live button.
 * **Voiceover**:
-  > *"For mobile operations, our Telegram bot connects directly to the backend. Running `/balance` or `/agents` queries the Casper RPC and CSPR.cloud APIs, rendering interactive inline keyboards for seamless wallet and agent management on-the-go. You can even execute native CSPR transfers directly through the chat interface."*
+  > *"For mobile operations, our Telegram bot connects directly to the backend. Running slash balance or slash agents queries the Casper R-P-C and C-S-P-R dot cloud A-P-Is, rendering interactive inline keyboards for seamless wallet and agent management on-the-go. You can even execute native C-S-P-R transfers directly through the chat interface."*
 
 ---
 
@@ -234,7 +234,7 @@ This script is engineered to show the deep technical implementation within the 5
 
 * **Visual**: Transition to a terminal showing a Python agent script running LangGraph. Show logs indicating MCP tool discovery and execution: `[MCP] Exposing tool: get_balance...`
 * **Voiceover**:
-  > *"Additionally, our Python MCP server exposes all 19 tools to external AI frameworks. This allows autonomous agents built with LangGraph, CrewAI, or n8n to connect to Casper natively using stdio or HTTP/SSE transports, allowing them to pay for their own data feeds and compute via x402."*
+  > *"Additionally, our Python M-C-P server exposes all nineteen tools to external A-I frameworks. This allows autonomous agents built with Lang-Graph, Crew-A-I, or n-eight-n to connect to Casper natively using stdio or H-T-T-P S-S-E transports, allowing them to pay for their own data feeds and compute via x-four-oh-two."*
 
 ---
 
@@ -242,7 +242,7 @@ This script is engineered to show the deep technical implementation within the 5
 
 * **Visual**: Show the Express code for `x402-refund.js`. Show the terminal running the test suite: `All 223 backend tests passed. All 40 frontend tests passed.`
 * **Voiceover**:
-  > *"Security is central to CasperOPs. If a paid tool fails to execute after payment is verified, our automated refund middleware automatically signs and broadcasts a refund deploy from the treasury back to the user. The entire codebase is verified by extensive test suites covering all execution and routing scenarios."*
+  > *"Security is central to Casper-ops. If a paid tool fails to execute after payment is verified, our automated refund middleware automatically signs and broadcasts a refund deploy from the treasury back to the user. The entire codebase is verified by extensive test suites covering all execution and routing scenarios."*
 
 ---
 
@@ -250,7 +250,7 @@ This script is engineered to show the deep technical implementation within the 5
 
 * **Visual**: Show Slide 8 (Links, Telegram Bot, GitHub, and staging URL `https://casperops.dev`).
 * **Voiceover**:
-  > *"CasperOPs is fully unit-tested and live today on the Casper Testnet at casperops.dev. Build trust in agentic operations and simplify your daily blockchain tasks. Thanks for watching, and please vote for us on CSPR.fans."*
+  > *"Casper-ops is fully unit-tested and live today on the Casper Testnet at casper-ops dot dev. Build trust in agentic operations and simplify your daily blockchain tasks. Thanks for watching, and please vote for us on C-S-P-R dot fans."*
 
 ---
 

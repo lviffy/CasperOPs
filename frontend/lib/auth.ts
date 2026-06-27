@@ -244,7 +244,7 @@ export function useAuth() {
     syncUser,
 
     showPrivateKeySetup: false,
-    setShowPrivateKeySetup: () => {},
+    setShowPrivateKeySetup: (show: boolean) => {},
     pkpSchemaReady: schemaReady,
     schemaReady,
   }

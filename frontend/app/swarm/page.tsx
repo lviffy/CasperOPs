@@ -200,7 +200,7 @@ export default function SwarmWorkspace() {
   ];
 
   return (
-    <div className="min-h-screen bg-background font-aeonik">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
@@ -250,7 +250,7 @@ export default function SwarmWorkspace() {
         {/* Page title */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            <h1 className="text-3xl font-serif font-normal tracking-tight text-foreground">
               Swarm Workspace
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">

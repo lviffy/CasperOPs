@@ -35,6 +35,7 @@ interface GasProfile {
   estimatedPaymentMotes: string;
   suggestions: WasmSuggestion[];
   breakdown: { baseCspr: number; sizeCostCspr: number; complexityCspr: number };
+  memoryPageCount?: number | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

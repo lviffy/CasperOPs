@@ -99,7 +99,7 @@ export default async function ChangelogPage() {
   return (
     <main className="container mx-auto px-4 py-12 max-w-3xl">
       <header className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Changelog</h1>
+        <h1 className="text-3xl font-serif font-normal">Changelog</h1>
         <Link href="/" className="text-sm text-muted-foreground underline">
           ← Back to home
         </Link>

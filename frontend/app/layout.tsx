@@ -1,60 +1,36 @@
 import '../lib/localStorage-polyfill'
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
-import localFont from "next/font/local";
-import { Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import Script from "next/script";
 
-const aeonik = localFont({
-  src: [
-    {
-      path: "./fonts/AeonikTRIAL-Light.otf",
-      weight: "300",
-      style: "normal",
-    },
-    {
-      path: "./fonts/AeonikTRIAL-LightItalic.otf",
-      weight: "300",
-      style: "italic",
-    },
-    {
-      path: "./fonts/AeonikTRIAL-Regular.otf",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "./fonts/AeonikTRIAL-RegularItalic.otf",
-      weight: "400",
-      style: "italic",
-    },
-    {
-      path: "./fonts/AeonikTRIAL-Bold.otf",
-      weight: "700",
-      style: "normal",
-    },
-    {
-      path: "./fonts/AeonikTRIAL-BoldItalic.otf",
-      weight: "700",
-      style: "italic",
-    },
-  ],
-  variable: "--font-aeonik",
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
   display: "swap",
-  fallback: ["monospace"],
+});
+
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "CasperOPs Agent Builder",
   description: "Build your own CasperOPs agents with ease.",
   icons: {
-    icon: "/logo.jpeg",
+    icon: "/casperops-logo.png",
   },
 };
 
@@ -67,10 +43,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-        <link rel="icon" href="/logo.jpeg" type="image/jpeg" />
+        <link rel="icon" href="/casperops-logo.png" type="image/png" />
       </head>
       <body
-        className={`${aeonik.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} antialiased`}
         suppressHydrationWarning
       >
         <Script id="click-ui-options" strategy="beforeInteractive">

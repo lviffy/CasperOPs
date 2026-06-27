@@ -204,7 +204,6 @@ function buildFallbackManifest(agent: {
     paymentProtocol: "x402",
     chain: {
       name: "Casper Testnet",
-      network: CASPER_NETWORK,
     },
   } satisfies AgentManifest
 }
@@ -265,7 +264,7 @@ export default function MarketplacePage() {
           },
         },
       }
-      const result = await sendDeploy(deployJson, account.publicKey)
+      const result = await sendDeploy(deployJson, account.publicKey) as any
       const hash = result?.deployHash || result?.hash || ""
       setEscrowDeployHash(hash)
       setEscrowedIds((prev) => {
@@ -386,7 +385,7 @@ export default function MarketplacePage() {
     })
 
   return (
-    <div className="min-h-screen bg-background font-aeonik">
+    <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
           <div className="flex items-center gap-2">
@@ -408,7 +407,7 @@ export default function MarketplacePage() {
       <main className="mx-auto max-w-5xl px-6 py-10">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Marketplace</h1>
+            <h1 className="text-3xl font-serif font-normal tracking-tight text-foreground">Marketplace</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Discover agents registered on-chain via ERC-8004.
             </p>

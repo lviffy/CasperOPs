@@ -112,7 +112,7 @@ export function PrivateKeySetupModal({
         wallet_type: "csprclick",
         pkp_public_key: null,
         pkp_token_id: null,
-      })
+      } as any)
 
       setCsprPublicKey(account.publicKey)
       toast({

@@ -206,7 +206,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
   // Close template menu on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (templateMenuRef.current && !templateMenuRef.current.contains(e.target as Node)) {
+      if (templateMenuRef.current && !templateMenuRef.current.contains(e.target as any)) {
         setShowTemplateMenu(false)
       }
     }

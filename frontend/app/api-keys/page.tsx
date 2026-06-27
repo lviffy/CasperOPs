@@ -111,7 +111,7 @@ export default function ApiKeysPage() {
   return (
     <main className="container mx-auto px-4 py-8 max-w-3xl">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
+        <h1 className="text-3xl font-serif font-normal flex items-center gap-2">
           <KeyRound className="h-7 w-7" /> API keys
         </h1>
         <p className="text-muted-foreground mt-2">

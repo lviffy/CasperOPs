@@ -16,7 +16,6 @@ const sdkMock = {
   signMessage: vi.fn(),
 }
 
-// @ts-expect-error - we deliberately attach a partial mock to window.csprclick
 ;(globalThis as any).window = { csprclick: sdkMock }
 
 import {
@@ -45,7 +44,6 @@ describe("wallet (CSPR.click)", () => {
 
   it("initCsprClick is a no-op on the server", () => {
     const originalWindow = (globalThis as any).window
-    // @ts-expect-error
     delete (globalThis as any).window
     expect(initCsprClick()).toBeNull()
     ;(globalThis as any).window = originalWindow

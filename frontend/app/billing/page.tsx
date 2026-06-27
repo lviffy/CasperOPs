@@ -132,7 +132,7 @@ export default function BillingPage() {
   return (
     <main className="container mx-auto px-4 py-8 max-w-3xl">
       <header className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Billing</h1>
+        <h1 className="text-3xl font-serif font-normal">Billing</h1>
         <div className="flex gap-4 items-center">
           <Link href="/billing/analytics" className="text-sm text-primary hover:underline">
             View Analytics →

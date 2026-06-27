@@ -147,7 +147,7 @@ export default function PaymentModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paymentHash: deployHash,
-          userId: user.id,
+          userId: user!.id,
           agentId,
           toolName,
           amountCspr: price,
