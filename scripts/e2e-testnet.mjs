@@ -80,15 +80,20 @@ let mock = null;
 if (!DRYRUN) {
   const cleanSecret = SECRET.startsWith("0x") ? SECRET.slice(2) : SECRET;
   const secretBytes = Buffer.from(cleanSecret, "hex");
-  if (secretBytes.length === 32) {
-    try {
-      keys = Keys.Ed25519.loadKeyPairFromPrivateKey(secretBytes);
-      if (!keys.publicKey.isEd25519()) throw new Error("not ed25519");
-    } catch {
-      keys = Keys.Secp256K1.loadKeyPairFromPrivateKey(secretBytes);
+  try {
+    if (secretBytes.length === 32) {
+      const privKey = Keys.Ed25519.parsePrivateKey(secretBytes);
+      const pubKey = Keys.Ed25519.privateToPublicKey(privKey);
+      keys = Keys.Ed25519.parseKeyPair(pubKey, privKey);
+    } else {
+      const privKey = Keys.Secp256K1.parsePrivateKey(secretBytes);
+      const pubKey = Keys.Secp256K1.privateToPublicKey(privKey);
+      keys = Keys.Secp256K1.parseKeyPair(pubKey, privKey);
     }
-  } else {
-    throw new Error(`Unsupported secret key length: ${secretBytes.length} bytes`);
+  } catch {
+    const privKey = Keys.Secp256K1.parsePrivateKey(secretBytes);
+    const pubKey = Keys.Secp256K1.privateToPublicKey(privKey);
+    keys = Keys.Secp256K1.parseKeyPair(pubKey, privKey);
   }
   ALGO = keys.publicKey.isEd25519() ? "ed25519" : "secp256k1";
   DEPLOYER = keys.publicKey.toHex();
@@ -114,9 +119,13 @@ function flush() {
 
 async function rpc(method, params = {}) {
   if (DRYRUN) return mock.rpc(method, params);
+  const headers = { "content-type": "application/json" };
+  if (process.env.CSPR_CLOUD_API_KEY) {
+    headers["authorization"] = process.env.CSPR_CLOUD_API_KEY;
+  }
   const res = await fetch(RPC, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers,
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
   if (!res.ok) throw new Error(`RPC ${method} HTTP ${res.status}`);
